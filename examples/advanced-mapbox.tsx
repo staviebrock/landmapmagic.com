@@ -1,6 +1,6 @@
 import React from 'react';
 import { Map, Source, Layer as MapLayer } from 'react-map-gl';
-import { useLandMaps, useAoiDraw, useAoiQuery, InstallPmtilesProtocol } from '@landmap/mapbox';
+import { useLandMaps, useAoiDraw, useAoiQuery, InstallPmtilesProtocol } from '@landmapmagic/mapbox';
 
 // Advanced usage with Mapbox and hooks
 export default function AdvancedMapboxExample() {

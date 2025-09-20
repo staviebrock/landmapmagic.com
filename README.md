@@ -1,4 +1,4 @@
-# @landmap
+# @landmapmagic
 
 The easiest way to build maps about land in your apps.
 
@@ -19,18 +19,44 @@ A single npm package that makes it **extremely easy** for developers to display 
 ### Installation
 
 ```bash
-npm install @landmap maplibre-gl react react-dom
+npm install @landmapmagic maplibre-gl react react-dom
 ```
+
+### Build-Time Configuration (Required)
+
+**IMPORTANT:** You must configure the map style URL before building this package. The `REACT_APP_MAP_STYLE_URL` environment variable is **mandatory** and gets baked into the bundle at build time.
+
+```bash
+# REQUIRED: Map Style Configuration  
+REACT_APP_MAP_STYLE_URL=https://api.maptiler.com/maps/basic-v2/style.json?key=YOUR_KEY
+
+# OPTIONAL: API Configuration
+REACT_APP_LANDMAP_API_ENDPOINT=https://your-api.com/aoi/summary
+```
+
+**Setup Steps:**
+
+1. **For local development:** Copy `.env.template` to `.env` and set your map style URL
+2. **For CI/CD:** Set `REACT_APP_MAP_STYLE_URL` in your build environment (GitHub Actions, Vercel, Netlify, etc.)
+3. **Build the package:** The build will fail if `REACT_APP_MAP_STYLE_URL` is not set
+
+**Example Map Style URLs:**
+- MapTiler: `https://api.maptiler.com/maps/basic-v2/style.json?key=YOUR_KEY`
+- Mapbox: `mapbox://styles/mapbox/streets-v11` 
+- OpenStreetMap: `https://demotiles.maplibre.org/style.json`
+
+**Defaults:**
+- API Endpoint: `/api/aoi/summary` (if not specified)
+- Map Style: **No default - must be explicitly set**
 
 ### Basic Usage
 
 ```tsx
-import { LandMap } from "@landmap";
+import { LandMap } from "@landmapmagic";
 
 export default function App() {
   return (
     <LandMap 
-      apiEndpoint="/api/aoi/summary"
       onAoiResult={(result) => console.log('AOI data:', result)}
     />
   );
@@ -41,6 +67,23 @@ That's it! You now have a fully functional map with:
 - SSURGO soil data
 - CDL cropland data  
 - PLSS survey boundaries
+
+## Building and Publishing
+
+When building this package for distribution, ensure the environment variable is set:
+
+```bash
+# Set the required environment variable
+export REACT_APP_MAP_STYLE_URL=https://demotiles.maplibre.org/style.json
+
+# Build the package
+npm run build
+
+# Publish (if you're a maintainer)
+npm publish
+```
+
+The build process will fail with a clear error message if `REACT_APP_MAP_STYLE_URL` is not set, ensuring that published packages always have a valid map style configured.
 - Interactive AOI drawing
 - Automatic backend queries
 
@@ -50,7 +93,7 @@ That's it! You now have a fully functional map with:
 
 ```tsx
 import { Map, Source, Layer as MapLayer } from "react-map-gl/maplibre";
-import { useLandMaps, useAoiDraw, useAoiQuery } from "@landmap/maplibre";
+import { useLandMaps, useAoiDraw, useAoiQuery } from "@landmapmagic/maplibre";
 
 function MyCustomMap() {
   const { ssurgo, cdl, plss } = useLandMaps();
@@ -80,7 +123,7 @@ function MyCustomMap() {
 
 ```tsx
 import { Map, Source, Layer as MapLayer } from "react-map-gl";
-import { useLandMaps, useAoiDraw, InstallPmtilesProtocol } from "@landmap/mapbox";
+import { useLandMaps, useAoiDraw, InstallPmtilesProtocol } from "@landmapmagic/mapbox";
 
 function MyMapboxMap() {
   const { ssurgo } = useLandMaps();
@@ -116,10 +159,10 @@ function MyMapboxMap() {
 Drop-in map component with all features enabled.
 
 **Props:**
-- `apiEndpoint?: string` - Backend API endpoint for AOI queries (default: `/api/aoi/summary`)
+- `apiEndpoint?: string` - Backend API endpoint for AOI queries (optional - uses environment variable or default)
 - `initialCenter?: [number, number]` - Map center coordinates (default: `[-98.5795, 39.8283]`)
 - `initialZoom?: number` - Initial zoom level (default: `4`)
-- `style?: string | object` - Map style URL or style object
+- `style?: string | object` - Map style URL or style object (optional - uses environment variable or default)
 - `onAoiResult?: (result: any) => void` - Callback when AOI query completes
 - `onAoiChange?: (aoi: AoiState) => void` - Callback when AOI changes
 - `aoiMode?: 'draw' | 'edit' | 'view'` - AOI interaction mode (default: `'draw'`)
@@ -217,9 +260,9 @@ InstallPmtilesProtocol.install();
 
 The package provides multiple entry points for different use cases:
 
-- `@landmap` - Root export with drop-in `<LandMap />` component (MapLibre-based)
-- `@landmap/maplibre` - Full MapLibre adapter with hooks and utilities
-- `@landmap/mapbox` - Full Mapbox adapter with hooks and utilities
+- `@landmapmagic` - Root export with drop-in `<LandMap />` component (MapLibre-based)
+- `@landmapmagic/maplibre` - Full MapLibre adapter with hooks and utilities
+- `@landmapmagic/mapbox` - Full Mapbox adapter with hooks and utilities
 
 ## Peer Dependencies
 
@@ -238,13 +281,13 @@ Install only what you need:
 
 ```bash
 # For MapLibre (recommended)
-npm install @landmap maplibre-gl react react-dom
+npm install @landmapmagic maplibre-gl react react-dom
 
 # For Mapbox
-npm install @landmap mapbox-gl react react-dom
+npm install @landmapmagic mapbox-gl react react-dom
 
 # For both
-npm install @landmap maplibre-gl mapbox-gl react react-dom
+npm install @landmapmagic maplibre-gl mapbox-gl react react-dom
 ```
 
 ## Dataset Information
@@ -320,6 +363,10 @@ data: {"progress": 100, "complete": true, "data": {...}}
 # Install dependencies
 npm install
 
+# Copy environment template (optional)
+cp .env.template .env
+# Edit .env with your local API endpoint
+
 # Build the package
 npm run build
 
@@ -329,6 +376,16 @@ npm run typecheck
 # Watch mode for development
 npm run dev
 ```
+
+### Environment Variables
+
+The package includes a `.env.template` file showing all available build-time configuration options. These variables are processed during the build and compiled into the bundle - they're not read at runtime.
+
+**Key points:**
+- Variables are for **build-time configuration only**
+- Perfect for CI/CD pipelines with different environments
+- End users don't need to configure anything
+- All variables are optional with sensible defaults
 
 ## License
 

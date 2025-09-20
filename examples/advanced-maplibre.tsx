@@ -1,6 +1,6 @@
 import React from 'react';
 import { Map, Source, Layer as MapLayer } from 'react-map-gl/maplibre';
-import { useLandMaps, useAoiDraw, useAoiQuery } from '@landmap/maplibre';
+import { useLandMaps, useAoiDraw, useAoiQuery } from '@landmapmagic/maplibre';
 
 // Advanced usage with MapLibre and hooks
 export default function AdvancedMapLibreExample() {

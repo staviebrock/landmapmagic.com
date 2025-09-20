@@ -111,7 +111,7 @@ export interface AoiQueryResult {
 
 // Component prop types
 export interface LandMapProps {
-  apiEndpoint?: string;
+  apiEndpoint?: string; // Optional - will use default from environment
   initialCenter?: [number, number];
   initialZoom?: number;
   style?: string | object;

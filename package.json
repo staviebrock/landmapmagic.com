@@ -1,25 +1,25 @@
 {
-  "name": "@landmap",
+  "name": "landmapmagic",
   "version": "0.1.0",
   "description": "The easiest way to build maps about land in your apps",
   "type": "module",
   "main": "./dist/root.cjs",
-  "module": "./dist/root.mjs",
+  "module": "./dist/root.js",
   "types": "./dist/root.d.ts",
   "exports": {
     ".": {
       "types": "./dist/root.d.ts",
-      "import": "./dist/root.mjs",
+      "import": "./dist/root.js",
       "require": "./dist/root.cjs"
     },
     "./maplibre": {
       "types": "./dist/maplibre.d.ts",
-      "import": "./dist/maplibre.mjs",
+      "import": "./dist/maplibre.js",
       "require": "./dist/maplibre.cjs"
     },
     "./mapbox": {
       "types": "./dist/mapbox.d.ts",
-      "import": "./dist/mapbox.mjs",
+      "import": "./dist/mapbox.js",
       "require": "./dist/mapbox.cjs"
     }
   },
@@ -30,7 +30,9 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
+    "build:example": "npm run build",
     "dev": "tsup --watch",
+
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build",
     "typecheck": "tsc --noEmit"
@@ -56,8 +58,10 @@
   "devDependencies": {
     "@types/geojson": "^7946.0.16",
     "@types/mapbox-gl": "^3.4.1",
+    "@types/node": "^24.5.2",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "dotenv": "^17.2.2",
     "maplibre-gl": "^5.7.3",
     "tsup": "^8.0.0",
     "typescript": "^5.3.0"
@@ -78,10 +82,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/landmap/landmap.git"
+    "url": "https://github.com/staviebrock/landmapmagic.com.git"
   },
   "bugs": {
-    "url": "https://github.com/landmap/landmap/issues"
+    "url": "https://github.com/staviebrock/landmapmagic.com/issues"
   },
-  "homepage": "https://github.com/landmap/landmap#readme"
+  "homepage": "https://github.com/staviebrock/landmapmagic.com#readme"
 }
