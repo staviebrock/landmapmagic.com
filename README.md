@@ -1,7 +1,3 @@
-# LandMap Magic
+# Land Map Magic
 
-A project for land mapping and visualization.
-
-## Getting Started
-
-This project is just getting started. More documentation coming soon!
+The easiest way to build maps about land in your apps. 
