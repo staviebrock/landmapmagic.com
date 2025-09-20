@@ -1,0 +1,87 @@
+{
+  "name": "@landmap",
+  "version": "0.1.0",
+  "description": "The easiest way to build maps about land in your apps",
+  "type": "module",
+  "main": "./dist/root.cjs",
+  "module": "./dist/root.mjs",
+  "types": "./dist/root.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/root.d.ts",
+      "import": "./dist/root.mjs",
+      "require": "./dist/root.cjs"
+    },
+    "./maplibre": {
+      "types": "./dist/maplibre.d.ts",
+      "import": "./dist/maplibre.mjs",
+      "require": "./dist/maplibre.cjs"
+    },
+    "./mapbox": {
+      "types": "./dist/mapbox.d.ts",
+      "import": "./dist/mapbox.mjs",
+      "require": "./dist/mapbox.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "mapbox-gl": "^2",
+    "maplibre-gl": "^3",
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "mapbox-gl": {
+      "optional": true
+    },
+    "maplibre-gl": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@turf/turf": "^6.5.0",
+    "pmtiles": "^3.0.6"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.16",
+    "@types/mapbox-gl": "^3.4.1",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "maplibre-gl": "^5.7.3",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  },
+  "keywords": [
+    "maps",
+    "geospatial",
+    "agriculture",
+    "land",
+    "ssurgo",
+    "cdl",
+    "plss",
+    "maplibre",
+    "mapbox",
+    "react"
+  ],
+  "author": "LandMap Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/landmap/landmap.git"
+  },
+  "bugs": {
+    "url": "https://github.com/landmap/landmap/issues"
+  },
+  "homepage": "https://github.com/landmap/landmap#readme"
+}
