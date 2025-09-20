@@ -9,16 +9,29 @@ let pmtilesInstances = new Map<string, PMTiles>();
  * Install PMTiles protocol for MapLibre GL JS
  */
 export function installPmtilesProtocolMapLibre(maplibregl?: any): void {
-  if (protocolInstalled) return;
+  if (protocolInstalled) {
+    console.log('PMTiles protocol already installed');
+    return;
+  }
 
   const protocol = new Protocol();
   
+  // Add debugging to the protocol handler
+  const debugProtocol = {
+    tile: (params: any, callback: any) => {
+      console.log('PMTiles protocol called with params:', params);
+      return protocol.tile(params, callback);
+    }
+  };
+  
   if (maplibregl?.addProtocol) {
-    maplibregl.addProtocol('pmtiles', protocol.tile);
+    maplibregl.addProtocol('pmtiles', debugProtocol.tile);
     protocolInstalled = true;
+    console.log('PMTiles protocol installed successfully with MapLibre GL JS');
   } else if (typeof window !== 'undefined' && (window as any).maplibregl?.addProtocol) {
     (window as any).maplibregl.addProtocol('pmtiles', protocol.tile);
     protocolInstalled = true;
+    console.log('PMTiles protocol installed successfully with global MapLibre GL JS');
   } else {
     console.warn('MapLibre GL JS not found. PMTiles protocol not installed.');
   }

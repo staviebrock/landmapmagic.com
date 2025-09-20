@@ -46,8 +46,11 @@ REACT_APP_LANDMAP_API_ENDPOINT=https://your-api.com/aoi/summary
 - OpenStreetMap: `https://demotiles.maplibre.org/style.json`
 
 **Defaults:**
-- API Endpoint: `/api/aoi/summary` (if not specified)
+- API Endpoint: `/api/aoi/summary` (if not specified) - **Returns fake data for development**
 - Map Style: **No default - must be explicitly set**
+
+**Development Mode:**
+When using the default API endpoint (`/api/aoi/summary`), the component automatically returns realistic fake data instead of making HTTP requests. This allows you to develop and test AOI drawing functionality before implementing your backend API.
 
 ### Basic Usage
 

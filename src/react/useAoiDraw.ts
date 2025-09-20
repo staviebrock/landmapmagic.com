@@ -197,7 +197,7 @@ export function useAoiDraw(initialMode: AoiMode = 'draw'): UseAoiDrawReturn {
         'line-color': aoi.isDrawing ? '#FFE66D' : '#4ECDC4',
         'line-width': 2,
         'line-opacity': 0.8,
-        'line-dasharray': aoi.isDrawing ? [2, 2] : undefined,
+        'line-dasharray': aoi.isDrawing ? [2, 2] : [1, 0],
       },
       layout: {},
       filter: ['==', ['get', 'type'], 'aoi-line'],

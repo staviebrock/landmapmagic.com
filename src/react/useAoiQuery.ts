@@ -60,6 +60,40 @@ export function useAoiQuery(
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
+    //TODO: drop this mock data
+    // Check if we're using the default endpoint (likely doesn't exist yet)
+    if (endpoint === '/api/aoi/summary') {
+      // Return fake data for development
+      setTimeout(() => {
+        const fakeData = {
+          aoi: aoiPolygon,
+          area: {
+            acres: Math.round(Math.random() * 1000 + 100),
+            hectares: Math.round(Math.random() * 400 + 40),
+            squareMeters: Math.round(Math.random() * 4000000 + 400000),
+          },
+          soils: {
+            dominant: 'Loamy Sand',
+            types: ['Loamy Sand', 'Clay Loam', 'Sandy Loam'],
+            drainage: 'Well drained',
+          },
+          crops: {
+            current: 'Corn',
+            history: ['Corn', 'Soybeans', 'Wheat'],
+            suitability: 'High',
+          },
+          timestamp: new Date().toISOString(),
+          message: 'This is fake development data - configure a real API endpoint',
+        };
+        
+        setData(fakeData);
+        setLoading(false);
+        abortControllerRef.current = null;
+      }, 800 + Math.random() * 400); // Simulate realistic API delay
+      
+      return;
+    }
+
     try {
       const requestBody = {
         aoi: aoiPolygon,

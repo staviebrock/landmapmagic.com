@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useLandMaps } from './useLandMaps.js';
 import { useAoiDraw } from './useAoiDraw.js';
 import { useAoiQuery } from './useAoiQuery.js';
-import { autoInstallPmtilesProtocol } from '../core/pmtilesProtocol.js';
+import { installPmtilesProtocolMapLibre } from '../core/pmtilesProtocol.js';
 import type { LandMapProps } from '../core/types.js';
 
 // Default API endpoint from environment or fallback
@@ -15,7 +15,9 @@ const getDefaultApiEndpoint = (): string => {
 
 // Default map style from environment (required at build time)
 const getDefaultMapStyle = (): string => {
-  return process.env.REACT_APP_MAP_STYLE_URL!;
+  const styleUrl = process.env.REACT_APP_MAP_STYLE_URL;
+  console.log('Map style URL from environment:', styleUrl);
+  return styleUrl || 'https://demotiles.maplibre.org/style.json'; // fallback style
 };
 
 const DEFAULT_API_ENDPOINT = getDefaultApiEndpoint();
@@ -44,7 +46,7 @@ export function LandMap({
   onAoiResult,
   onAoiChange,
   aoiMode = 'draw',
-  showDatasets = ['ssurgo', 'cdl', 'plss'],
+  showDatasets = ['plss'],
   className = '',
   height = '500px',
   width = '100%',
@@ -55,6 +57,7 @@ export function LandMap({
 
   const { ssurgo, cdl, plss } = useLandMaps();
   const aoiDraw = useAoiDraw(aoiMode);
+  
   
   const { data: aoiResult, error: aoiError } = useAoiQuery(
     aoiDraw.aoi.polygon,
@@ -80,14 +83,23 @@ export function LandMap({
 
   // Initialize map
   useEffect(() => {
+    // Debug: Map initialization
+    // console.log('Map initialization useEffect triggered');
+    // console.log('mapContainerRef.current:', mapContainerRef.current);
+    // console.log('mapRef.current:', mapRef.current);
+    
     if (!mapContainerRef.current || mapRef.current) return;
 
     const initMap = async () => {
+      console.log('Starting map initialization...');
       try {
         const maplibregl = await loadMapLibre();
         
-        // Install PMTiles protocol
-        autoInstallPmtilesProtocol();
+        // Install PMTiles protocol with the loaded MapLibre instance
+        installPmtilesProtocolMapLibre(maplibregl);
+
+        console.log('Creating map with style:', style);
+        console.log('Map container:', mapContainerRef.current);
 
         // Create map instance
         const map = new maplibregl.Map({
@@ -97,34 +109,81 @@ export function LandMap({
           zoom: initialZoom,
         });
 
+        console.log('Map instance created successfully:', map);
+
         mapRef.current = map;
+
+        console.log('Map instance created, waiting for load event...');
+
+        // Add error handlers
+        map.on('error', (e: any) => {
+          console.error('Map error:', e);
+        });
+
+        map.on('styleimagemissing', (e: any) => {
+          console.warn('Style image missing:', e);
+        });
+
+        map.on('sourcedata', (e: any) => {
+          if (e.isSourceLoaded) {
+            console.log(`Source loaded: ${e.sourceId}`);
+          }
+        });
+
+        map.on('sourcedataloading', (e: any) => {
+          console.log(`Source loading: ${e.sourceId}`);
+        });
 
         // Wait for map to load
         map.on('load', () => {
+          console.log('Map load event fired!');
           // Add land datasets
           const datasets = { ssurgo, cdl, plss };
           
+          console.log('Processing showDatasets:', showDatasets);
+          console.log('Available datasets:', Object.keys(datasets));
+          
           showDatasets.forEach(datasetKey => {
+            console.log(`Checking dataset key: ${datasetKey}`);
             if (datasets[datasetKey]) {
               const dataset = datasets[datasetKey];
               
+              console.log(`Adding dataset: ${dataset.id}`, dataset.sourceProps);
+              
               // Add source
               if (!map.getSource(dataset.id)) {
-                map.addSource(dataset.id, dataset.sourceProps as any);
-                sourcesAddedRef.current.add(dataset.id);
+                try {
+                  map.addSource(dataset.id, dataset.sourceProps as any);
+                  sourcesAddedRef.current.add(dataset.id);
+                  console.log(`Source added: ${dataset.id}`);
+                } catch (error) {
+                  console.error(`Error adding source ${dataset.id}:`, error);
+                }
+              } else {
+                console.log(`Source already exists: ${dataset.id}`);
               }
-
               // Add layers
+              console.log(`Adding layers for dataset ${dataset.id}:`, Object.keys(dataset.layers));
               Object.entries(dataset.layers).forEach(([layerKey, layerConfig]) => {
                 const layerId = `${dataset.id}-${layerKey}`;
+                console.log(`Adding layer: ${layerId}`, layerConfig);
                 if (!map.getLayer(layerId)) {
-                  map.addLayer({
-                    ...layerConfig,
-                    id: layerId,
-                    source: dataset.id,
-                  } as any);
+                  try {
+                    map.addLayer({
+                      ...layerConfig,
+                      id: layerId,
+                      source: dataset.id,
+                    } as any);
+                    console.log(`Layer added successfully: ${layerId}`);
+                  } catch (error) {
+                    console.error(`Error adding layer ${layerId}:`, error);
+                  }
+                } else {
+                  console.log(`Layer already exists: ${layerId}`);
                 }
               });
+            } else {
+              console.log(`Dataset key '${datasetKey}' not found in datasets`);
             }
           });
 

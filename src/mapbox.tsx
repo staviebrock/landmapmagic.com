@@ -58,7 +58,7 @@ export function LandMap({
   onAoiResult,
   onAoiChange,
   aoiMode = 'draw',
-  showDatasets = ['ssurgo', 'cdl', 'plss'],
+  showDatasets = ['plss'],
   className = '',
   height = '500px',
   width = '100%',
