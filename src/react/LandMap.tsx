@@ -2,95 +2,69 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLandMaps } from './useLandMaps.js';
 import { installPmtilesProtocolMapLibre } from '../core/pmtilesProtocol.js';
 import type { LandMapProps } from '../core/types.js';
+import { getDefaultMapStyle, loadMapLibre } from './utils.js';
 
-
-// Default map style from environment (required at build time)
-const getDefaultMapStyle = (): string => {
-  const styleUrl = process.env.REACT_APP_MAP_STYLE_URL;
-  console.log('Map style URL from environment:', styleUrl);
-  return styleUrl || 'https://demotiles.maplibre.org/style.json'; // fallback style
-};
-
-const DEFAULT_MAP_STYLE = getDefaultMapStyle();
-
-// Dynamic imports to avoid bundling map libraries
-const loadMapLibre = async () => {
-  try {
-    const maplibregl = await import('maplibre-gl');
-    return maplibregl.default || maplibregl;
-  } catch (error) {
-    console.error('Failed to load MapLibre GL JS:', error);
-    throw new Error('MapLibre GL JS is required but not installed. Please install maplibre-gl.');
-  }
-};
-
-/**
- * Drop-in map component with land datasets
- * Uses MapLibre GL JS by default
- */
 export function LandMap({
   initialCenter = [-98.5795, 39.8283], // Geographic center of US
   initialZoom = 4,
-  style = DEFAULT_MAP_STYLE,
-  showDatasets = ['plss', 'ssurgo'],
+  style =  getDefaultMapStyle(),
+  layers = ['plss', 'ssurgo'],
   showLegend = true,
   className = '',
   height = '500px',
   width = '100%',
 }: LandMapProps) {
+
+  const [dataLayers, setDataLayers] = useState<string[]>(layers);
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const sourcesAddedRef = useRef<Set<string>>(new Set());
 
   const { ssurgo, cdl, plss } = useLandMaps();
 
-  // Simple dataset visibility state - like the working example
-  const [datasetVisibility, setDatasetVisibility] = useState<Record<string, boolean>>({
-    ssurgo: true,
-    cdl: true,
-    plss: true,
-  });
-
-  // Simple toggle function - directly update map layers
-  const toggleDatasetVisibility = (datasetKey: string) => {
+  // Toggle function - ONLY use setLayoutProperty to avoid map flickering
+  const toggleLayerVisibility = (datasetKey: string) => {
     if (!mapRef.current) return;
 
-    const newVisibility = !datasetVisibility[datasetKey];
+    const map = mapRef.current;
+    const isCurrentlyVisible = dataLayers.includes(datasetKey);
     const datasets = { ssurgo, cdl, plss };
     const dataset = datasets[datasetKey as keyof typeof datasets];
 
     if (dataset) {
-      // Update all layers for this dataset
+      // Update visibility for all layers in this dataset
       Object.keys(dataset.layers).forEach(layerKey => {
         const layerId = `${dataset.id}-${layerKey}`;
-        if (mapRef.current!.getLayer(layerId)) {
-          mapRef.current!.setLayoutProperty(
-            layerId,
-            'visibility',
-            newVisibility ? 'visible' : 'none'
-          );
+        
+        if (map.getLayer(layerId)) {
+          try {
+            const newVisibility = !isCurrentlyVisible ? 'visible' : 'none';
+            map.setLayoutProperty(layerId, 'visibility', newVisibility);
+            console.log(`Layer visibility changed: ${layerId} -> ${newVisibility}`);
+          } catch (error) {
+            console.error(`Error changing visibility for layer ${layerId}:`, error);
+          }
         }
       });
     }
 
-    // Update state
-    setDatasetVisibility(prev => ({
-      ...prev,
-      [datasetKey]: newVisibility
-    }));
+    // Update dataLayers state
+    if (isCurrentlyVisible) {
+      // Remove from array
+      setDataLayers(prev => prev.filter(layer => layer !== datasetKey));
+    } else {
+      // Add to array
+      setDataLayers(prev => [...prev, datasetKey]);
+    }
 
-    console.log(`${dataset?.name} ${newVisibility ? 'shown' : 'hidden'}`);
+    console.log(`${dataset?.name} ${!isCurrentlyVisible ? 'shown' : 'hidden'}`);
   };
   
 
 
   // Initialize map
   useEffect(() => {
-    // Debug: Map initialization
-    // console.log('Map initialization useEffect triggered');
-    // console.log('mapContainerRef.current:', mapContainerRef.current);
-    // console.log('mapRef.current:', mapRef.current);
-    
     if (!mapContainerRef.current || mapRef.current) return;
 
     const initMap = async () => {
@@ -100,10 +74,6 @@ export function LandMap({
         
         // Install PMTiles protocol with the loaded MapLibre instance
         installPmtilesProtocolMapLibre(maplibregl);
-
-        console.log('Creating map with style:', style);
-        console.log('Map container:', mapContainerRef.current);
-
         // Create map instance
         const map = new maplibregl.Map({
           container: mapContainerRef.current!,
@@ -112,11 +82,8 @@ export function LandMap({
           zoom: initialZoom,
         });
 
-        console.log('Map instance created successfully:', map);
 
         mapRef.current = map;
-
-        console.log('Map instance created, waiting for load event...');
 
         // Add error handlers
         map.on('error', (e: any) => {
@@ -159,26 +126,22 @@ export function LandMap({
               }
             }
             
-            // Add layers with visibility based on showDatasets and datasetVisibility
+            // Add ALL layers but set visibility based on dataLayers array
             Object.entries(dataset.layers).forEach(([layerKey, layerConfig]) => {
               const layerId = `${dataset.id}-${layerKey}`;
               if (!map.getLayer(layerId)) {
                 try {
-                  // Visible if: dataset is in showDatasets AND visible in state
-                  const isInShowDatasets = showDatasets.includes(datasetKey as any);
-                  const isVisibleInState = datasetVisibility[datasetKey];
-                  const visibility = (isInShowDatasets && isVisibleInState) ? 'visible' : 'none';
-                  
+                  const isVisible = dataLayers.includes(datasetKey as any);
                   map.addLayer({
                     ...layerConfig,
                     id: layerId,
                     source: dataset.id,
                     layout: {
                       ...layerConfig.layout,
-                      visibility,
+                      visibility: isVisible ? 'visible' : 'none',
                     },
                   } as any);
-                  console.log(`Layer added: ${layerId} (visibility: ${visibility})`);
+                  console.log(`Layer added: ${layerId} (visibility: ${isVisible ? 'visible' : 'none'})`);
                 } catch (error) {
                   console.error(`Error adding layer ${layerId}:`, error);
                 }
@@ -203,30 +166,9 @@ export function LandMap({
         sourcesAddedRef.current.clear();
       }
     };
-  }, [style, initialCenter, initialZoom]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update layer visibility when showDatasets changes (NO map reload)
-  useEffect(() => {
-    if (!mapRef.current) return;
-
-    const map = mapRef.current;
-    const datasets = { ssurgo, cdl, plss };
-
-    Object.entries(datasets).forEach(([datasetKey, dataset]) => {
-      Object.keys(dataset.layers).forEach(layerKey => {
-        const layerId = `${dataset.id}-${layerKey}`;
-        
-        if (map.getLayer(layerId)) {
-          // Visible if: dataset is in showDatasets AND visible in state
-          const isInShowDatasets = showDatasets.includes(datasetKey as any);
-          const isVisibleInState = datasetVisibility[datasetKey];
-          const visibility = (isInShowDatasets && isVisibleInState) ? 'visible' : 'none';
-          
-          map.setLayoutProperty(layerId, 'visibility', visibility);
-        }
-      });
-    });
-  }, [showDatasets]);
+  // No conflicting useEffect - layer management is handled only by toggle function
 
 
   const containerStyle: React.CSSProperties = {
@@ -265,13 +207,13 @@ export function LandMap({
             Map Layers
           </h4>
           
-          {showDatasets.map(datasetKey => {
+          {Object.keys({ ssurgo, cdl, plss }).map(datasetKey => {
             const datasets = { ssurgo, cdl, plss };
-            const dataset = datasets[datasetKey];
+            const dataset = datasets[datasetKey as keyof typeof datasets];
             
             if (!dataset) return null;
             
-            const isVisible = datasetVisibility[datasetKey];
+            const isVisible = dataLayers.includes(datasetKey);
             
             // Dataset color mapping
             const getDatasetColor = (id: string) => {
@@ -296,7 +238,7 @@ export function LandMap({
                   transition: 'background-color 0.2s',
                   border: '1px solid transparent',
                 }}
-                onClick={() => toggleDatasetVisibility(datasetKey)}
+                onClick={() => toggleLayerVisibility(datasetKey)}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)';
                   e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)';
@@ -309,7 +251,7 @@ export function LandMap({
                 <input
                   type="checkbox"
                   checked={isVisible}
-                  onChange={() => toggleDatasetVisibility(datasetKey)}
+                  onChange={() => toggleLayerVisibility(datasetKey)}
                   style={{
                     marginRight: '10px',
                     cursor: 'pointer',

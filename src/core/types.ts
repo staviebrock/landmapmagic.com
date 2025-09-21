@@ -79,7 +79,8 @@ export interface LandMapProps {
   initialCenter?: [number, number];
   initialZoom?: number;
   style?: string | object;
-  showDatasets?: Array<keyof LandDatasets>;
+  layers?: Array<keyof LandDatasets>;
+  showDatasets?: Array<keyof LandDatasets>; // Deprecated: use layers instead
   showLegend?: boolean; // Show/hide the legend - default true
   className?: string;
   height?: string | number;
