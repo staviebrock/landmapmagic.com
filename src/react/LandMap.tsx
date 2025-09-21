@@ -1,17 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLandMaps } from './useLandMaps.js';
-import { useAoiDraw } from './useAoiDraw.js';
-import { useAoiQuery } from './useAoiQuery.js';
 import { installPmtilesProtocolMapLibre } from '../core/pmtilesProtocol.js';
 import type { LandMapProps } from '../core/types.js';
 
-// Default API endpoint from environment or fallback
-const getDefaultApiEndpoint = (): string => {
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env.REACT_APP_LANDMAP_API_ENDPOINT || '/api/aoi/summary';
-  }
-  return '/api/aoi/summary';
-};
 
 // Default map style from environment (required at build time)
 const getDefaultMapStyle = (): string => {
@@ -20,7 +11,6 @@ const getDefaultMapStyle = (): string => {
   return styleUrl || 'https://demotiles.maplibre.org/style.json'; // fallback style
 };
 
-const DEFAULT_API_ENDPOINT = getDefaultApiEndpoint();
 const DEFAULT_MAP_STYLE = getDefaultMapStyle();
 
 // Dynamic imports to avoid bundling map libraries
@@ -35,18 +25,15 @@ const loadMapLibre = async () => {
 };
 
 /**
- * Drop-in map component with land datasets and AOI drawing
+ * Drop-in map component with land datasets
  * Uses MapLibre GL JS by default
  */
 export function LandMap({
-  apiEndpoint = DEFAULT_API_ENDPOINT,
   initialCenter = [-98.5795, 39.8283], // Geographic center of US
   initialZoom = 4,
   style = DEFAULT_MAP_STYLE,
-  onAoiResult,
-  onAoiChange,
-  aoiMode = 'draw',
-  showDatasets = ['plss'],
+  showDatasets = ['plss', 'ssurgo'],
+  showLegend = true,
   className = '',
   height = '500px',
   width = '100%',
@@ -56,30 +43,46 @@ export function LandMap({
   const sourcesAddedRef = useRef<Set<string>>(new Set());
 
   const { ssurgo, cdl, plss } = useLandMaps();
-  const aoiDraw = useAoiDraw(aoiMode);
-  
-  
-  const { data: aoiResult, error: aoiError } = useAoiQuery(
-    aoiDraw.aoi.polygon,
-    { endpoint: apiEndpoint },
-    1000 // 1 second debounce
-  );
 
-  // Handle AOI result
-  useEffect(() => {
-    if (aoiResult) {
-      console.log('AOI Query Result:', aoiResult);
-      onAoiResult?.(aoiResult);
-    }
-    if (aoiError) {
-      console.error('AOI Query Error:', aoiError);
-    }
-  }, [aoiResult, aoiError, onAoiResult]);
+  // Simple dataset visibility state - like the working example
+  const [datasetVisibility, setDatasetVisibility] = useState<Record<string, boolean>>({
+    ssurgo: true,
+    cdl: true,
+    plss: true,
+  });
 
-  // Handle AOI change
-  useEffect(() => {
-    onAoiChange?.(aoiDraw.aoi);
-  }, [aoiDraw.aoi, onAoiChange]);
+  // Simple toggle function - directly update map layers
+  const toggleDatasetVisibility = (datasetKey: string) => {
+    if (!mapRef.current) return;
+
+    const newVisibility = !datasetVisibility[datasetKey];
+    const datasets = { ssurgo, cdl, plss };
+    const dataset = datasets[datasetKey as keyof typeof datasets];
+
+    if (dataset) {
+      // Update all layers for this dataset
+      Object.keys(dataset.layers).forEach(layerKey => {
+        const layerId = `${dataset.id}-${layerKey}`;
+        if (mapRef.current!.getLayer(layerId)) {
+          mapRef.current!.setLayoutProperty(
+            layerId,
+            'visibility',
+            newVisibility ? 'visible' : 'none'
+          );
+        }
+      });
+    }
+
+    // Update state
+    setDatasetVisibility(prev => ({
+      ...prev,
+      [datasetKey]: newVisibility
+    }));
+
+    console.log(`${dataset?.name} ${newVisibility ? 'shown' : 'hidden'}`);
+  };
+  
+
 
   // Initialize map
   useEffect(() => {
@@ -137,94 +140,54 @@ export function LandMap({
         // Wait for map to load
         map.on('load', () => {
           console.log('Map load event fired!');
-          // Add land datasets
+          // Add ALL land datasets (we'll control visibility via props and legend)
           const datasets = { ssurgo, cdl, plss };
           
-          console.log('Processing showDatasets:', showDatasets);
-          console.log('Available datasets:', Object.keys(datasets));
+          console.log('Adding all datasets:', Object.keys(datasets));
           
-          showDatasets.forEach(datasetKey => {
-            console.log(`Checking dataset key: ${datasetKey}`);
-            if (datasets[datasetKey]) {
-              const dataset = datasets[datasetKey];
-              
-              console.log(`Adding dataset: ${dataset.id}`, dataset.sourceProps);
-              
-              // Add source
-              if (!map.getSource(dataset.id)) {
-                try {
-                  map.addSource(dataset.id, dataset.sourceProps as any);
-                  sourcesAddedRef.current.add(dataset.id);
-                  console.log(`Source added: ${dataset.id}`);
-                } catch (error) {
-                  console.error(`Error adding source ${dataset.id}:`, error);
-                }
-              } else {
-                console.log(`Source already exists: ${dataset.id}`);
+          Object.entries(datasets).forEach(([datasetKey, dataset]) => {
+            console.log(`Adding dataset: ${dataset.id}`, dataset.sourceProps);
+            
+            // Add source
+            if (!map.getSource(dataset.id)) {
+              try {
+                map.addSource(dataset.id, dataset.sourceProps as any);
+                sourcesAddedRef.current.add(dataset.id);
+                console.log(`Source added: ${dataset.id}`);
+              } catch (error) {
+                console.error(`Error adding source ${dataset.id}:`, error);
               }
-              // Add layers
-              console.log(`Adding layers for dataset ${dataset.id}:`, Object.keys(dataset.layers));
-              Object.entries(dataset.layers).forEach(([layerKey, layerConfig]) => {
-                const layerId = `${dataset.id}-${layerKey}`;
-                console.log(`Adding layer: ${layerId}`, layerConfig);
-                if (!map.getLayer(layerId)) {
-                  try {
-                    map.addLayer({
-                      ...layerConfig,
-                      id: layerId,
-                      source: dataset.id,
-                    } as any);
-                    console.log(`Layer added successfully: ${layerId}`);
-                  } catch (error) {
-                    console.error(`Error adding layer ${layerId}:`, error);
-                  }
-                } else {
-                  console.log(`Layer already exists: ${layerId}`);
-                }
-              });
-            } else {
-              console.log(`Dataset key '${datasetKey}' not found in datasets`);
             }
+            
+            // Add layers with visibility based on showDatasets and datasetVisibility
+            Object.entries(dataset.layers).forEach(([layerKey, layerConfig]) => {
+              const layerId = `${dataset.id}-${layerKey}`;
+              if (!map.getLayer(layerId)) {
+                try {
+                  // Visible if: dataset is in showDatasets AND visible in state
+                  const isInShowDatasets = showDatasets.includes(datasetKey as any);
+                  const isVisibleInState = datasetVisibility[datasetKey];
+                  const visibility = (isInShowDatasets && isVisibleInState) ? 'visible' : 'none';
+                  
+                  map.addLayer({
+                    ...layerConfig,
+                    id: layerId,
+                    source: dataset.id,
+                    layout: {
+                      ...layerConfig.layout,
+                      visibility,
+                    },
+                  } as any);
+                  console.log(`Layer added: ${layerId} (visibility: ${visibility})`);
+                } catch (error) {
+                  console.error(`Error adding layer ${layerId}:`, error);
+                }
+              }
+            });
           });
 
-          // Add AOI source and layers
-          if (!map.getSource('aoi')) {
-            map.addSource('aoi', aoiDraw.sourceProps as any);
-            sourcesAddedRef.current.add('aoi');
-
-            // Add AOI layers
-            Object.entries(aoiDraw.layers).forEach(([layerKey, layerConfig]) => {
-              const layerId = `aoi-${layerKey}`;
-              if (!map.getLayer(layerId)) {
-                map.addLayer({
-                  ...layerConfig,
-                  id: layerId,
-                  source: 'aoi',
-                } as any);
-              }
-            });
-          }
         });
 
-        // Handle map clicks for AOI drawing
-        map.on('click', (e: any) => {
-          if (aoiDraw.mode === 'draw') {
-            aoiDraw.handleMapClick({
-              lngLat: [e.lngLat.lng, e.lngLat.lat],
-            });
-          }
-        });
-
-        // Change cursor on hover for drawing mode
-        map.on('mouseenter', () => {
-          if (aoiDraw.mode === 'draw') {
-            map.getCanvas().style.cursor = 'crosshair';
-          }
-        });
-
-        map.on('mouseleave', () => {
-          map.getCanvas().style.cursor = '';
-        });
 
       } catch (error) {
         console.error('Failed to initialize map:', error);
@@ -240,25 +203,31 @@ export function LandMap({
         sourcesAddedRef.current.clear();
       }
     };
-  }, [style, initialCenter, initialZoom, showDatasets]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [style, initialCenter, initialZoom]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update AOI source when AOI changes
+  // Update layer visibility when showDatasets changes (NO map reload)
   useEffect(() => {
-    if (mapRef.current && mapRef.current.getSource('aoi')) {
-      const source = mapRef.current.getSource('aoi');
-      if (source && source.setData) {
-        source.setData(aoiDraw.sourceProps.data);
-      }
-    }
-  }, [aoiDraw.sourceProps]);
+    if (!mapRef.current) return;
 
-  // Update cursor style based on mode
-  useEffect(() => {
-    if (mapRef.current) {
-      const canvas = mapRef.current.getCanvas();
-      canvas.style.cursor = aoiDraw.mode === 'draw' ? 'crosshair' : '';
-    }
-  }, [aoiDraw.mode]);
+    const map = mapRef.current;
+    const datasets = { ssurgo, cdl, plss };
+
+    Object.entries(datasets).forEach(([datasetKey, dataset]) => {
+      Object.keys(dataset.layers).forEach(layerKey => {
+        const layerId = `${dataset.id}-${layerKey}`;
+        
+        if (map.getLayer(layerId)) {
+          // Visible if: dataset is in showDatasets AND visible in state
+          const isInShowDatasets = showDatasets.includes(datasetKey as any);
+          const isVisibleInState = datasetVisibility[datasetKey];
+          const visibility = (isInShowDatasets && isVisibleInState) ? 'visible' : 'none';
+          
+          map.setLayoutProperty(layerId, 'visibility', visibility);
+        }
+      });
+    });
+  }, [showDatasets]);
+
 
   const containerStyle: React.CSSProperties = {
     width,
@@ -276,77 +245,102 @@ export function LandMap({
         }}
       />
       
-      {/* AOI Controls */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '10px',
-          right: '10px',
-          background: 'rgba(255, 255, 255, 0.9)',
-          padding: '8px',
-          borderRadius: '4px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          display: 'flex',
-          gap: '8px',
-          fontSize: '14px',
-        }}
-      >
-        <button
-          onClick={() => aoiDraw.setMode('draw')}
-          style={{
-            padding: '4px 8px',
-            border: '1px solid #ccc',
-            borderRadius: '3px',
-            background: aoiDraw.mode === 'draw' ? '#4ECDC4' : 'white',
-            color: aoiDraw.mode === 'draw' ? 'white' : 'black',
-            cursor: 'pointer',
-          }}
-        >
-          Draw
-        </button>
-        <button
-          onClick={() => aoiDraw.setMode('view')}
-          style={{
-            padding: '4px 8px',
-            border: '1px solid #ccc',
-            borderRadius: '3px',
-            background: aoiDraw.mode === 'view' ? '#4ECDC4' : 'white',
-            color: aoiDraw.mode === 'view' ? 'white' : 'black',
-            cursor: 'pointer',
-          }}
-        >
-          View
-        </button>
-        <button
-          onClick={aoiDraw.clearAoi}
-          style={{
-            padding: '4px 8px',
-            border: '1px solid #ccc',
-            borderRadius: '3px',
-            background: 'white',
-            color: 'black',
-            cursor: 'pointer',
-          }}
-        >
-          Clear
-        </button>
-      </div>
 
-      {/* Status indicator */}
-      {aoiDraw.aoi.isComplete && (
+      {/* Legend */}
+      {showLegend && (
         <div
           style={{
             position: 'absolute',
-            bottom: '10px',
+            top: '10px',
             left: '10px',
-            background: 'rgba(76, 205, 196, 0.9)',
-            color: 'white',
-            padding: '8px 12px',
-            borderRadius: '4px',
-            fontSize: '14px',
+            background: 'rgba(255, 255, 255, 0.95)',
+            padding: '12px',
+            borderRadius: '6px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            fontSize: '13px',
+            minWidth: '180px',
           }}
         >
-          AOI Complete • {aoiDraw.aoi.points.length} points
+          <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 'bold', color: '#333' }}>
+            Map Layers
+          </h4>
+          
+          {showDatasets.map(datasetKey => {
+            const datasets = { ssurgo, cdl, plss };
+            const dataset = datasets[datasetKey];
+            
+            if (!dataset) return null;
+            
+            const isVisible = datasetVisibility[datasetKey];
+            
+            // Dataset color mapping
+            const getDatasetColor = (id: string) => {
+              switch (id) {
+                case 'ssurgo': return '#2E8B57'; // SeaGreen for soil data
+                case 'cdl': return '#FFD700'; // Gold for crop data
+                case 'plss': return '#4A90E2'; // Blue for survey data
+                default: return '#95A5A6'; // Gray fallback
+              }
+            };
+            
+            return (
+              <div
+                key={dataset.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginBottom: '8px',
+                  cursor: 'pointer',
+                  padding: '6px 8px',
+                  borderRadius: '4px',
+                  transition: 'background-color 0.2s',
+                  border: '1px solid transparent',
+                }}
+                onClick={() => toggleDatasetVisibility(datasetKey)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)';
+                  e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.borderColor = 'transparent';
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isVisible}
+                  onChange={() => toggleDatasetVisibility(datasetKey)}
+                  style={{
+                    marginRight: '10px',
+                    cursor: 'pointer',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                
+                {/* Dataset color indicator */}
+                <div
+                  style={{
+                    width: '14px',
+                    height: '14px',
+                    marginRight: '8px',
+                    borderRadius: '2px',
+                    backgroundColor: getDatasetColor(dataset.id),
+                    opacity: isVisible ? 1 : 0.3,
+                    border: '1px solid rgba(0,0,0,0.2)',
+                  }}
+                />
+                
+                <span style={{ 
+                  color: isVisible ? '#333' : '#999',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  userSelect: 'none',
+                }}>
+                  {dataset.name}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

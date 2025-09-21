@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Map, Source, Layer as MapLayer } from 'react-map-gl';
-import { useLandMaps, useAoiDraw, useAoiQuery, InstallPmtilesProtocol } from '@landmapmagic/mapbox';
+import { useLandMaps, InstallPmtilesProtocol } from '@landmapmagic/mapbox';
 
 // Advanced usage with Mapbox and hooks
 export default function AdvancedMapboxExample() {
   const { ssurgo, cdl, plss } = useLandMaps();
-  const aoi = useAoiDraw();
-  const { data, loading, error } = useAoiQuery(aoi.aoi.polygon, { 
-    endpoint: '/api/aoi/summary' 
+  const [visibleLayers, setVisibleLayers] = useState({
+    ssurgo: true,
+    cdl: true,
+    plss: true,
   });
 
   // Install PMTiles protocol on component mount
@@ -27,37 +28,33 @@ export default function AdvancedMapboxExample() {
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/streets-v11"
         mapboxAccessToken={process.env.REACT_APP_MAPBOX_TOKEN}
-        onClick={(e) => aoi.handleMapClick({ 
-          lngLat: [e.lngLat.lng, e.lngLat.lat] 
-        })}
       >
         {/* SSURGO Soil Data */}
-        <Source {...ssurgo.sourceProps}>
-          <MapLayer {...ssurgo.layers.fill} />
-          <MapLayer {...ssurgo.layers.outline} />
-        </Source>
+        {visibleLayers.ssurgo && (
+          <Source {...ssurgo.sourceProps}>
+            <MapLayer {...ssurgo.layers.fill} />
+            <MapLayer {...ssurgo.layers.outline} />
+          </Source>
+        )}
 
         {/* CDL Cropland Data */}
-        <Source {...cdl.sourceProps}>
-          <MapLayer {...cdl.layers.fill} />
-        </Source>
+        {visibleLayers.cdl && (
+          <Source {...cdl.sourceProps}>
+            <MapLayer {...cdl.layers.fill} />
+          </Source>
+        )}
 
         {/* PLSS Survey Data */}
-        <Source {...plss.sourceProps}>
-          <MapLayer {...plss.layers.township} />
-          <MapLayer {...plss.layers.section} />
-          <MapLayer {...plss.layers.labels} />
-        </Source>
-
-        {/* AOI Drawing */}
-        <Source {...aoi.sourceProps}>
-          <MapLayer {...aoi.layers.polygon} />
-          <MapLayer {...aoi.layers.line} />
-          <MapLayer {...aoi.layers.points} />
-        </Source>
+        {visibleLayers.plss && (
+          <Source {...plss.sourceProps}>
+            <MapLayer {...plss.layers.township} />
+            <MapLayer {...plss.layers.section} />
+            <MapLayer {...plss.layers.labels} />
+          </Source>
+        )}
       </Map>
 
-      {/* Controls */}
+      {/* Layer Controls */}
       <div style={{
         position: 'absolute',
         top: '10px',
@@ -67,53 +64,38 @@ export default function AdvancedMapboxExample() {
         borderRadius: '5px',
         boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
       }}>
-        <button onClick={() => aoi.setMode('draw')}>Draw AOI</button>
-        <button onClick={() => aoi.setMode('view')}>View Mode</button>
-        <button onClick={aoi.clearAoi}>Clear AOI</button>
+        <h4 style={{ margin: '0 0 10px 0' }}>Map Layers</h4>
+        <div>
+          <label>
+            <input
+              type="checkbox"
+              checked={visibleLayers.ssurgo}
+              onChange={(e) => setVisibleLayers(prev => ({ ...prev, ssurgo: e.target.checked }))}
+            />
+            SSURGO Soil Data
+          </label>
+        </div>
+        <div>
+          <label>
+            <input
+              type="checkbox"
+              checked={visibleLayers.cdl}
+              onChange={(e) => setVisibleLayers(prev => ({ ...prev, cdl: e.target.checked }))}
+            />
+            Cropland Data Layer
+          </label>
+        </div>
+        <div>
+          <label>
+            <input
+              type="checkbox"
+              checked={visibleLayers.plss}
+              onChange={(e) => setVisibleLayers(prev => ({ ...prev, plss: e.target.checked }))}
+            />
+            PLSS Survey Data
+          </label>
+        </div>
       </div>
-
-      {/* Status */}
-      {loading && (
-        <div style={{
-          position: 'absolute',
-          bottom: '10px',
-          left: '10px',
-          background: 'rgba(0,0,0,0.8)',
-          color: 'white',
-          padding: '10px',
-          borderRadius: '5px'
-        }}>
-          Loading AOI data...
-        </div>
-      )}
-
-      {data && (
-        <div style={{
-          position: 'absolute',
-          bottom: '10px',
-          left: '10px',
-          background: 'rgba(0,128,0,0.8)',
-          color: 'white',
-          padding: '10px',
-          borderRadius: '5px'
-        }}>
-          AOI Analysis Complete!
-        </div>
-      )}
-
-      {error && (
-        <div style={{
-          position: 'absolute',
-          bottom: '10px',
-          left: '10px',
-          background: 'rgba(255,0,0,0.8)',
-          color: 'white',
-          padding: '10px',
-          borderRadius: '5px'
-        }}>
-          Error: {error}
-        </div>
-      )}
     </div>
   );
 }

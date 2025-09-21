@@ -5,9 +5,8 @@ export default function BasicExample() {
       <LandMap 
         height="100vh"
         width="100vw"
-        onAoiResult={(result) => {
-          console.log('AOI Result:', result);
-        }}
+        showDatasets={['plss', 'ssurgo']}
+        showLegend={true}
       />
   );
 }

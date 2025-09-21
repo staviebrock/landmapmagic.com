@@ -13,6 +13,8 @@ const DEFAULT_WORKER_ENDPOINT = getDefaultWorkerEndpoint();
 
 /**
  * Create SSURGO soil dataset
+ * SSURGO data is always sharded across multiple files for better performance with range queries
+ * The worker API handles shard resolution and range request routing automatically
  */
 export function makeSsurgoDataset(): SsurgoDataset {
   return makeVectorDataset({
