@@ -16,7 +16,7 @@ const DEFAULT_WORKER_ENDPOINT = getDefaultWorkerEndpoint();
  * Matches the hierarchical structure from the working frontend prototype
  */
 export function makePlssDataset(): PlssDataset {
-  return makeVectorDataset({
+  const dataset = makeVectorDataset({
     id: 'plss',
     name: 'Public Land Survey System',
     description: 'Hierarchical PLSS data with states, counties, townships, and sections',
@@ -159,5 +159,72 @@ export function makePlssDataset(): PlssDataset {
         minzoom: 12
       }
     }
-  }) as PlssDataset;
+  });
+
+  // Add click info configuration
+  (dataset as PlssDataset).clickInfoConfig = {
+    title: (properties) => {
+      const adminLevel = properties.admin_level;
+      switch (adminLevel) {
+        case 'state':
+          return `State: ${properties.state_name || 'Unknown'}`;
+        case 'county':
+          return `County: ${properties.county_name || 'Unknown'}`;
+        case 'township':
+          return `Township: ${properties.township_name || properties.TWNSHPLAB || 'Unknown'}`;
+        case 'section':
+          return `Section: ${properties.section_label || 'Unknown'}`;
+        default:
+          return `PLSS Feature: ${adminLevel || 'Unknown'}`;
+      }
+    },
+    fields: [
+      {
+        key: 'admin_level',
+        label: 'Level',
+        format: (value) => {
+          switch (value) {
+            case 'state': return 'State';
+            case 'county': return 'County';
+            case 'township': return 'Township';
+            case 'section': return 'Section';
+            default: return value || 'Unknown';
+          }
+        }
+      },
+      {
+        key: 'state_name',
+        label: 'State',
+        format: (value) => value || 'N/A'
+      },
+      {
+        key: 'county_name',
+        label: 'County',
+        format: (value) => value || 'N/A'
+      },
+      {
+        key: 'township_name',
+        label: 'Township',
+        format: (value) => value || 'N/A'
+      },
+      {
+        key: 'TWNSHPLAB',
+        label: 'Township Label',
+        format: (value) => value || 'N/A'
+      },
+      {
+        key: 'section_label',
+        label: 'Section',
+        format: (value) => value || 'N/A'
+      },
+      {
+        key: 'PLSSID',
+        label: 'PLSS ID',
+        format: (value) => value || 'N/A'
+      }
+    ],
+    layerIds: ['plss-fill'] // Listen to click events on the fill layer
+  };
+
+  return dataset as PlssDataset;
 }
