@@ -22,7 +22,7 @@ export function makePlssDataset(): PlssDataset {
     description: 'Hierarchical PLSS data with states, counties, townships, and sections',
     url: `pmtiles://${DEFAULT_WORKER_ENDPOINT}/plss.pmtiles?key=dev`,
     sourceLayer: 'plss',
-    attribution: '© Bureau of Land Management',
+    attribution: 'LandMapMagic.com',
     minzoom: 0,
     maxzoom: 16,
     layers: {

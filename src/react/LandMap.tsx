@@ -1,21 +1,31 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLandMaps } from './useLandMaps.js';
 import { installPmtilesProtocolMapLibre } from '../core/pmtilesProtocol.js';
-import type { LandMapProps } from '../core/types.js';
+import type { LandMapProps, ClickInfoConfig } from '../core/types.js';
 import { getDefaultMapStyle, loadMapLibre } from './utils.js';
+import { ClickInfo } from './ClickInfo.js';
 
 export function LandMap({
   initialCenter = [-98.5795, 39.8283], // Geographic center of US
   initialZoom = 4,
   style =  getDefaultMapStyle(),
-  layers = ['plss', 'ssurgo'],
+  layers = ['plss', 'ssurgo', 'cdl'],
   showLegend = true,
+  showClickInfo = true,
   className = '',
   height = '500px',
   width = '100%',
 }: LandMapProps) {
 
   const [dataLayers, setDataLayers] = useState<string[]>(layers);
+  
+  // Click info state
+  const [clickInfo, setClickInfo] = useState<{
+    x: number;
+    y: number;
+    properties: Record<string, any>;
+    config: ClickInfoConfig;
+  } | null>(null);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -118,11 +128,13 @@ export function LandMap({
             // Add source
             if (!map.getSource(dataset.id)) {
               try {
+                console.log(`Adding source ${dataset.id} with config:`, dataset.sourceProps);
                 map.addSource(dataset.id, dataset.sourceProps as any);
                 sourcesAddedRef.current.add(dataset.id);
-                console.log(`Source added: ${dataset.id}`);
+                console.log(`✅ Source added: ${dataset.id}`);
               } catch (error) {
-                console.error(`Error adding source ${dataset.id}:`, error);
+                console.error(`❌ Error adding source ${dataset.id}:`, error);
+                console.error('Source config was:', dataset.sourceProps);
               }
             }
             
@@ -132,7 +144,7 @@ export function LandMap({
               if (!map.getLayer(layerId)) {
                 try {
                   const isVisible = dataLayers.includes(datasetKey as any);
-                  map.addLayer({
+                  const layerSpec = {
                     ...layerConfig,
                     id: layerId,
                     source: dataset.id,
@@ -140,14 +152,57 @@ export function LandMap({
                       ...layerConfig.layout,
                       visibility: isVisible ? 'visible' : 'none',
                     },
-                  } as any);
-                  console.log(`Layer added: ${layerId} (visibility: ${isVisible ? 'visible' : 'none'})`);
+                  };
+                  console.log(`Adding layer ${layerId} with config:`, layerSpec);
+                  map.addLayer(layerSpec as any);
+                  console.log(`✅ Layer added: ${layerId} (visibility: ${isVisible ? 'visible' : 'none'})`);
                 } catch (error) {
-                  console.error(`Error adding layer ${layerId}:`, error);
+                  console.error(`❌ Error adding layer ${layerId}:`, error);
+                  console.error('Layer config was:', layerConfig);
+                  console.error('Dataset source:', dataset.sourceProps);
                 }
               }
             });
           });
+
+          // Add click event handler for feature info
+          if (showClickInfo) {
+            map.on('click', (e: any) => {
+              const datasets = { ssurgo, cdl, plss };
+              
+              // Query all visible layers for features at the click point
+              const features = map.queryRenderedFeatures(e.point);
+              
+              if (features.length > 0) {
+                // Find the first feature that has a corresponding click info config
+                for (const feature of features) {
+                  const layerId = feature.layer.id;
+                  
+                  // Find which dataset this layer belongs to
+                  for (const [datasetKey, dataset] of Object.entries(datasets)) {
+                    if (dataset.clickInfoConfig && 
+                        dataset.clickInfoConfig.layerIds && 
+                        dataset.clickInfoConfig.layerIds.includes(layerId)) {
+                      
+                      // Check if this layer is currently visible
+                      if (dataLayers.includes(datasetKey)) {
+                        setClickInfo({
+                          x: e.point.x,
+                          y: e.point.y,
+                          properties: feature.properties,
+                          config: dataset.clickInfoConfig
+                        });
+                        return; // Stop at first match
+                      }
+                    }
+                  }
+                }
+              }
+              
+              // If no features found or clicked outside, close any open popup
+              setClickInfo(null);
+            });
+          }
 
         });
 
@@ -167,6 +222,29 @@ export function LandMap({
       }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle click outside to close popup
+  useEffect(() => {
+    if (!showClickInfo || !clickInfo) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      
+      // Check if click is outside the popup (not on the popup itself or its children)
+      const popupElement = document.querySelector('[data-click-info-popup]');
+      if (popupElement && !popupElement.contains(target)) {
+        setClickInfo(null);
+      }
+    };
+
+    // Add event listener to document
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    // Cleanup
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showClickInfo, clickInfo]);
 
   // No conflicting useEffect - layer management is handled only by toggle function
 
@@ -284,6 +362,18 @@ export function LandMap({
             );
           })}
         </div>
+      )}
+
+      {/* Click Info Popup */}
+      {showClickInfo && clickInfo && (
+        <ClickInfo
+          x={clickInfo.x}
+          y={clickInfo.y}
+          properties={clickInfo.properties}
+          clickInfoConfig={clickInfo.config}
+          visible={true}
+          onClose={() => setClickInfo(null)}
+        />
       )}
     </div>
   );

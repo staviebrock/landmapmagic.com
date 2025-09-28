@@ -17,49 +17,38 @@ const DEFAULT_WORKER_ENDPOINT = getDefaultWorkerEndpoint();
  * The worker API handles shard resolution and range request routing automatically
  */
 export function makeSsurgoDataset(): SsurgoDataset {
-  return makeVectorDataset({
+  const dataset = makeVectorDataset({
     id: 'ssurgo',
     name: 'SSURGO Soil Data',
     description: 'Soil Survey Geographic Database - detailed soil information',
     url: `pmtiles://${DEFAULT_WORKER_ENDPOINT}/ssurgo.pmtiles?key=dev`,
-    sourceLayer: 'soils',
-    attribution: '© USDA NRCS',
-    minzoom: 4,
-    maxzoom: 16,
+    sourceLayer: 'ssurgo',
+    attribution: 'USDA NRCS SSURGO',
+    minzoom: 0,
+    maxzoom: 17,
     layers: {
       fill: {
         type: 'fill',
         paint: {
           'fill-color': [
             'case',
-            ['==', ['get', 'hydgrp'], 'A'], '#2E8B57', // SeaGreen for A (well drained)
-            ['==', ['get', 'hydgrp'], 'B'], '#FFD700', // Gold for B (moderately well drained)
-            ['==', ['get', 'hydgrp'], 'C'], '#FF8C00', // DarkOrange for C (somewhat poorly drained)
-            ['==', ['get', 'hydgrp'], 'D'], '#DC143C', // Crimson for D (poorly drained)
-            // Dual groups (undrained/drained conditions)
-            ['any',
-              ['==', ['get', 'hydgrp'], 'A/D'],
-              ['==', ['get', 'hydgrp'], 'D/A']
-            ], '#8B4513', // Brown for A/D (D unless drained, then A)
-            ['any',
-              ['==', ['get', 'hydgrp'], 'B/D'],
-              ['==', ['get', 'hydgrp'], 'D/B']
-            ], '#CD853F', // Peru for B/D (D unless drained, then B)
-            ['any',
-              ['==', ['get', 'hydgrp'], 'C/D'],
-              ['==', ['get', 'hydgrp'], 'D/C']
-            ], '#D2691E', // Chocolate for C/D (D unless drained, then C)
-            // Less common dual groups
-            ['any',
-              ['==', ['get', 'hydgrp'], 'A/B'],
-              ['==', ['get', 'hydgrp'], 'B/A']
-            ], '#32CD32', // LimeGreen for A/B (B unless drained, then A)
-            ['any',
-              ['==', ['get', 'hydgrp'], 'B/C'],
-              ['==', ['get', 'hydgrp'], 'C/B']
-            ], '#FFA500', // Orange for B/C (C unless drained, then B)
-            // Unknown or other
-            '#808080' // Gray for unknown
+            // Use musym (map unit symbol) for basic soil classification
+            ['has', 'musym'],
+            [
+              'case',
+              // Simple color scheme based on map unit symbol patterns
+              ['in', ['slice', ['get', 'musym'], 0, 1], ['literal', ['A', 'B', 'C']]], '#2E8B57', // Green for A-C series
+              ['in', ['slice', ['get', 'musym'], 0, 1], ['literal', ['D', 'E', 'F']]], '#FFD700', // Gold for D-F series  
+              ['in', ['slice', ['get', 'musym'], 0, 1], ['literal', ['G', 'H', 'I']]], '#FF8C00', // Orange for G-I series
+              ['in', ['slice', ['get', 'musym'], 0, 1], ['literal', ['J', 'K', 'L']]], '#DC143C', // Red for J-L series
+              ['in', ['slice', ['get', 'musym'], 0, 1], ['literal', ['M', 'N', 'O']]], '#8B4513', // Brown for M-O series
+              ['in', ['slice', ['get', 'musym'], 0, 1], ['literal', ['P', 'Q', 'R']]], '#CD853F', // Peru for P-R series
+              ['in', ['slice', ['get', 'musym'], 0, 1], ['literal', ['S', 'T', 'U']]], '#D2691E', // Chocolate for S-U series
+              ['in', ['slice', ['get', 'musym'], 0, 1], ['literal', ['V', 'W', 'X']]], '#32CD32', // LimeGreen for V-X series
+              ['in', ['slice', ['get', 'musym'], 0, 1], ['literal', ['Y', 'Z']]], '#FFA500', // Orange for Y-Z series
+              '#4A90E2' // Blue for numeric or other
+            ],
+            '#808080' // Gray for missing musym
           ],
           'fill-opacity': [
             'interpolate',
@@ -100,5 +89,35 @@ export function makeSsurgoDataset(): SsurgoDataset {
         layout: {}
       }
     }
-  }) as SsurgoDataset;
+  });
+
+  // Add click info configuration
+  (dataset as SsurgoDataset).clickInfoConfig = {
+    title: (properties) => `Soil Unit: ${properties.musym || 'Unknown'}`,
+    fields: [
+      {
+        key: 'musym',
+        label: 'Map Unit Symbol',
+        format: (value) => value || 'N/A'
+      },
+      {
+        key: 'muname',
+        label: 'Map Unit Name',
+        format: (value) => value || 'N/A'
+      },
+      {
+        key: 'mukind',
+        label: 'Map Unit Kind',
+        format: (value) => value || 'N/A'
+      },
+      {
+        key: 'muacres',
+        label: 'Acres',
+        format: (value) => value ? `${Number(value).toLocaleString()} acres` : 'N/A'
+      }
+    ],
+    layerIds: ['ssurgo-fill'] // Listen to click events on the fill layer
+  };
+
+  return dataset as SsurgoDataset;
 }

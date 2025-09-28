@@ -42,6 +42,19 @@ export interface DatasetSource {
   [key: string]: any;
 }
 
+// Click info configuration types
+export interface ClickInfoField {
+  key: string;
+  label: string;
+  format?: (value: any) => string;
+}
+
+export interface ClickInfoConfig {
+  title?: (properties: Record<string, any>) => string;
+  fields: ClickInfoField[];
+  layerIds?: string[]; // Which layer IDs to listen for click events on
+}
+
 export interface VectorDataset {
   id: string;
   name: string;
@@ -49,6 +62,7 @@ export interface VectorDataset {
   sourceProps: DatasetSource;
   layers: Record<string, DatasetLayer>;
   attribution?: string;
+  clickInfoConfig?: ClickInfoConfig;
 }
 
 // Land-specific dataset types
@@ -82,6 +96,7 @@ export interface LandMapProps {
   layers?: Array<keyof LandDatasets>;
   showDatasets?: Array<keyof LandDatasets>; // Deprecated: use layers instead
   showLegend?: boolean; // Show/hide the legend - default true
+  showClickInfo?: boolean; // Show/hide click info popup - default true
   className?: string;
   height?: string | number;
   width?: string | number;
