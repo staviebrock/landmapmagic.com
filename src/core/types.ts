@@ -68,33 +68,36 @@ export interface VectorDataset {
 // Land-specific dataset types
 export interface SsurgoDataset extends VectorDataset {
   id: 'ssurgo';
-  name: 'SSURGO Soil Data';
 }
 
 export interface CdlDataset extends VectorDataset {
   id: 'cdl';
-  name: 'Cropland Data Layer';
 }
 
 export interface PlssDataset extends VectorDataset {
   id: 'plss';
-  name: 'Public Land Survey System';
+}
+
+export interface CluDataset extends VectorDataset {
+  id: 'clu';
 }
 
 export interface LandDatasets {
   ssurgo: SsurgoDataset;
   cdl: CdlDataset;
   plss: PlssDataset;
+  clu: CluDataset;
 }
 
 
 // Component prop types
 export interface LandMapProps {
+  apiKey?: string; // API key for PMTiles and API calls - defaults to 'dev'
   initialCenter?: [number, number];
   initialZoom?: number;
   style?: string | object;
-  layers?: Array<keyof LandDatasets>;
-  showDatasets?: Array<keyof LandDatasets>; // Deprecated: use layers instead
+  availableLayers?: Array<keyof LandDatasets>; // Which layers are available to toggle - default: all (['ssurgo', 'cdl', 'plss', 'clu'])
+  initialVisibleLayers?: Array<keyof LandDatasets>; // Which layers should be visible on load - default: []
   showLegend?: boolean; // Show/hide the legend - default true
   showClickInfo?: boolean; // Show/hide click info popup - default true
   className?: string;
@@ -107,6 +110,7 @@ export interface UseLandMapsReturn {
   ssurgo: SsurgoDataset;
   cdl: CdlDataset;
   plss: PlssDataset;
+  clu: CluDataset;
 }
 
 

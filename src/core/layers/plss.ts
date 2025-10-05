@@ -14,13 +14,15 @@ const DEFAULT_WORKER_ENDPOINT = getDefaultWorkerEndpoint();
 /**
  * Create PLSS (Public Land Survey System) dataset
  * Matches the hierarchical structure from the working frontend prototype
+ * @param apiKey - API key for accessing the PMTiles endpoint (defaults to 'dev')
  */
-export function makePlssDataset(): PlssDataset {
+export function makePlssDataset(apiKey: string = 'dev'): PlssDataset {
   const dataset = makeVectorDataset({
     id: 'plss',
     name: 'Public Land Survey System',
     description: 'Hierarchical PLSS data with states, counties, townships, and sections',
-    url: `pmtiles://${DEFAULT_WORKER_ENDPOINT}/plss.pmtiles?key=dev`,
+    url: `pmtiles://${DEFAULT_WORKER_ENDPOINT}/plss.pmtiles?key=${apiKey}`,
+
     sourceLayer: 'plss',
     attribution: 'LandMapMagic.com',
     minzoom: 0,

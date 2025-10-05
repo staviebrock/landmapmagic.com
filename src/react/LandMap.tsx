@@ -4,12 +4,18 @@ import { installPmtilesProtocolMapLibre } from '../core/pmtilesProtocol.js';
 import type { LandMapProps, ClickInfoConfig } from '../core/types.js';
 import { getDefaultMapStyle, loadMapLibre } from './utils.js';
 import { ClickInfo } from './ClickInfo.js';
+import { AOIDrawer } from './AOIDrawer.js';
+import { AOIQuery, type AOIQueryResult } from './AOIQuery.js';
+import { AOIResults } from './AOIResults.js';
+import type { Feature, Polygon } from 'geojson';
 
 export function LandMap({
+  apiKey = 'dev',
   initialCenter = [-98.5795, 39.8283], // Geographic center of US
   initialZoom = 4,
   style =  getDefaultMapStyle(),
-  layers = ['plss', 'ssurgo', 'cdl'],
+  availableLayers = ['ssurgo', 'cdl', 'plss', 'clu'],
+  initialVisibleLayers = [],
   showLegend = true,
   showClickInfo = true,
   className = '',
@@ -17,7 +23,8 @@ export function LandMap({
   width = '100%',
 }: LandMapProps) {
 
-  const [dataLayers, setDataLayers] = useState<string[]>(layers);
+  const [dataLayers, setDataLayers] = useState<string[]>(initialVisibleLayers);
+  const [currentZoom, setCurrentZoom] = useState<number>(initialZoom);
   
   // Click info state
   const [clickInfo, setClickInfo] = useState<{
@@ -27,11 +34,52 @@ export function LandMap({
     config: ClickInfoConfig;
   } | null>(null);
 
+  // AOI state
+  const [showAOITool, setShowAOITool] = useState(false);
+  const [currentAOI, setCurrentAOI] = useState<Feature<Polygon> | null>(null);
+  const [aoiResults, setAOIResults] = useState<AOIQueryResult[]>([]);
+  const [showAOIResults, setShowAOIResults] = useState(false);
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const sourcesAddedRef = useRef<Set<string>>(new Set());
 
-  const { ssurgo, cdl, plss } = useLandMaps();
+  const { ssurgo, cdl, plss, clu } = useLandMaps(apiKey);
+
+  // AOI handlers
+  const handleAOIComplete = (aoi: Feature<Polygon>) => {
+    setCurrentAOI(aoi);
+    setShowAOIResults(true);
+  };
+
+  const handleAOIChange = (aoi: Feature<Polygon> | null) => {
+    setCurrentAOI(aoi);
+    if (!aoi) {
+      setAOIResults([]);
+      setShowAOIResults(false);
+    }
+  };
+
+  const handleAOIResults = (results: AOIQueryResult[]) => {
+    setAOIResults(results);
+  };
+
+  const toggleAOITool = () => {
+    const newState = !showAOITool;
+    setShowAOITool(newState);
+    
+    if (newState) {
+      // Close click info when opening AOI tool
+      setClickInfo(null);
+    }
+    
+    if (showAOITool) {
+      // Clean up when closing
+      setCurrentAOI(null);
+      setAOIResults([]);
+      setShowAOIResults(false);
+    }
+  };
 
   // Toggle function - ONLY use setLayoutProperty to avoid map flickering
   const toggleLayerVisibility = (datasetKey: string) => {
@@ -39,7 +87,7 @@ export function LandMap({
 
     const map = mapRef.current;
     const isCurrentlyVisible = dataLayers.includes(datasetKey);
-    const datasets = { ssurgo, cdl, plss };
+    const datasets = { ssurgo, cdl, plss, clu };
     const dataset = datasets[datasetKey as keyof typeof datasets];
 
     if (dataset) {
@@ -114,15 +162,30 @@ export function LandMap({
           console.log(`Source loading: ${e.sourceId}`);
         });
 
+        // Track zoom changes
+        map.on('zoom', () => {
+          const zoom = map.getZoom();
+          setCurrentZoom(Math.round(zoom * 10) / 10); // Round to 1 decimal place
+        });
+
         // Wait for map to load
         map.on('load', () => {
           console.log('Map load event fired!');
-          // Add ALL land datasets (we'll control visibility via props and legend)
-          const datasets = { ssurgo, cdl, plss };
+          // Set initial zoom level
+          setCurrentZoom(Math.round(map.getZoom() * 10) / 10);
           
-          console.log('Adding all datasets:', Object.keys(datasets));
+          // Add only available land datasets (we'll control visibility via props and legend)
+          const datasets = { ssurgo, cdl, plss, clu };
+          
+          console.log('Adding available datasets:', availableLayers);
           
           Object.entries(datasets).forEach(([datasetKey, dataset]) => {
+            // Only add if this layer is in availableLayers
+            if (!availableLayers.includes(datasetKey as any)) {
+              console.log(`Skipping dataset ${dataset.id} - not in availableLayers`);
+              return;
+            }
+            
             console.log(`Adding dataset: ${dataset.id}`, dataset.sourceProps);
             
             // Add source
@@ -165,45 +228,6 @@ export function LandMap({
             });
           });
 
-          // Add click event handler for feature info
-          if (showClickInfo) {
-            map.on('click', (e: any) => {
-              const datasets = { ssurgo, cdl, plss };
-              
-              // Query all visible layers for features at the click point
-              const features = map.queryRenderedFeatures(e.point);
-              
-              if (features.length > 0) {
-                // Find the first feature that has a corresponding click info config
-                for (const feature of features) {
-                  const layerId = feature.layer.id;
-                  
-                  // Find which dataset this layer belongs to
-                  for (const [datasetKey, dataset] of Object.entries(datasets)) {
-                    if (dataset.clickInfoConfig && 
-                        dataset.clickInfoConfig.layerIds && 
-                        dataset.clickInfoConfig.layerIds.includes(layerId)) {
-                      
-                      // Check if this layer is currently visible
-                      if (dataLayers.includes(datasetKey)) {
-                        setClickInfo({
-                          x: e.point.x,
-                          y: e.point.y,
-                          properties: feature.properties,
-                          config: dataset.clickInfoConfig
-                        });
-                        return; // Stop at first match
-                      }
-                    }
-                  }
-                }
-              }
-              
-              // If no features found or clicked outside, close any open popup
-              setClickInfo(null);
-            });
-          }
-
         });
 
 
@@ -222,6 +246,64 @@ export function LandMap({
       }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle map click events for feature info
+  useEffect(() => {
+    if (!mapRef.current || !showClickInfo) return;
+
+    const map = mapRef.current;
+    const datasets = { ssurgo, cdl, plss, clu };
+
+    const handleMapClick = (e: any) => {
+      // Don't show click info when AOI tool is active
+      if (showAOITool) {
+        setClickInfo(null);
+        return;
+      }
+
+      // Query all visible layers for features at the click point
+      const features = map.queryRenderedFeatures(e.point);
+      
+      if (features.length > 0) {
+        // Find the first feature that has a corresponding click info config
+        for (const feature of features) {
+          const layerId = feature.layer.id;
+          
+          // Find which dataset this layer belongs to
+          for (const [datasetKey, dataset] of Object.entries(datasets)) {
+            // Skip if not in available layers
+            if (!availableLayers.includes(datasetKey as any)) continue;
+            
+            if (dataset.clickInfoConfig && 
+                dataset.clickInfoConfig.layerIds && 
+                dataset.clickInfoConfig.layerIds.includes(layerId)) {
+              
+              // Check if this layer is currently visible
+              if (dataLayers.includes(datasetKey)) {
+                setClickInfo({
+                  x: e.point.x,
+                  y: e.point.y,
+                  properties: feature.properties,
+                  config: dataset.clickInfoConfig
+                });
+                return; // Stop at first match
+              }
+            }
+          }
+        }
+      }
+      
+      // If no features found or clicked outside, close any open popup
+      setClickInfo(null);
+    };
+
+    map.on('click', handleMapClick);
+
+    // Cleanup
+    return () => {
+      map.off('click', handleMapClick);
+    };
+  }, [showClickInfo, dataLayers, showAOITool, availableLayers]); // Re-attach handler when these change
 
   // Handle click outside to close popup
   useEffect(() => {
@@ -281,12 +363,55 @@ export function LandMap({
             minWidth: '180px',
           }}
         >
-          <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 'bold', color: '#333' }}>
-            Map Layers
-          </h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <h4 style={{ margin: '0', fontSize: '14px', fontWeight: 'bold', color: '#333' }}>
+              Map Layers
+            </h4>
+            <div style={{ 
+              fontSize: '12px', 
+              color: '#666', 
+              backgroundColor: '#f8f9fa',
+              padding: '4px 8px',
+              borderRadius: '12px',
+              border: '1px solid #e9ecef',
+              fontWeight: '500'
+            }}>
+              Zoom: {currentZoom}
+            </div>
+          </div>
           
-          {Object.keys({ ssurgo, cdl, plss }).map(datasetKey => {
-            const datasets = { ssurgo, cdl, plss };
+          {/* AOI Tool Button */}
+          <button
+            onClick={toggleAOITool}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              marginBottom: '12px',
+              backgroundColor: showAOITool ? '#28a745' : '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: '500',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              if (!showAOITool) {
+                e.currentTarget.style.backgroundColor = '#0056b3';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!showAOITool) {
+                e.currentTarget.style.backgroundColor = '#007bff';
+              }
+            }}
+          >
+            {showAOITool ? '✓ AOI Tool Active' : '📐 AOI Query Tool'}
+          </button>
+          
+          {availableLayers.map(datasetKey => {
+            const datasets = { ssurgo, cdl, plss, clu };
             const dataset = datasets[datasetKey as keyof typeof datasets];
             
             if (!dataset) return null;
@@ -299,6 +424,7 @@ export function LandMap({
                 case 'ssurgo': return '#2E8B57'; // SeaGreen for soil data
                 case 'cdl': return '#FFD700'; // Gold for crop data
                 case 'plss': return '#4A90E2'; // Blue for survey data
+                case 'clu': return '#FF6B35'; // Orange for field boundaries
                 default: return '#95A5A6'; // Gray fallback
               }
             };
@@ -373,6 +499,39 @@ export function LandMap({
           clickInfoConfig={clickInfo.config}
           visible={true}
           onClose={() => setClickInfo(null)}
+        />
+      )}
+
+      {/* AOI Drawing Tool */}
+      <AOIDrawer
+        map={mapRef.current}
+        onAOIComplete={handleAOIComplete}
+        onAOIChange={handleAOIChange}
+        isActive={showAOITool}
+        onToggle={toggleAOITool}
+      />
+
+      {/* AOI Query Logic */}
+      <AOIQuery
+        map={mapRef.current}
+        aoi={currentAOI}
+        datasets={Object.fromEntries(
+          availableLayers.map(key => [key, { ssurgo, cdl, plss, clu }[key]])
+        )}
+        enabled={showAOITool && currentAOI !== null}
+        maxFeatures={500}
+        maxAcres={1000}
+        minZoom={14}
+        onResults={handleAOIResults}
+        onError={(error) => console.warn('AOI Query Error:', error)}
+      />
+
+      {/* AOI Results Display */}
+      {showAOIResults && (
+        <AOIResults
+          results={aoiResults}
+          aoi={currentAOI}
+          onClose={() => setShowAOIResults(false)}
         />
       )}
     </div>

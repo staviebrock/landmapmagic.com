@@ -12,12 +12,13 @@ const DEFAULT_WORKER_ENDPOINT = getDefaultWorkerEndpoint();
 
 /**
  * Create CDL cropland dataset using raster tiles from TiTiler
+ * @param apiKey - API key for accessing the tile endpoint (defaults to 'dev')
  */
-export function makeCdlDataset(): CdlDataset {
+export function makeCdlDataset(apiKey: string = 'dev'): CdlDataset {
   // Create raster source for CDL data
   const sourceProps: DatasetSource = {
     type: 'raster',
-    tiles: [`${DEFAULT_WORKER_ENDPOINT}/cdl/tiles/{z}/{x}/{y}?key=dev&year=2024`],
+    tiles: [`${DEFAULT_WORKER_ENDPOINT}/cdl/tiles/{z}/{x}/{y}?key=${apiKey}&year=2024`],
     tileSize: 256,
     minzoom: 0,  // Support zoom level 0 as requested
     maxzoom: 16,

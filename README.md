@@ -9,6 +9,8 @@ A single npm package that makes it **extremely easy** for developers to display 
 - 🗺️ **Drop-in map component** - Get started in minutes with `<LandMap />`
 - 🌾 **Built-in land datasets** - SSURGO soils, CDL crops, PLSS boundaries
 - 🎛️ **Interactive legend** - Toggle layer visibility with built-in controls
+- 📐 **AOI Query Tool** - Draw areas of interest and query features within them
+- 📊 **Smart Results** - Get detailed summaries and statistics for queried areas
 - 📦 **Multiple adapters** - Works with both MapLibre GL JS and Mapbox GL JS
 - 🎯 **TypeScript support** - Full type safety and IntelliSense
 - 🚀 **Bundle efficient** - Peer dependencies externalized, tree-shakeable
@@ -53,7 +55,8 @@ import { LandMap } from "@landmapmagic";
 export default function App() {
   return (
     <LandMap 
-      showDatasets={['plss', 'ssurgo']}
+      apiKey="your-api-key-here"
+      initialVisibleLayers={['plss', 'ssurgo']}
       showLegend={true}
     />
   );
@@ -61,10 +64,32 @@ export default function App() {
 ```
 
 That's it! You now have a fully functional map with:
-- SSURGO soil data
-- CDL cropland data  
-- PLSS survey boundaries
-- Interactive legend for toggling layers
+- Specified land datasets available (example shows PLSS and SSURGO)
+- Interactive legend for toggling layer visibility
+- Layers specified in `initialVisibleLayers` shown on load
+- Built-in AOI query tool for spatial analysis
+- Click-to-query feature information
+
+> **Note:** By default, no layers are visible when the map loads (`initialVisibleLayers` defaults to `[]`). All 4 datasets are available to toggle by default (`availableLayers` defaults to all). This gives users full control over what they want to see.
+
+#### More Examples
+
+```tsx
+// Only make SSURGO and PLSS available, with SSURGO visible on load
+<LandMap 
+  availableLayers={['ssurgo', 'plss']}
+  initialVisibleLayers={['ssurgo']}
+/>
+
+// All layers available, none visible on load (default)
+<LandMap />
+
+// Only CLU available and visible
+<LandMap 
+  availableLayers={['clu']}
+  initialVisibleLayers={['clu']}
+/>
+```
 
 ## Building and Publishing
 
@@ -82,6 +107,85 @@ npm publish
 ```
 
 The build process will fail with a clear error message if `REACT_APP_MAP_STYLE_URL` is not set, ensuring that published packages always have a valid map style configured.
+
+## AOI Query Tool
+
+The built-in Area of Interest (AOI) Query Tool allows users to draw polygons on the map and get detailed information about features within those areas.
+
+### How to Use
+
+1. **Enable the tool**: Click the "📐 AOI Query Tool" button in the map legend
+2. **Start drawing**: Click "Start Drawing" in the AOI tool panel
+3. **Draw your area**: Click on the map to add points for your polygon
+4. **Complete the area**: Double-click or click "Complete" when you have at least 3 points
+5. **View results**: Results appear automatically in the bottom-left panel
+
+### Features
+
+- **Interactive drawing**: Click to add points, double-click to complete
+- **Real-time feedback**: See your polygon as you draw
+- **Smart queries**: Automatically queries all visible layers
+- **Detailed results**: Get feature counts, areas, and layer-specific summaries
+- **Expandable details**: Click layers in results to see individual feature properties
+
+### Query Results
+
+The AOI tool provides different types of analysis based on the layer:
+
+#### SSURGO Soil Data
+- Unique soil types count
+- Map unit information
+- Total acres by soil type
+- Detailed soil properties
+
+#### PLSS Survey Data  
+- Administrative levels (states, counties, townships, sections)
+- Unique boundary counts
+- Geographic coverage summary
+
+#### CDL Cropland Data
+- Raster data coverage information
+- Pixel-level analysis notes
+
+### Programmatic Usage
+
+You can also use the AOI components programmatically:
+
+```tsx
+import { AOIDrawer, AOIQuery, AOIResults } from "@landmapmagic";
+
+function CustomMap() {
+  const [aoi, setAOI] = useState(null);
+  const [results, setResults] = useState([]);
+
+  return (
+    <div>
+      <LandMap />
+      
+      <AOIDrawer
+        map={mapRef.current}
+        onAOIComplete={setAOI}
+        isActive={true}
+        onToggle={() => {}}
+      />
+      
+      <AOIQuery
+        map={mapRef.current}
+        aoi={aoi}
+        visibleLayers={['ssurgo', 'plss']}
+        datasets={{ ssurgo, plss }}
+        onResults={setResults}
+      />
+      
+      <AOIResults
+        results={results}
+        aoi={aoi}
+        onClose={() => setResults([])}
+      />
+    </div>
+  );
+}
+```
 
 ## Advanced Usage
 
@@ -167,29 +271,38 @@ function MyMapboxMap() {
 Drop-in map component with all features enabled.
 
 **Props:**
+- `apiKey?: string` - API key for accessing PMTiles and tile endpoints (default: `'dev'`)
 - `initialCenter?: [number, number]` - Map center coordinates (default: `[-98.5795, 39.8283]`)
 - `initialZoom?: number` - Initial zoom level (default: `4`)
 - `style?: string | object` - Map style URL or style object (optional - uses environment variable or default)
-- `showDatasets?: Array<'ssurgo' | 'cdl' | 'plss'>` - Which datasets to show (default: `['plss', 'ssurgo']`)
+- `availableLayers?: Array<'ssurgo' | 'cdl' | 'plss' | 'clu'>` - Which datasets are available to toggle in the legend (default: `['ssurgo', 'cdl', 'plss', 'clu']` - all layers)
+- `initialVisibleLayers?: Array<'ssurgo' | 'cdl' | 'plss' | 'clu'>` - Which layers should be visible on load (default: `[]` - none visible)
 - `showLegend?: boolean` - Show/hide the interactive legend (default: `true`)
+- `showClickInfo?: boolean` - Show/hide click info popup (default: `true`)
 - `className?: string` - CSS class name
 - `height?: string | number` - Map height (default: `'500px'`)
 - `width?: string | number` - Map width (default: `'100%'`)
 
 ### Hooks
 
-#### `useLandMaps()`
+#### `useLandMaps(apiKey?: string)`
 
-Returns pre-configured land datasets.
+Returns pre-configured land datasets with the specified API key.
 
 ```tsx
-const { ssurgo, cdl, plss } = useLandMaps();
+const { ssurgo, cdl, plss, clu } = useLandMaps('your-api-key');
+// Or use default 'dev' key
+const { ssurgo, cdl, plss, clu } = useLandMaps();
 ```
+
+**Parameters:**
+- `apiKey?: string` - API key for accessing PMTiles and tile endpoints (default: `'dev'`)
 
 **Returns:**
 - `ssurgo` - SSURGO soil data with fill and outline layers
 - `cdl` - Cropland Data Layer with crop type styling  
 - `plss` - Public Land Survey System with township/section boundaries
+- `clu` - Common Land Units field boundaries
 
 ### Utilities
 
@@ -214,6 +327,58 @@ The package provides multiple entry points for different use cases:
 - `@landmapmagic` - Root export with drop-in `<LandMap />` component (MapLibre-based)
 - `@landmapmagic/maplibre` - Full MapLibre adapter with hooks and utilities
 - `@landmapmagic/mapbox` - Full Mapbox adapter with hooks and utilities
+
+## Vanilla JS Version (Non-React)
+
+For **Flask, Django, PHP, Rails, and plain HTML** applications, use the vanilla JavaScript version:
+
+```html
+<!-- Include MapLibre CSS -->
+<link href='https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css' rel='stylesheet' />
+
+<!-- Your map container -->
+<div id="farm-map" style="width: 100%; height: 500px;"></div>
+
+<!-- LandMapMagic Vanilla JS -->
+<script src="https://static.landmapmagic.com/js/landmap-vanilla-latest.min.js"></script>
+<script>
+    LandMapMagic.createMap('farm-map', {
+        apiKey: 'your-api-key',
+        initialCenter: [-93.5, 42.0],
+        initialVisibleLayers: ['ssurgo']
+    });
+</script>
+```
+
+### Framework Integration Examples
+
+**Flask:**
+```python
+@app.route('/farm/<farm_id>')
+def farm_view(farm_id):
+    return render_template('farm.html', 
+                         api_key=os.environ['LANDMAP_API_KEY'])
+```
+
+**Django:**
+```python
+def farm_view(request, farm_id):
+    return render(request, 'farm.html', {
+        'api_key': settings.LANDMAP_API_KEY
+    })
+```
+
+**PHP:**
+```php
+<script>
+    LandMapMagic.createMap('map', {
+        apiKey: '<?php echo $apiKey; ?>',
+        initialVisibleLayers: ['ssurgo']
+    });
+</script>
+```
+
+See `src/vanilla-js/README.md` for complete documentation and examples.
 
 ## Peer Dependencies
 

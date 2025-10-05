@@ -1,0 +1,18 @@
+# LandMapMagic Deployment Configuration
+# Copy this file to .env and set your values
+
+# REQUIRED: Map Style URL (used at build time)
+REACT_APP_MAP_STYLE_URL=https://demotiles.maplibre.org/style.json
+
+# OPTIONAL: API Endpoint (defaults to /api/aoi/summary)
+REACT_APP_LANDMAP_API_ENDPOINT=https://api.landmapmagic.com/api/aoi/summary
+
+# Cloudflare R2 Configuration (for vanilla JS deployment)
+R2_ACCESS_KEY_ID=your-r2-access-key-id
+R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
+R2_BUCKET=landmapmagic
+R2_ACCOUNT_ID=your-cloudflare-account-id
+R2_PUBLIC_BASEURL=https://static.landmapmagic.com
+
+# Optional: Custom R2 endpoint (if not using Cloudflare's default)
+# R2_ENDPOINT_URL=https://your-account-id.r2.cloudflarestorage.com

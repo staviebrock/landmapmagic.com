@@ -1,0 +1,86 @@
+name: Deploy Vanilla JS to R2
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      deploy_latest:
+        description: 'Deploy as latest version'
+        required: false
+        default: 'true'
+        type: boolean
+
+jobs:
+  deploy-vanilla:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build vanilla JS bundle
+        run: npm run build
+        env:
+          REACT_APP_MAP_STYLE_URL: ${{ secrets.REACT_APP_MAP_STYLE_URL }}
+          REACT_APP_LANDMAP_API_ENDPOINT: ${{ secrets.REACT_APP_LANDMAP_API_ENDPOINT }}
+          
+      - name: Install AWS CLI
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          
+      - name: Deploy to Cloudflare R2
+        run: ./scripts/deploy-vanilla.sh
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_PUBLIC_BASEURL: ${{ secrets.R2_PUBLIC_BASEURL }}
+          
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/landmap-vanilla.js
+            dist/landmap-vanilla.js.map
+          body: |
+            ## LandMapMagic Vanilla JS Release
+            
+            This release includes the vanilla JavaScript version for non-React applications.
+            
+            ### CDN URLs
+            - Latest: `${{ secrets.R2_PUBLIC_BASEURL }}/js/landmap-vanilla-latest.min.js`
+            - This version: `${{ secrets.R2_PUBLIC_BASEURL }}/js/landmap-vanilla-${{ github.ref_name }}.min.js`
+            
+            ### Usage
+            ```html
+            <script src="${{ secrets.R2_PUBLIC_BASEURL }}/js/landmap-vanilla-latest.min.js"></script>
+            <script>
+              LandMapMagic.createMap('map', {
+                apiKey: 'your-api-key',
+                initialVisibleLayers: ['ssurgo']
+              });
+            </script>
+            ```
+            
+            ### What's New
+            - Vanilla JS version for Flask, Django, PHP, and plain HTML apps
+            - Self-hosted on Cloudflare R2 for fast global delivery
+            - Full feature parity with React version
+            - Easy integration with server-side templates
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

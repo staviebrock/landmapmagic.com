@@ -31,11 +31,16 @@
   "scripts": {
     "build": "tsup",
     "build:example": "npm run build",
+    "build:vanilla": "tsup --entry.landmap-vanilla src/vanilla-js/index.ts --format iife --global-name LandMapMagic --minify --no-dts",
     "dev": "tsup --watch",
+    "dev:vanilla": "tsup --entry.landmap-vanilla src/vanilla-js/index.ts --format iife --global-name LandMapMagic --watch",
 
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    
+    "deploy:vanilla": "./scripts/deploy-vanilla.sh",
+    "deploy:all": "npm run build && npm run deploy:vanilla"
   },
   "peerDependencies": {
     "mapbox-gl": "^2",

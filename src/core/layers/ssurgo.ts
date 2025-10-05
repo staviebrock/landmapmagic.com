@@ -15,13 +15,14 @@ const DEFAULT_WORKER_ENDPOINT = getDefaultWorkerEndpoint();
  * Create SSURGO soil dataset
  * SSURGO data is always sharded across multiple files for better performance with range queries
  * The worker API handles shard resolution and range request routing automatically
+ * @param apiKey - API key for accessing the PMTiles endpoint (defaults to 'dev')
  */
-export function makeSsurgoDataset(): SsurgoDataset {
+export function makeSsurgoDataset(apiKey: string = 'dev'): SsurgoDataset {
   const dataset = makeVectorDataset({
     id: 'ssurgo',
     name: 'SSURGO Soil Data',
     description: 'Soil Survey Geographic Database - detailed soil information',
-    url: `pmtiles://${DEFAULT_WORKER_ENDPOINT}/ssurgo.pmtiles?key=dev`,
+    url: `pmtiles://${DEFAULT_WORKER_ENDPOINT}/ssurgo.pmtiles?key=${apiKey}`,
     sourceLayer: 'ssurgo',
     attribution: 'USDA NRCS SSURGO',
     minzoom: 0,
