@@ -82,17 +82,23 @@ export interface CluDataset extends VectorDataset {
   id: 'clu';
 }
 
+export interface StatesDataset extends VectorDataset {
+  id: 'states';
+}
+
 export interface LandDatasets {
   ssurgo: SsurgoDataset;
   cdl: CdlDataset;
   plss: PlssDataset;
   clu: CluDataset;
+  states: StatesDataset;
 }
 
 
 // Component prop types
 export interface LandMapProps {
   apiKey?: string; // API key for PMTiles and API calls - defaults to 'dev'
+  baseApiUrl?: string; // Base API URL for all queries - defaults to staging endpoint
   initialCenter?: [number, number];
   initialZoom?: number;
   style?: string | object;
@@ -111,6 +117,7 @@ export interface UseLandMapsReturn {
   cdl: CdlDataset;
   plss: PlssDataset;
   clu: CluDataset;
+  states: StatesDataset | VectorDataset;
 }
 
 

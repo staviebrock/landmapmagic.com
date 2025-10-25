@@ -1,0 +1,162 @@
+name: Publish to NPM
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'tsup.config.ts'
+  workflow_dispatch:
+    inputs:
+      force_publish:
+        description: 'Force publish current version (skip version bump)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+      
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Determine version bump type
+        if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')
+        id: version_type
+        run: |
+          # Get the commit message
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
+          
+          # Check for breaking changes (BREAKING CHANGE: or !)
+          if echo "$COMMIT_MSG" | grep -qiE "BREAKING CHANGE:|^[a-z]+(\([a-z]+\))?!:"; then
+            echo "type=major" >> $GITHUB_OUTPUT
+            echo "📢 Breaking change detected - will bump MAJOR version"
+          # Check for feat: commits
+          elif echo "$COMMIT_MSG" | grep -qiE "^feat(\([a-z]+\))?:"; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+            echo "✨ Feature detected - will bump MINOR version"
+          # Check for fix: commits
+          elif echo "$COMMIT_MSG" | grep -qiE "^fix(\([a-z]+\))?:"; then
+            echo "type=patch" >> $GITHUB_OUTPUT
+            echo "🐛 Fix detected - will bump PATCH version"
+          # Check for other conventional commit types that warrant a patch
+          elif echo "$COMMIT_MSG" | grep -qiE "^(perf|refactor|docs|style|test|build|ci|chore)(\([a-z]+\))?:"; then
+            echo "type=patch" >> $GITHUB_OUTPUT
+            echo "🔧 Maintenance change detected - will bump PATCH version"
+          else
+            echo "type=none" >> $GITHUB_OUTPUT
+            echo "ℹ️  No version bump needed (non-conventional commit)"
+          fi
+      
+      - name: Auto version bump
+        if: steps.version_type.outputs.type != 'none' && steps.version_type.outputs.type != ''
+        run: |
+          BUMP_TYPE="${{ steps.version_type.outputs.type }}"
+          OLD_VERSION=$(node -p "require('./package.json').version")
+          
+          npm version $BUMP_TYPE -m "chore: bump version to %s [skip ci]"
+          
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "📦 Version bumped from $OLD_VERSION to $NEW_VERSION ($BUMP_TYPE)"
+          
+          git push origin main
+          git push --tags
+      
+      - name: Get package version
+        id: package_version
+        run: |
+          # Re-fetch to get latest version after potential bump
+          git pull origin main
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Current version: $VERSION"
+      
+      - name: Check if version exists on npm
+        id: check_version
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          if npm view $PACKAGE_NAME@${{ steps.package_version.outputs.version }} version 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⚠️  Version ${{ steps.package_version.outputs.version }} already exists on npm"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✅ Version ${{ steps.package_version.outputs.version }} is new"
+          fi
+      
+      - name: Run type check
+        if: steps.check_version.outputs.exists == 'false'
+        run: npm run typecheck
+      
+      - name: Build package
+        if: steps.check_version.outputs.exists == 'false'
+        run: npm run build
+      
+      - name: Publish to npm
+        if: steps.check_version.outputs.exists == 'false'
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      
+      - name: Create GitHub Release
+        if: steps.check_version.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.package_version.outputs.version }}
+          name: Release v${{ steps.package_version.outputs.version }}
+          body: |
+            ## 📦 LandMapMagic v${{ steps.package_version.outputs.version }}
+            
+            Published to npm: https://www.npmjs.com/package/landmapmagic/v/${{ steps.package_version.outputs.version }}
+            
+            ### Installation
+            ```bash
+            npm install landmapmagic@${{ steps.package_version.outputs.version }}
+            ```
+            
+            ### Usage
+            ```typescript
+            import { LandMap } from 'landmapmagic/maplibre';
+            // or
+            import { LandMap } from 'landmapmagic/mapbox';
+            ```
+            
+            See [README](https://github.com/staviebrock/landmapmagic.com/blob/main/README.md) for full documentation.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Version already published
+        if: steps.check_version.outputs.exists == 'true'
+        run: |
+          echo "::notice::Version ${{ steps.package_version.outputs.version }} already exists on npm. Skipping publish."
+          echo ""
+          echo "This can happen if:"
+          echo "  1. The version was already published"
+          echo "  2. No version bump was triggered (non-conventional commit)"
+          echo ""
+          echo "To publish a new version, use conventional commits:"
+          echo "  - fix: ... (patch bump)"
+          echo "  - feat: ... (minor bump)"
+          echo "  - Use 'Release Major Version' workflow for major bumps"
+

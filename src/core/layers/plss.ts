@@ -1,27 +1,20 @@
 import type { PlssDataset } from '../types.js';
 import { makeVectorDataset } from '../makeVectorDataset.js';
-
-// Default worker endpoint from environment or fallback
-const getDefaultWorkerEndpoint = (): string => {
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env.REACT_APP_WORKER_ENDPOINT || 'http://localhost:8787';
-  }
-  return 'http://localhost:8787';
-};
-
-const DEFAULT_WORKER_ENDPOINT = getDefaultWorkerEndpoint();
+import { DEFAULT_WORKER_ENDPOINT } from '../utils.js';
 
 /**
  * Create PLSS (Public Land Survey System) dataset
  * Matches the hierarchical structure from the working frontend prototype
  * @param apiKey - API key for accessing the PMTiles endpoint (defaults to 'dev')
+ * @param apiUrl - Base API URL for queries (optional, defaults to staging endpoint)
  */
-export function makePlssDataset(apiKey: string = 'dev'): PlssDataset {
+export function makePlssDataset(apiKey: string = 'dev', apiUrl?: string): PlssDataset {
+  const workerEndpoint = apiUrl || DEFAULT_WORKER_ENDPOINT;
   const dataset = makeVectorDataset({
     id: 'plss',
     name: 'Public Land Survey System',
     description: 'Hierarchical PLSS data with states, counties, townships, and sections',
-    url: `pmtiles://${DEFAULT_WORKER_ENDPOINT}/plss.pmtiles?key=${apiKey}`,
+    url: `pmtiles://${workerEndpoint}/plss.pmtiles?key=${apiKey}`,
 
     sourceLayer: 'plss',
     attribution: 'LandMapMagic.com',

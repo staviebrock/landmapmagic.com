@@ -1,0 +1,31 @@
+# Source files (only ship dist/)
+src/
+examples/
+scripts/
+
+# Config files
+tsconfig.json
+tsup.config.ts
+deployment.config.example
+.github/
+.git/
+
+# Development
+node_modules/
+*.log
+.DS_Store
+.env
+.env.local
+
+# Build artifacts
+*.tgz
+
+# Documentation (keep README.md)
+VANILLA_JS_DEPLOYMENT.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+

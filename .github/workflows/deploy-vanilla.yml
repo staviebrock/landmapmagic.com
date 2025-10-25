@@ -9,7 +9,7 @@ on:
       deploy_latest:
         description: 'Deploy as latest version'
         required: false
-        default: 'true'
+        default: true
         type: boolean
 
 jobs:

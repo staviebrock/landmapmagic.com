@@ -1,0 +1,97 @@
+name: Release Major Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "MAJOR" to confirm breaking change release'
+        required: true
+        type: string
+      release_notes:
+        description: 'Brief description of breaking changes'
+        required: true
+        type: string
+
+jobs:
+  major-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Validate confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "MAJOR" ]; then
+            echo "::error::Confirmation failed. You must type 'MAJOR' to proceed with a breaking change release."
+            exit 1
+          fi
+      
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Get current version
+        id: current_version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+      
+      - name: Bump major version
+        id: bump
+        run: |
+          OLD_VERSION="${{ steps.current_version.outputs.version }}"
+          npm version major --no-git-tag-version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "🚨 MAJOR version bump from $OLD_VERSION to $NEW_VERSION"
+      
+      - name: Create release commit
+        run: |
+          git add package.json package-lock.json
+          cat > temp_commit_msg << 'EOF'
+chore: release v${{ steps.bump.outputs.new_version }} - BREAKING CHANGE
+
+${{ github.event.inputs.release_notes }}
+
+This is a major version release with breaking changes.
+EOF
+          git commit -F temp_commit_msg
+          rm temp_commit_msg
+          git push origin main
+      
+      - name: Create release tag
+        run: |
+          cat > temp_tag_msg << 'EOF'
+Release v${{ steps.bump.outputs.new_version }}
+
+BREAKING CHANGES:
+${{ github.event.inputs.release_notes }}
+EOF
+          git tag -a "v${{ steps.bump.outputs.new_version }}" -F temp_tag_msg
+          rm temp_tag_msg
+          git push --tags
+      
+      - name: Summary
+        run: |
+          echo "## 🚨 Major Version Release Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Old version**: ${{ steps.current_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **New version**: ${{ steps.bump.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Type**: MAJOR (Breaking Changes)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Breaking Changes" >> $GITHUB_STEP_SUMMARY
+          echo "${{ github.event.inputs.release_notes }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The npm publish workflow will automatically run and publish this new version." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ **Important**: Update documentation and notify users of breaking changes!" >> $GITHUB_STEP_SUMMARY
+

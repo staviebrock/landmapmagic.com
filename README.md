@@ -108,6 +108,18 @@ npm publish
 
 The build process will fail with a clear error message if `REACT_APP_MAP_STYLE_URL` is not set, ensuring that published packages always have a valid map style configured.
 
+### Contributing
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) for automatic versioning:
+
+- `fix:` - Bug fixes (patch bump: 0.1.0 → 0.1.1)
+- `feat:` - New features (minor bump: 0.1.0 → 0.2.0)
+- `perf:`, `refactor:`, `docs:`, etc. - Maintenance (patch bump)
+
+For breaking changes, use the "Release Major Version" workflow in GitHub Actions.
+
+See [COMMIT_CONVENTION.md](.github/COMMIT_CONVENTION.md) for details.
+
 ## AOI Query Tool
 
 The built-in Area of Interest (AOI) Query Tool allows users to draw polygons on the map and get detailed information about features within those areas.
@@ -275,8 +287,8 @@ Drop-in map component with all features enabled.
 - `initialCenter?: [number, number]` - Map center coordinates (default: `[-98.5795, 39.8283]`)
 - `initialZoom?: number` - Initial zoom level (default: `4`)
 - `style?: string | object` - Map style URL or style object (optional - uses environment variable or default)
-- `availableLayers?: Array<'ssurgo' | 'cdl' | 'plss' | 'clu'>` - Which datasets are available to toggle in the legend (default: `['ssurgo', 'cdl', 'plss', 'clu']` - all layers)
-- `initialVisibleLayers?: Array<'ssurgo' | 'cdl' | 'plss' | 'clu'>` - Which layers should be visible on load (default: `[]` - none visible)
+- `availableLayers?: Array<'ssurgo' | 'cdl' | 'plss' | 'clu' | 'states'>` - Which datasets are available to toggle in the legend (default: `['ssurgo', 'cdl', 'plss', 'clu', 'states']` - all layers)
+- `initialVisibleLayers?: Array<'ssurgo' | 'cdl' | 'plss' | 'clu' | 'states'>` - Which layers should be visible on load (default: `[]` - none visible)
 - `showLegend?: boolean` - Show/hide the interactive legend (default: `true`)
 - `showClickInfo?: boolean` - Show/hide click info popup (default: `true`)
 - `className?: string` - CSS class name
@@ -290,9 +302,9 @@ Drop-in map component with all features enabled.
 Returns pre-configured land datasets with the specified API key.
 
 ```tsx
-const { ssurgo, cdl, plss, clu } = useLandMaps('your-api-key');
+const { ssurgo, cdl, plss, clu, states } = useLandMaps('your-api-key');
 // Or use default 'dev' key
-const { ssurgo, cdl, plss, clu } = useLandMaps();
+const { ssurgo, cdl, plss, clu, states } = useLandMaps();
 ```
 
 **Parameters:**
@@ -303,6 +315,7 @@ const { ssurgo, cdl, plss, clu } = useLandMaps();
 - `cdl` - Cropland Data Layer with crop type styling  
 - `plss` - Public Land Survey System with township/section boundaries
 - `clu` - Common Land Units field boundaries
+- `states` - US state boundaries with clean styling
 
 ### Utilities
 

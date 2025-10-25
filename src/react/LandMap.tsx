@@ -11,10 +11,11 @@ import type { Feature, Polygon } from 'geojson';
 
 export function LandMap({
   apiKey = 'dev',
+  baseApiUrl: apiUrl,
   initialCenter = [-98.5795, 39.8283], // Geographic center of US
   initialZoom = 4,
   style =  getDefaultMapStyle(),
-  availableLayers = ['ssurgo', 'cdl', 'plss', 'clu'],
+  availableLayers = ['clu'],
   initialVisibleLayers = [],
   showLegend = true,
   showClickInfo = true,
@@ -44,7 +45,26 @@ export function LandMap({
   const mapRef = useRef<any>(null);
   const sourcesAddedRef = useRef<Set<string>>(new Set());
 
-  const { ssurgo, cdl, plss, clu } = useLandMaps(apiKey);
+  // Check for debug PMTiles URL override
+  const debugPMTilesPath = typeof window !== 'undefined' && (window as any).__DEBUG_PMTILES_URL__ 
+    ? (window as any).__DEBUG_PMTILES_URL__.split('?')[0].split('pmtiles://')[1].split('/').slice(1).join('/')
+    : undefined;
+
+  // Extract source layer from PMTiles path (use directory name or filename without extension)
+  const debugSourceLayer = debugPMTilesPath 
+    ? (() => {
+        const pathParts = debugPMTilesPath.split('/');
+        if (pathParts.length > 1) {
+          // Use directory name as source layer
+          return pathParts[pathParts.length - 2];
+        } else {
+          // Use filename without extension as source layer
+          return pathParts[pathParts.length - 1].replace('.pmtiles', '');
+        }
+      })()
+    : undefined;
+
+  const { ssurgo, cdl, plss, clu, states } = useLandMaps(apiKey, apiUrl, debugPMTilesPath, debugSourceLayer);
 
   // AOI handlers
   const handleAOIComplete = (aoi: Feature<Polygon>) => {
@@ -87,7 +107,7 @@ export function LandMap({
 
     const map = mapRef.current;
     const isCurrentlyVisible = dataLayers.includes(datasetKey);
-    const datasets = { ssurgo, cdl, plss, clu };
+    const datasets = { ssurgo, cdl, plss, clu, states };
     const dataset = datasets[datasetKey as keyof typeof datasets];
 
     if (dataset) {
@@ -175,7 +195,7 @@ export function LandMap({
           setCurrentZoom(Math.round(map.getZoom() * 10) / 10);
           
           // Add only available land datasets (we'll control visibility via props and legend)
-          const datasets = { ssurgo, cdl, plss, clu };
+          const datasets = { ssurgo, cdl, plss, clu, states };
           
           console.log('Adding available datasets:', availableLayers);
           
@@ -252,7 +272,7 @@ export function LandMap({
     if (!mapRef.current || !showClickInfo) return;
 
     const map = mapRef.current;
-    const datasets = { ssurgo, cdl, plss, clu };
+    const datasets = { ssurgo, cdl, plss, clu, states };
 
     const handleMapClick = (e: any) => {
       // Don't show click info when AOI tool is active
@@ -304,6 +324,63 @@ export function LandMap({
       map.off('click', handleMapClick);
     };
   }, [showClickInfo, dataLayers, showAOITool, availableLayers]); // Re-attach handler when these change
+
+  // Handle hover events for CLU layer highlighting
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    const map = mapRef.current;
+    let hoveredFeatureId: string | null = null;
+
+    const handleMouseMove = (e: any) => {
+      if (showAOITool) return; // Don't highlight when AOI tool is active
+
+      const features = map.queryRenderedFeatures(e.point);
+      const cluHoverLayer = 'clu-hover';
+
+      // Reset previous hover
+      if (hoveredFeatureId) {
+        map.setFilter(cluHoverLayer, ['==', ['get', 'id'], '']);
+        hoveredFeatureId = null;
+      }
+
+      // Find CLU feature to highlight
+      for (const feature of features) {
+        if (feature.layer.id.startsWith('clu-') && dataLayers.includes('clu')) {
+          hoveredFeatureId = feature.properties.id;
+
+          // Update hover filter to show this specific field
+          map.setFilter(cluHoverLayer, ['==', ['get', 'id'], hoveredFeatureId]);
+
+          // Change cursor to pointer
+          map.getCanvas().style.cursor = 'pointer';
+          return;
+        }
+      }
+
+      // No CLU feature found, reset cursor
+      map.getCanvas().style.cursor = '';
+    };
+
+    const handleMouseLeave = () => {
+      if (hoveredFeatureId) {
+        map.setFilter('clu-hover', ['==', ['get', 'id'], '']);
+        hoveredFeatureId = null;
+      }
+      map.getCanvas().style.cursor = '';
+    };
+
+    map.on('mousemove', handleMouseMove);
+    map.on('mouseleave', handleMouseLeave);
+
+    return () => {
+      map.off('mousemove', handleMouseMove);
+      map.off('mouseleave', handleMouseLeave);
+      if (hoveredFeatureId) {
+        map.setFilter('clu-hover', ['==', ['get', 'id'], '']);
+      }
+    };
+  }, [dataLayers, showAOITool]); // Re-attach when layers change or AOI tool state changes
 
   // Handle click outside to close popup
   useEffect(() => {
@@ -411,7 +488,7 @@ export function LandMap({
           </button>
           
           {availableLayers.map(datasetKey => {
-            const datasets = { ssurgo, cdl, plss, clu };
+            const datasets = { ssurgo, cdl, plss, clu, states };
             const dataset = datasets[datasetKey as keyof typeof datasets];
             
             if (!dataset) return null;
@@ -425,6 +502,7 @@ export function LandMap({
                 case 'cdl': return '#FFD700'; // Gold for crop data
                 case 'plss': return '#4A90E2'; // Blue for survey data
                 case 'clu': return '#FF6B35'; // Orange for field boundaries
+                case 'states': return '#8B4513'; // SaddleBrown for state boundaries
                 default: return '#95A5A6'; // Gray fallback
               }
             };
@@ -516,7 +594,7 @@ export function LandMap({
         map={mapRef.current}
         aoi={currentAOI}
         datasets={Object.fromEntries(
-          availableLayers.map(key => [key, { ssurgo, cdl, plss, clu }[key]])
+          availableLayers.map(key => [key, { ssurgo, cdl, plss, clu, states }[key]])
         )}
         enabled={showAOITool && currentAOI !== null}
         maxFeatures={500}

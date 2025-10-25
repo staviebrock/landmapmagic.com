@@ -1,28 +1,21 @@
 import type { SsurgoDataset } from '../types.js';
 import { makeVectorDataset } from '../makeVectorDataset.js';
-
-// Default worker endpoint from environment or fallback
-const getDefaultWorkerEndpoint = (): string => {
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env.REACT_APP_WORKER_ENDPOINT || 'http://localhost:8787';
-  }
-  return 'http://localhost:8787';
-};
-
-const DEFAULT_WORKER_ENDPOINT = getDefaultWorkerEndpoint();
+import { DEFAULT_WORKER_ENDPOINT } from '../utils.js';
 
 /**
  * Create SSURGO soil dataset
  * SSURGO data is always sharded across multiple files for better performance with range queries
  * The worker API handles shard resolution and range request routing automatically
  * @param apiKey - API key for accessing the PMTiles endpoint (defaults to 'dev')
+ * @param apiUrl - Base API URL for queries (optional, defaults to staging endpoint)
  */
-export function makeSsurgoDataset(apiKey: string = 'dev'): SsurgoDataset {
+export function makeSsurgoDataset(apiKey: string = 'dev', apiUrl?: string): SsurgoDataset {
+  const workerEndpoint = apiUrl || DEFAULT_WORKER_ENDPOINT;
   const dataset = makeVectorDataset({
     id: 'ssurgo',
     name: 'SSURGO Soil Data',
     description: 'Soil Survey Geographic Database - detailed soil information',
-    url: `pmtiles://${DEFAULT_WORKER_ENDPOINT}/ssurgo.pmtiles?key=${apiKey}`,
+    url: `pmtiles://${workerEndpoint}/ssurgo.pmtiles?key=${apiKey}`,
     sourceLayer: 'ssurgo',
     attribution: 'USDA NRCS SSURGO',
     minzoom: 0,

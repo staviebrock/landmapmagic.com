@@ -1,24 +1,17 @@
 import type { CdlDataset, DatasetSource, DatasetLayer } from '../types.js';
-
-// Default worker endpoint from environment or fallback
-const getDefaultWorkerEndpoint = (): string => {
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env.REACT_APP_WORKER_ENDPOINT || 'http://localhost:8787';
-  }
-  return 'http://localhost:8787';
-};
-
-const DEFAULT_WORKER_ENDPOINT = getDefaultWorkerEndpoint();
+import { DEFAULT_WORKER_ENDPOINT } from '../utils.js';
 
 /**
  * Create CDL cropland dataset using raster tiles from TiTiler
  * @param apiKey - API key for accessing the tile endpoint (defaults to 'dev')
+ * @param apiUrl - Base API URL for queries (optional, defaults to staging endpoint)
  */
-export function makeCdlDataset(apiKey: string = 'dev'): CdlDataset {
+export function makeCdlDataset(apiKey: string = 'dev', apiUrl?: string): CdlDataset {
+  const workerEndpoint = apiUrl || DEFAULT_WORKER_ENDPOINT;
   // Create raster source for CDL data
   const sourceProps: DatasetSource = {
     type: 'raster',
-    tiles: [`${DEFAULT_WORKER_ENDPOINT}/cdl/tiles/{z}/{x}/{y}?key=${apiKey}&year=2024`],
+    tiles: [`${workerEndpoint}/cdl/tiles/{z}/{x}/{y}?key=${apiKey}&year=2024`],
     tileSize: 256,
     minzoom: 0,  // Support zoom level 0 as requested
     maxzoom: 16,

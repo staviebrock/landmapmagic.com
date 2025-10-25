@@ -15,7 +15,7 @@
  */
 
 import { installPmtilesProtocolMapLibre } from '../core/pmtilesProtocol.js';
-import { makeSsurgoDataset, makeCdlDataset, makePlssDataset, makeCluDataset } from '../core/makeVectorDataset.js';
+import { makeSsurgoDataset, makeCdlDataset, makePlssDataset, makeCluDataset, makeStatesDataset } from '../core/makeVectorDataset.js';
 import { getDefaultMapStyle, loadMapLibre } from '../react/utils.js';
 import type { LandDatasets, VectorDataset } from '../core/types.js';
 import type { Feature, Polygon } from 'geojson';
@@ -384,6 +384,7 @@ function createLandDatasets(apiKey: string): LandDatasets {
     cdl: makeCdlDataset(apiKey),
     plss: makePlssDataset(apiKey),
     clu: makeCluDataset(apiKey),
+    states: makeStatesDataset(apiKey),
   };
 }
 

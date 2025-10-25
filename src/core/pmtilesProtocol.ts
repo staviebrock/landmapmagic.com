@@ -16,9 +16,19 @@ export function installPmtilesProtocolMapLibre(maplibregl?: any): void {
 
   const protocol = new Protocol();
   
-  // Add debugging to the protocol handler
+  // Add debugging to the protocol handler with URL override support
   const debugProtocol = {
     tile: (params: any, callback: any) => {
+      // Check for debug URL override
+      if (typeof window !== 'undefined' && (window as any).__DEBUG_PMTILES_URL__) {
+        const debugUrl = (window as any).__DEBUG_PMTILES_URL__;
+        console.log('🔧 Using debug PMTiles URL:', debugUrl);
+        
+        // Override the URL in params
+        const modifiedParams = { ...params, url: debugUrl };
+        return protocol.tile(modifiedParams, callback);
+      }
+      
       console.log('PMTiles protocol called with params:', params);
       return protocol.tile(params, callback);
     }
@@ -45,11 +55,29 @@ export function installPmtilesProtocolMapbox(mapboxgl?: any): void {
 
   const protocol = new Protocol();
   
+  // Add debugging to the protocol handler with URL override support
+  const debugProtocol = {
+    tile: (params: any, callback: any) => {
+      // Check for debug URL override
+      if (typeof window !== 'undefined' && (window as any).__DEBUG_PMTILES_URL__) {
+        const debugUrl = (window as any).__DEBUG_PMTILES_URL__;
+        console.log('🔧 Using debug PMTiles URL:', debugUrl);
+        
+        // Override the URL in params
+        const modifiedParams = { ...params, url: debugUrl };
+        return protocol.tile(modifiedParams, callback);
+      }
+      
+      console.log('PMTiles protocol called with params:', params);
+      return protocol.tile(params, callback);
+    }
+  };
+  
   if (mapboxgl?.addProtocol) {
-    mapboxgl.addProtocol('pmtiles', protocol.tile);
+    mapboxgl.addProtocol('pmtiles', debugProtocol.tile);
     protocolInstalled = true;
   } else if (typeof window !== 'undefined' && (window as any).mapboxgl?.addProtocol) {
-    (window as any).mapboxgl.addProtocol('pmtiles', protocol.tile);
+    (window as any).mapboxgl.addProtocol('pmtiles', debugProtocol.tile);
     protocolInstalled = true;
   } else {
     console.warn('Mapbox GL JS not found. PMTiles protocol not installed.');

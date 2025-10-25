@@ -42,10 +42,12 @@ const loadMapbox = async () => {
  * Similar to the base LandMap but uses Mapbox GL JS instead of MapLibre
  */
 export function LandMap({
+  apiKey = 'dev',
+  baseApiUrl: apiUrl,
   initialCenter = [-98.5795, 39.8283], // Geographic center of US
   initialZoom = 4,
   style = DEFAULT_MAP_STYLE,
-  availableLayers = ['ssurgo', 'cdl', 'plss', 'clu'],
+  availableLayers = ['ssurgo', 'cdl', 'plss', 'clu', 'states'],
   initialVisibleLayers = [],
   showLegend = true,
   showClickInfo = true,
@@ -57,7 +59,7 @@ export function LandMap({
   const mapRef = useRef<any>(null);
   const sourcesAddedRef = useRef<Set<string>>(new Set());
 
-  const { ssurgo, cdl, plss, clu } = useLandMaps();
+  const { ssurgo, cdl, plss, clu, states } = useLandMaps(apiKey, apiUrl);
 
   // Track which layers are currently visible
   const [dataLayers, setDataLayers] = useState<string[]>(initialVisibleLayers);
@@ -132,7 +134,7 @@ export function LandMap({
         // Wait for map to load
         map.on('load', () => {
           // Add only available land datasets (we'll control visibility via props and legend)
-          const datasets = { ssurgo, cdl, plss, clu };
+          const datasets = { ssurgo, cdl, plss, clu, states };
           
           console.log('Adding available datasets:', availableLayers);
           
