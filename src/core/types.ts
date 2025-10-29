@@ -21,6 +21,7 @@ export interface Bounds {
 export interface DatasetLayer {
   id: string;
   type: 'fill' | 'line' | 'circle' | 'symbol' | 'raster' | 'fill-extrusion' | 'heatmap' | 'hillshade';
+  'source-layer'?: string;  // For vector tile sources
   paint?: Record<string, any>;
   layout?: Record<string, any>;
   filter?: any[];

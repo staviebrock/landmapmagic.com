@@ -17,46 +17,78 @@ export function makeCluDataset(apiKey: string = 'dev', apiUrl?: string): CluData
     name: 'Common Land Units',
     description: 'USDA FSA Common Land Unit field boundaries for agricultural analysis',
     url: pmtilesUrl,
-
     sourceLayer: 'clu',
-    attribution: 'USDA FSA',
+    attribution: 'LandMapMagic.com',
     minzoom: 12,    // Allow viewing at all zoom levels
     maxzoom: 17,   // Match actual PMTiles data availability (layers can still render beyond this)
     layers: {
-      // Simple field boundary fill layer
+      // Simple field boundary fill layer with hover state
       fill: {
         type: 'fill',
+        'source-layer': 'clu',  // Polygon layer
         paint: {
-          'fill-color': '#FF6B35',  // Simple orange color
-          'fill-opacity': 0.4
+          'fill-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            '#FFD700',  // Bright gold on hover
+            '#FF6B35'   // Default orange
+          ],
+          'fill-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            0.7,  // More opaque on hover
+            0.4   // Default opacity
+          ]
         },
         layout: {},
         minzoom: 11,   // Show at all zoom levels
         maxzoom: 22   // Show at all zoom levels
       },
-      // Simple field boundary outline layer
+      // Simple field boundary outline layer with hover state
       outline: {
         type: 'line',
+        'source-layer': 'clu',  // Polygon layer
         paint: {
-          'line-color': '#B8860B',  // Dark goldenrod
-          'line-width': 1,
+          'line-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            '#FFD700',  // Bright gold on hover
+            '#B8860B'   // Default dark goldenrod
+          ],
+          'line-width': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            2,  // Thicker on hover
+            1   // Default width
+          ],
           'line-opacity': 0.8
         },
         layout: {},
         minzoom: 11,   // Show at all zoom levels
         maxzoom: 22   // Show at all zoom levels
       },
-      // Hover highlight layer (only shows on hover)
-      hover: {
-        type: 'fill',
+      // Label points layer - representative points with acreage
+      labels: {
+        type: 'symbol',
+        'source-layer': 'clu_labels',  // Point layer
         paint: {
-          'fill-color': '#FFD700',  // Bright gold highlight
-          'fill-opacity': 0.6
+          'text-color': '#333',
+          'text-halo-color': '#fff',
+          'text-halo-width': 2
         },
-        layout: {},
-        filter: ['==', ['get', 'id'], ''],  // Initially empty, populated by hover events
-        minzoom: 11,   // Show at all zoom levels
-        maxzoom: 22   // Show at all zoom levels
+        layout: {
+          'text-field': ['concat', ['get', 'CALCACRES'], ' ac'],
+          'text-size': 11,
+          'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
+          // 'text-allow-overlap': true,  // Allow labels to overlap with other symbols
+          // 'text-ignore-placement': true,  // Don't hide labels due to collision
+          // 'symbol-placement': 'point',  // Place at exact point location
+          // 'text-anchor': 'center',  // Center text on point
+          // 'text-rotation-alignment': 'map',  // Rotate with map
+          // 'text-pitch-alignment': 'map'  // Pitch with map (stay flat on surface)
+        },
+        minzoom: 14,   // Only show labels at high zoom
+        maxzoom: 22
       }
     }
   });
@@ -67,10 +99,10 @@ export function makeCluDataset(apiKey: string = 'dev', apiUrl?: string): CluData
       const acres = properties.CALCACRES ? `${properties.CALCACRES.toFixed(1)} acres` : 'Unknown size';
       return `CLU Field (${acres})`;
     },
-    layerIds: [`${dataset.id}-fill`, `${dataset.id}-outline`, `${dataset.id}-hover`],
+    layerIds: [`${dataset.id}-fill`, `${dataset.id}-outline`],
     fields: [
-      { key: 'id', label: 'Field ID', type: 'string' as const },
-      { key: 'CALCACRES', label: 'Calculated Acres', type: 'number' as const, format: '0.2f' }
+      { key: 'id', label: 'Field ID' },
+      { key: 'CALCACRES', label: 'Calculated Acres', format: (value: number) => `${value.toFixed(2)} acres` }
     ]
   };
 

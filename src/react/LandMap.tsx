@@ -4,10 +4,10 @@ import { installPmtilesProtocolMapLibre } from '../core/pmtilesProtocol.js';
 import type { LandMapProps, ClickInfoConfig } from '../core/types.js';
 import { getDefaultMapStyle, loadMapLibre } from './utils.js';
 import { ClickInfo } from './ClickInfo.js';
-import { AOIDrawer } from './AOIDrawer.js';
-import { AOIQuery, type AOIQueryResult } from './AOIQuery.js';
-import { AOIResults } from './AOIResults.js';
-import type { Feature, Polygon } from 'geojson';
+// import { AOIDrawer } from './AOIDrawer.js';
+// import { AOIQuery, type AOIQueryResult } from './AOIQuery.js';
+// import { AOIResults } from './AOIResults.js';
+// import type { Feature, Polygon } from 'geojson';
 
 export function LandMap({
   apiKey = 'dev',
@@ -25,7 +25,7 @@ export function LandMap({
 }: LandMapProps) {
 
   const [dataLayers, setDataLayers] = useState<string[]>(initialVisibleLayers);
-  const [currentZoom, setCurrentZoom] = useState<number>(initialZoom);
+  // const [currentZoom, setCurrentZoom] = useState<number>(initialZoom);
   
   // Click info state
   const [clickInfo, setClickInfo] = useState<{
@@ -36,10 +36,10 @@ export function LandMap({
   } | null>(null);
 
   // AOI state
-  const [showAOITool, setShowAOITool] = useState(false);
-  const [currentAOI, setCurrentAOI] = useState<Feature<Polygon> | null>(null);
-  const [aoiResults, setAOIResults] = useState<AOIQueryResult[]>([]);
-  const [showAOIResults, setShowAOIResults] = useState(false);
+  const [showAOITool] = useState(false);
+  // const [currentAOI, setCurrentAOI] = useState<Feature<Polygon> | null>(null);
+  // const [aoiResults, setAOIResults] = useState<AOIQueryResult[]>([]);
+  // const [showAOIResults, setShowAOIResults] = useState(false);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -67,39 +67,39 @@ export function LandMap({
   const { ssurgo, cdl, plss, clu, states } = useLandMaps(apiKey, apiUrl, debugPMTilesPath, debugSourceLayer);
 
   // AOI handlers
-  const handleAOIComplete = (aoi: Feature<Polygon>) => {
-    setCurrentAOI(aoi);
-    setShowAOIResults(true);
-  };
+  // const handleAOIComplete = (aoi: Feature<Polygon>) => {
+  //   setCurrentAOI(aoi);
+  //   setShowAOIResults(true);
+  // };
 
-  const handleAOIChange = (aoi: Feature<Polygon> | null) => {
-    setCurrentAOI(aoi);
-    if (!aoi) {
-      setAOIResults([]);
-      setShowAOIResults(false);
-    }
-  };
+  // const handleAOIChange = (aoi: Feature<Polygon> | null) => {
+  //   setCurrentAOI(aoi);
+  //   if (!aoi) {
+  //     setAOIResults([]);
+  //     setShowAOIResults(false);
+  //   }
+  // };
 
-  const handleAOIResults = (results: AOIQueryResult[]) => {
-    setAOIResults(results);
-  };
+  // const handleAOIResults = (results: AOIQueryResult[]) => {
+  //   setAOIResults(results);
+  // };
 
-  const toggleAOITool = () => {
-    const newState = !showAOITool;
-    setShowAOITool(newState);
+  // const toggleAOITool = () => {
+  //   const newState = !showAOITool;
+  //   setShowAOITool(newState);
     
-    if (newState) {
-      // Close click info when opening AOI tool
-      setClickInfo(null);
-    }
+  //   if (newState) {
+  //     // Close click info when opening AOI tool
+  //     setClickInfo(null);
+  //   }
     
-    if (showAOITool) {
-      // Clean up when closing
-      setCurrentAOI(null);
-      setAOIResults([]);
-      setShowAOIResults(false);
-    }
-  };
+  //   if (showAOITool) {
+  //     // Clean up when closing
+  //     setCurrentAOI(null);
+  //     // setAOIResults([]);
+  //     setShowAOIResults(false);
+  //   }
+  // };
 
   // Toggle function - ONLY use setLayoutProperty to avoid map flickering
   const toggleLayerVisibility = (datasetKey: string) => {
@@ -183,16 +183,16 @@ export function LandMap({
         });
 
         // Track zoom changes
-        map.on('zoom', () => {
-          const zoom = map.getZoom();
-          setCurrentZoom(Math.round(zoom * 10) / 10); // Round to 1 decimal place
-        });
+        // map.on('zoom', () => {
+        //   const zoom = map.getZoom();
+        //   setCurrentZoom(Math.round(zoom * 10) / 10); // Round to 1 decimal place
+        // });
 
         // Wait for map to load
         map.on('load', () => {
           console.log('Map load event fired!');
           // Set initial zoom level
-          setCurrentZoom(Math.round(map.getZoom() * 10) / 10);
+          // setCurrentZoom(Math.round(map.getZoom() * 10) / 10);
           
           // Add only available land datasets (we'll control visibility via props and legend)
           const datasets = { ssurgo, cdl, plss, clu, states };
@@ -325,46 +325,55 @@ export function LandMap({
     };
   }, [showClickInfo, dataLayers, showAOITool, availableLayers]); // Re-attach handler when these change
 
-  // Handle hover events for CLU layer highlighting
+  // Handle efficient hover events using feature state
   useEffect(() => {
     if (!mapRef.current) return;
 
     const map = mapRef.current;
-    let hoveredFeatureId: string | null = null;
+    let hoveredFeatureId: string | number | null = null;
 
     const handleMouseMove = (e: any) => {
       if (showAOITool) return; // Don't highlight when AOI tool is active
 
-      const features = map.queryRenderedFeatures(e.point);
-      const cluHoverLayer = 'clu-hover';
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: ['clu-fill', 'clu-outline'] // Only query CLU layers
+      });
 
-      // Reset previous hover
-      if (hoveredFeatureId) {
-        map.setFilter(cluHoverLayer, ['==', ['get', 'id'], '']);
+      // Reset previous hover state
+      if (hoveredFeatureId !== null) {
+        map.setFeatureState(
+          { source: 'clu', id: hoveredFeatureId },
+          { hover: false }
+        );
         hoveredFeatureId = null;
       }
 
-      // Find CLU feature to highlight
-      for (const feature of features) {
-        if (feature.layer.id.startsWith('clu-') && dataLayers.includes('clu')) {
-          hoveredFeatureId = feature.properties.id;
+      if (features.length > 0 && dataLayers.includes('clu')) {
+        const feature = features[0];
+        hoveredFeatureId = feature.id;
 
-          // Update hover filter to show this specific field
-          map.setFilter(cluHoverLayer, ['==', ['get', 'id'], hoveredFeatureId]);
-
-          // Change cursor to pointer
-          map.getCanvas().style.cursor = 'pointer';
-          return;
+        // Set hover state for the feature
+        if (hoveredFeatureId !== null) {
+          map.setFeatureState(
+            { source: 'clu', id: hoveredFeatureId },
+            { hover: true }
+          );
         }
-      }
 
-      // No CLU feature found, reset cursor
-      map.getCanvas().style.cursor = '';
+        // Change cursor to pointer
+        map.getCanvas().style.cursor = 'pointer';
+      } else {
+        // No CLU feature found, reset cursor
+        map.getCanvas().style.cursor = '';
+      }
     };
 
     const handleMouseLeave = () => {
-      if (hoveredFeatureId) {
-        map.setFilter('clu-hover', ['==', ['get', 'id'], '']);
+      if (hoveredFeatureId !== null) {
+        map.setFeatureState(
+          { source: 'clu', id: hoveredFeatureId },
+          { hover: false }
+        );
         hoveredFeatureId = null;
       }
       map.getCanvas().style.cursor = '';
@@ -376,8 +385,16 @@ export function LandMap({
     return () => {
       map.off('mousemove', handleMouseMove);
       map.off('mouseleave', handleMouseLeave);
-      if (hoveredFeatureId) {
-        map.setFilter('clu-hover', ['==', ['get', 'id'], '']);
+      if (hoveredFeatureId !== null && map.getSource('clu')) {
+        try {
+          map.setFeatureState(
+            { source: 'clu', id: hoveredFeatureId },
+            { hover: false }
+          );
+        } catch (error) {
+          // Ignore cleanup errors when map is being destroyed
+          console.warn('Error cleaning up hover state:', error);
+        }
       }
     };
   }, [dataLayers, showAOITool]); // Re-attach when layers change or AOI tool state changes
@@ -433,18 +450,17 @@ export function LandMap({
             top: '10px',
             left: '10px',
             background: 'rgba(255, 255, 255, 0.95)',
-            padding: '12px',
-            borderRadius: '6px',
+            borderRadius: '4px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            fontSize: '13px',
-            minWidth: '180px',
+            fontSize: '12px',
+            // minWidth: '180px',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <h4 style={{ margin: '0', fontSize: '14px', fontWeight: 'bold', color: '#333' }}>
+          {/* <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}> */}
+            {/* <h4 style={{ margin: '0', fontSize: '14px', fontWeight: 'bold', color: '#333' }}>
               Map Layers
-            </h4>
-            <div style={{ 
+            </h4> */}
+            {/* <div style={{ 
               fontSize: '12px', 
               color: '#666', 
               backgroundColor: '#f8f9fa',
@@ -454,11 +470,11 @@ export function LandMap({
               fontWeight: '500'
             }}>
               Zoom: {currentZoom}
-            </div>
-          </div>
+            </div> */}
+          {/* </div> */}
           
           {/* AOI Tool Button */}
-          <button
+          {/* <button
             onClick={toggleAOITool}
             style={{
               width: '100%',
@@ -485,7 +501,7 @@ export function LandMap({
             }}
           >
             {showAOITool ? '✓ AOI Tool Active' : '📐 AOI Query Tool'}
-          </button>
+          </button> */}
           
           {availableLayers.map(datasetKey => {
             const datasets = { ssurgo, cdl, plss, clu, states };
@@ -513,9 +529,8 @@ export function LandMap({
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  marginBottom: '8px',
                   cursor: 'pointer',
-                  padding: '6px 8px',
+                  padding: '4px',
                   borderRadius: '4px',
                   transition: 'background-color 0.2s',
                   border: '1px solid transparent',
@@ -535,27 +550,16 @@ export function LandMap({
                   checked={isVisible}
                   onChange={() => toggleLayerVisibility(datasetKey)}
                   style={{
-                    marginRight: '10px',
+                    marginRight: '8px',
                     cursor: 'pointer',
+                    accentColor: getDatasetColor(dataset.id), // Use dataset color for checkbox
+                    transform: 'scale(1.2)', // Make it slightly larger
                   }}
                   onClick={(e) => e.stopPropagation()}
                 />
                 
-                {/* Dataset color indicator */}
-                <div
-                  style={{
-                    width: '14px',
-                    height: '14px',
-                    marginRight: '8px',
-                    borderRadius: '2px',
-                    backgroundColor: getDatasetColor(dataset.id),
-                    opacity: isVisible ? 1 : 0.3,
-                    border: '1px solid rgba(0,0,0,0.2)',
-                  }}
-                />
-                
                 <span style={{ 
-                  color: isVisible ? '#333' : '#999',
+                  // color: isVisible ? '#333' : '#999',
                   fontSize: '13px',
                   fontWeight: '500',
                   userSelect: 'none',
@@ -581,16 +585,16 @@ export function LandMap({
       )}
 
       {/* AOI Drawing Tool */}
-      <AOIDrawer
+      {/* <AOIDrawer
         map={mapRef.current}
         onAOIComplete={handleAOIComplete}
         onAOIChange={handleAOIChange}
         isActive={showAOITool}
         onToggle={toggleAOITool}
-      />
+      /> */}
 
       {/* AOI Query Logic */}
-      <AOIQuery
+      {/* <AOIQuery
         map={mapRef.current}
         aoi={currentAOI}
         datasets={Object.fromEntries(
@@ -602,16 +606,16 @@ export function LandMap({
         minZoom={14}
         onResults={handleAOIResults}
         onError={(error) => console.warn('AOI Query Error:', error)}
-      />
+      /> */}
 
       {/* AOI Results Display */}
-      {showAOIResults && (
+      {/* {showAOIResults && (
         <AOIResults
           results={aoiResults}
           aoi={currentAOI}
           onClose={() => setShowAOIResults(false)}
         />
-      )}
+      )} */}
     </div>
   );
 }
