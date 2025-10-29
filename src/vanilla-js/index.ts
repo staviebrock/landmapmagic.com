@@ -15,10 +15,11 @@
  */
 
 import { installPmtilesProtocolMapLibre } from '../core/pmtilesProtocol.js';
-import { makeSsurgoDataset, makeCdlDataset, makePlssDataset, makeCluDataset, makeStatesDataset } from '../core/makeVectorDataset.js';
+import { makeCluDataset } from '../core/makeVectorDataset.js';
+// import { makeSsurgoDataset, makeCdlDataset, makePlssDataset, makeStatesDataset } from '../core/makeVectorDataset.js';
 import { getDefaultMapStyle, loadMapLibre } from '../react/utils.js';
 import type { LandDatasets, VectorDataset } from '../core/types.js';
-import type { Feature, Polygon } from 'geojson';
+// import type { Feature, Polygon } from 'geojson';
 
 // Vanilla JS configuration interface
 interface VanillaLandMapOptions {
@@ -380,11 +381,11 @@ class VanillaLandMap {
 // Helper function to create land datasets (extracted from React hook)
 function createLandDatasets(apiKey: string): LandDatasets {
   return {
-    ssurgo: makeSsurgoDataset(apiKey),
-    cdl: makeCdlDataset(apiKey),
-    plss: makePlssDataset(apiKey),
+    // ssurgo: makeSsurgoDataset(apiKey),
+    // cdl: makeCdlDataset(apiKey),
+    // plss: makePlssDataset(apiKey),
     clu: makeCluDataset(apiKey),
-    states: makeStatesDataset(apiKey),
+    // states: makeStatesDataset(apiKey),
   };
 }
 
@@ -422,7 +423,7 @@ const LandMapMagic: LandMapMagicGlobal = {
       initialCenter: options.initialCenter || [-98.5795, 39.8283],
       initialZoom: options.initialZoom || 4,
       style: options.style || getDefaultMapStyle(),
-      availableLayers: options.availableLayers || ['ssurgo', 'cdl', 'plss', 'clu'],
+      availableLayers: options.availableLayers || ['clu'],
       initialVisibleLayers: options.initialVisibleLayers || [],
       showLegend: options.showLegend !== undefined ? options.showLegend : true,
       showClickInfo: options.showClickInfo !== undefined ? options.showClickInfo : true,

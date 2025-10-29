@@ -47,7 +47,7 @@ export function LandMap({
   initialCenter = [-98.5795, 39.8283], // Geographic center of US
   initialZoom = 4,
   style = DEFAULT_MAP_STYLE,
-  availableLayers = ['ssurgo', 'cdl', 'plss', 'clu', 'states'],
+  availableLayers = ['clu'],
   initialVisibleLayers = [],
   showLegend = true,
   showClickInfo = true,
