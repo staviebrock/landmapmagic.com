@@ -405,7 +405,7 @@ const LandMapMagic: LandMapMagicGlobal = {
   // Global configuration
   config: {
     defaultApiKey: null,
-    defaultEndpoint: process.env.REACT_APP_LANDMAP_API_ENDPOINT || '/api/aoi/summary'
+    defaultEndpoint: '/api/aoi/summary'
   },
   
   // Set global defaults

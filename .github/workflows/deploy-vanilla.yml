@@ -31,9 +31,6 @@ jobs:
         
       - name: Build vanilla JS bundle
         run: npm run build
-        env:
-          REACT_APP_MAP_STYLE_URL: ${{ secrets.REACT_APP_MAP_STYLE_URL }}
-          REACT_APP_LANDMAP_API_ENDPOINT: ${{ secrets.REACT_APP_LANDMAP_API_ENDPOINT }}
           
       - name: Install AWS CLI
         run: |

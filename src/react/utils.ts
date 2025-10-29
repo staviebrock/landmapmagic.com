@@ -11,9 +11,8 @@ export const loadMapLibre = async () => {
   
 
 
-// Default map style from environment (required at build time)
+// Default map style - simple fallback for demo purposes
+// Users should provide their own style via the style prop
 export const getDefaultMapStyle = (): string => {
-    const styleUrl = process.env.REACT_APP_MAP_STYLE_URL;
-    console.log('Map style URL from environment:', styleUrl);
-    return styleUrl || 'https://demotiles.maplibre.org/style.json'; // fallback style
+    return 'https://demotiles.maplibre.org/style.json';
   };

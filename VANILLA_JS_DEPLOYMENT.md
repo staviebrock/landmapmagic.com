@@ -85,7 +85,6 @@ Required secrets:
 - `R2_BUCKET`
 - `R2_ACCOUNT_ID`
 - `R2_PUBLIC_BASEURL`
-- `REACT_APP_MAP_STYLE_URL`
 
 ## 📖 Usage Examples
 

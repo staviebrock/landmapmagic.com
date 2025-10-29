@@ -34,11 +34,9 @@
     "build:vanilla": "tsup --entry.landmap-vanilla src/vanilla-js/index.ts --format iife --global-name LandMapMagic --minify --no-dts",
     "dev": "tsup --watch",
     "dev:vanilla": "tsup --entry.landmap-vanilla src/vanilla-js/index.ts --format iife --global-name LandMapMagic --watch",
-
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build",
     "typecheck": "tsc --noEmit",
-    
     "deploy:vanilla": "./scripts/deploy-vanilla.sh",
     "deploy:all": "npm run build && npm run deploy:vanilla"
   },
@@ -66,7 +64,6 @@
     "@types/node": "^24.5.2",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "dotenv": "^17.2.2",
     "maplibre-gl": "^5.7.3",
     "tsup": "^8.0.0",
     "typescript": "^5.3.0"

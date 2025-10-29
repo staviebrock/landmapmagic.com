@@ -19,9 +19,10 @@ import type { LandMapProps, ClickInfoConfig } from './core/types.js';
 import { ClickInfo } from './react/ClickInfo.js';
 
 
-// Default map style from environment (required at build time)
+// Default map style - simple fallback for demo purposes
+// Users should provide their own style via the style prop
 const getDefaultMapStyle = (): string => {
-  return process.env.REACT_APP_MAP_STYLE_URL!;
+  return 'https://demotiles.maplibre.org/style.json';
 };
 
 const DEFAULT_MAP_STYLE = getDefaultMapStyle();
