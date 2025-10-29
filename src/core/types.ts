@@ -88,11 +88,11 @@ export interface StatesDataset extends VectorDataset {
 }
 
 export interface LandDatasets {
-  ssurgo: SsurgoDataset;
-  cdl: CdlDataset;
-  plss: PlssDataset;
+  // ssurgo: SsurgoDataset;
+  // cdl: CdlDataset;
+  // plss: PlssDataset;
   clu: CluDataset;
-  states: StatesDataset;
+  // states: StatesDataset;
 }
 
 
