@@ -15,6 +15,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Allow pushing commits and tags
+      packages: write  # Allow publishing packages
     
     steps:
       - name: Checkout code

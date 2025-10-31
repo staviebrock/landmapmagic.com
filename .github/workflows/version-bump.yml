@@ -15,6 +15,8 @@ on:
 jobs:
   major-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Allow pushing commits and tags
     
     steps:
       - name: Validate confirmation
