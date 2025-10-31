@@ -31,15 +31,23 @@ interface VanillaLandMapOptions {
   initialVisibleLayers?: Array<keyof LandDatasets>;
   showLegend?: boolean;
   showClickInfo?: boolean;
+  borderColor?: string;
+  fillColor?: string;
   onMapLoad?: (map: VanillaLandMap) => void;
   onError?: (error: Error) => void;
+}
+
+// Resolved options type (after merging with defaults)
+type ResolvedVanillaLandMapOptions = Required<Omit<VanillaLandMapOptions, 'borderColor' | 'fillColor'>> & {
+  borderColor?: string;
+  fillColor?: string;
 }
 
 // Main vanilla implementation class
 class VanillaLandMap {
   private map: any;
   private datasets: LandDatasets;
-  private options: Required<VanillaLandMapOptions>;
+  private options: ResolvedVanillaLandMapOptions;
   private visibleLayers: Set<keyof LandDatasets>;
   private legendElement: HTMLElement | null = null;
   private clickInfoElement: HTMLElement | null = null;
@@ -49,7 +57,7 @@ class VanillaLandMap {
     container: HTMLElement,
     map: any,
     datasets: LandDatasets,
-    options: Required<VanillaLandMapOptions>
+    options: ResolvedVanillaLandMapOptions
   ) {
     this.container = container;
     this.map = map;
@@ -379,12 +387,12 @@ class VanillaLandMap {
 }
 
 // Helper function to create land datasets (extracted from React hook)
-function createLandDatasets(apiKey: string): LandDatasets {
+function createLandDatasets(apiKey: string, borderColor?: string, fillColor?: string): LandDatasets {
   return {
     // ssurgo: makeSsurgoDataset(apiKey),
     // cdl: makeCdlDataset(apiKey),
     // plss: makePlssDataset(apiKey),
-    clu: makeCluDataset(apiKey),
+    clu: makeCluDataset(apiKey, undefined, borderColor, fillColor),
     // states: makeStatesDataset(apiKey),
   };
 }
@@ -418,7 +426,7 @@ const LandMapMagic: LandMapMagicGlobal = {
     console.log('🚀 Initializing LandMapMagic...');
     
     // Merge options with defaults
-    const finalOptions: Required<VanillaLandMapOptions> = {
+    const finalOptions: ResolvedVanillaLandMapOptions = {
       apiKey: options.apiKey || this.config.defaultApiKey || 'dev',
       initialCenter: options.initialCenter || [-98.5795, 39.8283],
       initialZoom: options.initialZoom || 4,
@@ -427,6 +435,8 @@ const LandMapMagic: LandMapMagicGlobal = {
       initialVisibleLayers: options.initialVisibleLayers || [],
       showLegend: options.showLegend !== undefined ? options.showLegend : true,
       showClickInfo: options.showClickInfo !== undefined ? options.showClickInfo : true,
+      borderColor: options.borderColor,
+      fillColor: options.fillColor,
       onMapLoad: options.onMapLoad || (() => {}),
       onError: options.onError || ((error) => console.error('LandMapMagic Error:', error))
     };
@@ -463,7 +473,7 @@ const LandMapMagic: LandMapMagicGlobal = {
       
       // Get land datasets
       console.log('🌾 Loading land datasets...');
-      const datasets = createLandDatasets(finalOptions.apiKey);
+      const datasets = createLandDatasets(finalOptions.apiKey, finalOptions.borderColor, finalOptions.fillColor);
       
       // Wait for map to load
       await new Promise<void>((resolve, reject) => {

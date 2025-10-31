@@ -7,8 +7,15 @@ import { DEFAULT_WORKER_ENDPOINT } from '../utils.js';
  * Provides field boundary data for agricultural analysis
  * @param apiKey - API key for accessing the PMTiles endpoint (defaults to 'dev')
  * @param apiUrl - Base API URL for queries (optional, defaults to staging endpoint)
+ * @param borderColor - Border/outline color for CLU polygons (defaults to '#fde047' - yellow)
+ * @param fillColor - Fill color for CLU polygons (defaults to 'rgba(0,0,0,0)' - transparent)
  */
-export function makeCluDataset(apiKey: string = 'dev', apiUrl?: string): CluDataset {
+export function makeCluDataset(
+  apiKey: string = 'dev', 
+  apiUrl?: string,
+  borderColor: string = '#fde047',
+  fillColor: string = 'rgba(0,0,0,0)'
+): CluDataset {
   const workerEndpoint = apiUrl || DEFAULT_WORKER_ENDPOINT;
   const pmtilesUrl = `pmtiles://${workerEndpoint}/clu.pmtiles?key=${apiKey}`;
   console.log('🌾 Creating CLU dataset with:', { apiKey, apiUrl, workerEndpoint, pmtilesUrl });
@@ -31,13 +38,13 @@ export function makeCluDataset(apiKey: string = 'dev', apiUrl?: string): CluData
             'case',
             ['boolean', ['feature-state', 'hover'], false],
             '#FFD700',  // Bright gold on hover
-            '#FF6B35'   // Default orange
+            fillColor   // Customizable fill color (default transparent)
           ],
           'fill-opacity': [
             'case',
             ['boolean', ['feature-state', 'hover'], false],
             0.7,  // More opaque on hover
-            0.4   // Default opacity
+            1.0   // Full opacity for fill color (transparency controlled by color itself)
           ]
         },
         layout: {},
@@ -52,7 +59,7 @@ export function makeCluDataset(apiKey: string = 'dev', apiUrl?: string): CluData
             'case',
             ['boolean', ['feature-state', 'hover'], false],
             '#FFD700',  // Bright gold on hover
-            '#B8860B'   // Default dark goldenrod
+            borderColor // Customizable border color (default yellow #fde047)
           ],
           'line-width': [
             'case',

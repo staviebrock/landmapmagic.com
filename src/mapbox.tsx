@@ -19,10 +19,31 @@ import type { LandMapProps, ClickInfoConfig } from './core/types.js';
 import { ClickInfo } from './react/ClickInfo.js';
 
 
-// Default map style - simple fallback for demo purposes
-// Users should provide their own style via the style prop
-const getDefaultMapStyle = (): string => {
-  return 'https://demotiles.maplibre.org/style.json';
+// Default map style - ESRI World Imagery satellite basemap
+// Users can override this via the style prop
+const getDefaultMapStyle = (): object => {
+  return {
+    version: 8,
+    sources: {
+      'esri-satellite': {
+        type: 'raster',
+        tiles: [
+          'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+        ],
+        tileSize: 256,
+        attribution: '© Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+      }
+    },
+    layers: [
+      {
+        id: 'esri-satellite-layer',
+        type: 'raster',
+        source: 'esri-satellite',
+        minzoom: 0,
+        maxzoom: 22
+      }
+    ]
+  };
 };
 
 const DEFAULT_MAP_STYLE = getDefaultMapStyle();
@@ -55,12 +76,14 @@ export function LandMap({
   className = '',
   height = '500px',
   width = '100%',
+  borderColor,
+  fillColor,
 }: LandMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const sourcesAddedRef = useRef<Set<string>>(new Set());
 
-  const { ssurgo, cdl, plss, clu, states } = useLandMaps(apiKey, apiUrl);
+  const { ssurgo, cdl, plss, clu, states } = useLandMaps(apiKey, apiUrl, undefined, undefined, borderColor, fillColor);
 
   // Track which layers are currently visible
   const [dataLayers, setDataLayers] = useState<string[]>(initialVisibleLayers);

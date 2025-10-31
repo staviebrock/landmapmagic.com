@@ -105,14 +105,8 @@ export default function BasicExample() {
           baseApiUrl="https://staging-api.landmapmagic.com"
           apiKey="dev"
           showLegend={false}
-          // showLegend={true}
           initialVisibleLayers={['clu']}
           availableLayers={['clu']}
-
-          // availableLayers={['clu']}
-          // initialVisibleLayers={['clu']}
-          // initialCenter={[-93.5, 42.0]} // Iowa - good area for CLU data
-          // initialZoom={12} // Zoomed in enough to see field boundaries
           height="100%"
           width="100%"
         />

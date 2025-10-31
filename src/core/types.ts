@@ -110,6 +110,8 @@ export interface LandMapProps {
   className?: string;
   height?: string | number;
   width?: string | number;
+  borderColor?: string; // Border/outline color for layers - defaults vary by layer
+  fillColor?: string; // Fill color for layers - defaults vary by layer
 }
 
 // Hook return types

@@ -22,6 +22,8 @@ export function LandMap({
   className = '',
   height = '500px',
   width = '100%',
+  borderColor,
+  fillColor,
 }: LandMapProps) {
 
   const [dataLayers, setDataLayers] = useState<string[]>(initialVisibleLayers);
@@ -64,7 +66,7 @@ export function LandMap({
       })()
     : undefined;
 
-  const { ssurgo, cdl, plss, clu, states } = useLandMaps(apiKey, apiUrl, debugPMTilesPath, debugSourceLayer);
+  const { ssurgo, cdl, plss, clu, states } = useLandMaps(apiKey, apiUrl, debugPMTilesPath, debugSourceLayer, borderColor, fillColor);
 
   // AOI handlers
   // const handleAOIComplete = (aoi: Feature<Polygon>) => {

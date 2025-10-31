@@ -11,8 +11,29 @@ export const loadMapLibre = async () => {
   
 
 
-// Default map style - simple fallback for demo purposes
-// Users should provide their own style via the style prop
-export const getDefaultMapStyle = (): string => {
-    return 'https://demotiles.maplibre.org/style.json';
+// Default map style - ESRI World Imagery satellite basemap
+// Users can override this via the style prop
+export const getDefaultMapStyle = (): object => {
+    return {
+      version: 8,
+      sources: {
+        'esri-satellite': {
+          type: 'raster',
+          tiles: [
+            'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+          ],
+          tileSize: 256,
+          attribution: '© Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+        }
+      },
+      layers: [
+        {
+          id: 'esri-satellite-layer',
+          type: 'raster',
+          source: 'esri-satellite',
+          minzoom: 0,
+          maxzoom: 22
+        }
+      ]
+    };
   };
