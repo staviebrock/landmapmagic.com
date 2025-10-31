@@ -145,6 +145,10 @@ Check [Releases](https://github.com/staviebrock/landmapmagic.com/releases) for t
 
 Built with ❤️ for the agricultural and geospatial communities.
 
-## Google Maps Integration
+## Integration Guides
 
+### Existing MapLibre Map
+Already have a MapLibre map? Add CLU boundaries in 3 lines of code: [`docs/maplibre/README.md`](./docs/maplibre/README.md)
+
+### Google Maps
 Need to overlay CLU boundaries on an existing Google Maps implementation? Follow the step-by-step guide in [`docs/google-maps/README.md`](./docs/google-maps/README.md).
