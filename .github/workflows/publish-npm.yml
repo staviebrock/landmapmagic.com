@@ -8,6 +8,7 @@ on:
       - 'src/**'
       - 'package.json'
       - 'tsup.config.ts'
+      - 'workflows/**'
   workflow_dispatch:
     inputs:
       force_publish:
