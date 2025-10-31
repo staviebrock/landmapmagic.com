@@ -77,7 +77,7 @@ echo "   Endpoint: ${ENDPOINT_URL}"
 
 # Upload versioned file (long cache)
 echo -e "${YELLOW}📤 Uploading versioned file...${NC}"
-aws s3 cp dist/landmap-vanilla.js "s3://${R2_BUCKET}/js/landmap-vanilla-${VERSION}.js" \
+aws s3 cp dist/landmap-vanilla.js "s3://${R2_BUCKET}/js/landmap-${VERSION}.js" \
     --endpoint-url "$ENDPOINT_URL" \
     --content-type "application/javascript" \
     --cache-control "public, max-age=31536000, immutable" \
@@ -85,7 +85,7 @@ aws s3 cp dist/landmap-vanilla.js "s3://${R2_BUCKET}/js/landmap-vanilla-${VERSIO
 
 # Upload latest version (short cache for updates)
 echo -e "${YELLOW}📤 Uploading latest file...${NC}"
-aws s3 cp dist/landmap-vanilla.js "s3://${R2_BUCKET}/js/landmap-vanilla-latest.js" \
+aws s3 cp dist/landmap-vanilla.js "s3://${R2_BUCKET}/js/landmap-latest.js" \
     --endpoint-url "$ENDPOINT_URL" \
     --content-type "application/javascript" \
     --cache-control "public, max-age=3600" \
@@ -93,7 +93,7 @@ aws s3 cp dist/landmap-vanilla.js "s3://${R2_BUCKET}/js/landmap-vanilla-latest.j
 
 # Upload source map (versioned only)
 echo -e "${YELLOW}📤 Uploading source map...${NC}"
-aws s3 cp dist/landmap-vanilla.js.map "s3://${R2_BUCKET}/js/landmap-vanilla-${VERSION}.js.map" \
+aws s3 cp dist/landmap-vanilla.js.map "s3://${R2_BUCKET}/js/landmap-${VERSION}.js.map" \
     --endpoint-url "$ENDPOINT_URL" \
     --content-type "application/json" \
     --cache-control "public, max-age=31536000, immutable"
@@ -103,13 +103,13 @@ echo -e "${YELLOW}📤 Creating production version (no source map)...${NC}"
 # Remove source map reference from the JS file
 sed 's|//# sourceMappingURL=.*||g' dist/landmap-vanilla.js > dist/landmap-vanilla.prod.js
 
-aws s3 cp dist/landmap-vanilla.prod.js "s3://${R2_BUCKET}/js/landmap-vanilla-${VERSION}.min.js" \
+aws s3 cp dist/landmap-vanilla.prod.js "s3://${R2_BUCKET}/js/landmap-${VERSION}.min.js" \
     --endpoint-url "$ENDPOINT_URL" \
     --content-type "application/javascript" \
     --cache-control "public, max-age=31536000, immutable" \
     --metadata "version=${VERSION},build-date=$(date -u +%Y-%m-%dT%H:%M:%SZ),type=production"
 
-aws s3 cp dist/landmap-vanilla.prod.js "s3://${R2_BUCKET}/js/landmap-vanilla-latest.min.js" \
+aws s3 cp dist/landmap-vanilla.prod.js "s3://${R2_BUCKET}/js/landmap-latest.min.js" \
     --endpoint-url "$ENDPOINT_URL" \
     --content-type "application/javascript" \
     --cache-control "public, max-age=3600" \
@@ -129,14 +129,14 @@ echo ""
 echo -e "${GREEN}✅ Deployed successfully!${NC}"
 echo ""
 echo -e "${BLUE}📍 CDN URLs:${NC}"
-echo "   Latest (dev):     ${PUBLIC_BASE}/js/landmap-vanilla-latest.js"
-echo "   Latest (prod):    ${PUBLIC_BASE}/js/landmap-vanilla-latest.min.js"
-echo "   Version (dev):    ${PUBLIC_BASE}/js/landmap-vanilla-${VERSION}.js"
-echo "   Version (prod):   ${PUBLIC_BASE}/js/landmap-vanilla-${VERSION}.min.js"
-echo "   Source Map:       ${PUBLIC_BASE}/js/landmap-vanilla-${VERSION}.js.map"
+echo "   Latest (dev):     ${PUBLIC_BASE}/js/landmap-latest.js"
+echo "   Latest (prod):    ${PUBLIC_BASE}/js/landmap-latest.min.js"
+echo "   Version (dev):    ${PUBLIC_BASE}/js/landmap-${VERSION}.js"
+echo "   Version (prod):   ${PUBLIC_BASE}/js/landmap-${VERSION}.min.js"
+echo "   Source Map:       ${PUBLIC_BASE}/js/landmap-${VERSION}.js.map"
 echo ""
 echo -e "${BLUE}📖 Usage Example:${NC}"
-echo '<script src="'${PUBLIC_BASE}'/js/landmap-vanilla-latest.min.js"></script>'
+echo '<script src="'${PUBLIC_BASE}'/js/landmap-latest.min.js"></script>'
 echo '<script>'
 echo '  LandMapMagic.createMap("map", {'
 echo '    apiKey: "your-api-key",'

@@ -39,16 +39,108 @@ export default function App() {
 }
 ```
 
-#### More Examples
+### All Available Props
+
+Here's a comprehensive example showing all available props and how to use them:
 
 ```tsx
-// Only make SSURGO and PLSS available, with SSURGO visible on load
-// Dont show legend
+import { LandMap } from "landmapmagic";
+
+export default function App() {
+  return (
+    <LandMap 
+      // API Configuration
+      apiKey="your-api-key-here"              // Your API key (defaults to 'dev')
+      baseApiUrl="https://api.example.com"    // Custom API URL (optional)
+      
+      // Map Configuration
+      initialCenter={[-93.5, 42.0]}           // [longitude, latitude] - defaults to US center
+      initialZoom={12}                        // Zoom level (0-22) - defaults to 4
+      style="mapbox://styles/mapbox/satellite-v9"  // Map style URL or object
+      
+      // Layer Configuration
+      availableLayers={['clu', 'ssurgo', 'cdl', 'plss']}  // Which layers users can toggle
+      initialVisibleLayers={['clu', 'ssurgo']}            // Layers visible on load
+      
+      // UI Configuration
+      showLegend={true}                       // Show layer toggle legend - defaults to true
+      showClickInfo={true}                    // Show feature info on click - defaults to true
+      
+      // Styling
+      className="my-custom-map"               // CSS class name
+      height="600px"                          // Map height - defaults to '500px'
+      width="100%"                            // Map width - defaults to '100%'
+    />
+  );
+}
+```
+
+#### Available Layers
+
+- `'clu'` - Common Land Units (field boundaries)
+- `'ssurgo'` - SSURGO soil data
+- `'cdl'` - Cropland Data Layer
+- `'plss'` - Public Land Survey System
+- `'states'` - US state boundaries
+
+#### Simple Examples
+
+```tsx
+// Minimal setup - just CLU layer
+<LandMap apiKey="your-key" />
+
+// Multiple layers visible on load
 <LandMap 
-  availableLayers={['ssurgo', 'plss']}
-  initialVisibleLayers={['ssurgo']}
+  apiKey="your-key"
+  availableLayers={['clu', 'ssurgo', 'plss']}
+  initialVisibleLayers={['clu', 'ssurgo']}
+/>
+
+// Custom size and no legend
+<LandMap 
+  apiKey="your-key"
+  height="800px"
+  width="100%"
   showLegend={false}
 />
+
+// Focused on specific area
+<LandMap 
+  apiKey="your-key"
+  initialCenter={[-93.5, 42.0]}  // Iowa
+  initialZoom={14}
+  availableLayers={['clu', 'ssurgo']}
+  initialVisibleLayers={['clu']}
+/>
 ```
+
+## Using Without React
+
+For Flask, Django, PHP, or plain HTML apps, use the CDN version:
+
+```html
+<!-- Add the script -->
+<script src="https://landmapmagic.com/js/landmap-latest.min.js"></script>
+
+<!-- Create a map container -->
+<div id="map" style="width: 100%; height: 500px;"></div>
+
+<!-- Initialize the map -->
+<script>
+  LandMapMagic.createMap('map', {
+    apiKey: 'your-api-key',
+    initialVisibleLayers: ['clu', 'ssurgo']
+  });
+</script>
+```
+
+### Pinned Version (Recommended for Production)
+
+```html
+<!-- Use a specific version that won't auto-update -->
+<script src="https://landmapmagic.com/js/landmap-1.2.3.min.js"></script>
+```
+
+Check [Releases](https://github.com/staviebrock/landmapmagic.com/releases) for the latest version number.
 
 Built with ❤️ for the agricultural and geospatial communities.
