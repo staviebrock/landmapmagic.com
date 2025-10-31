@@ -129,7 +129,7 @@ For Flask, Django, PHP, or plain HTML apps, use the CDN version:
 <script>
   LandMapMagic.createMap('map', {
     apiKey: 'your-api-key',
-    initialVisibleLayers: ['clu', 'ssurgo']
+    initialVisibleLayers: ['clu']
   });
 </script>
 ```
