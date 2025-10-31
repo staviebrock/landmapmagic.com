@@ -9,7 +9,7 @@ export default defineConfig([
     external: ["react", "react-dom", "maplibre-gl", "mapbox-gl", "pmtiles", "@turf/turf"],
     clean: true,
   },
-  {
+  { 
     entry: { maplibre: "src/maplibre.tsx" },
     format: ["esm", "cjs"],
     dts: true,

@@ -20,7 +20,7 @@ export function makeCluDataset(apiKey: string = 'dev', apiUrl?: string): CluData
     sourceLayer: 'clu',
     attribution: 'LandMapMagic.com',
     minzoom: 12,    // Allow viewing at all zoom levels
-    maxzoom: 17,   // Match actual PMTiles data availability (layers can still render beyond this)
+    // Don't set maxzoom on source - let PMTiles metadata control it, layers will overzoom
     layers: {
       // Simple field boundary fill layer with hover state
       fill: {
@@ -41,8 +41,7 @@ export function makeCluDataset(apiKey: string = 'dev', apiUrl?: string): CluData
           ]
         },
         layout: {},
-        minzoom: 11,   // Show at all zoom levels
-        maxzoom: 22   // Show at all zoom levels
+        minzoom: 11   // Show at all zoom levels, no maxzoom to allow overzooming
       },
       // Simple field boundary outline layer with hover state
       outline: {
@@ -64,8 +63,7 @@ export function makeCluDataset(apiKey: string = 'dev', apiUrl?: string): CluData
           'line-opacity': 0.8
         },
         layout: {},
-        minzoom: 11,   // Show at all zoom levels
-        maxzoom: 22   // Show at all zoom levels
+        minzoom: 11   // Show at all zoom levels, no maxzoom to allow overzooming
       },
       // Label points layer - representative points with acreage
       labels: {
@@ -77,7 +75,7 @@ export function makeCluDataset(apiKey: string = 'dev', apiUrl?: string): CluData
           'text-halo-width': 2
         },
         layout: {
-          'text-field': ['concat', ['get', 'CALCACRES'], ' ac'],
+          'text-field': ['concat', ['get', 'calcacres'], ' ac'],
           'text-size': 11,
           'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
           // 'text-allow-overlap': true,  // Allow labels to overlap with other symbols
@@ -87,8 +85,7 @@ export function makeCluDataset(apiKey: string = 'dev', apiUrl?: string): CluData
           // 'text-rotation-alignment': 'map',  // Rotate with map
           // 'text-pitch-alignment': 'map'  // Pitch with map (stay flat on surface)
         },
-        minzoom: 14,   // Only show labels at high zoom
-        maxzoom: 22
+        minzoom: 14   // Only show labels at high zoom, no maxzoom to allow overzooming
       }
     }
   });
@@ -96,13 +93,19 @@ export function makeCluDataset(apiKey: string = 'dev', apiUrl?: string): CluData
   // Add click info configuration for CLU fields
   const clickInfoConfig = {
     title: (properties: Record<string, any>) => {
-      const acres = properties.CALCACRES ? `${properties.CALCACRES.toFixed(1)} acres` : 'Unknown size';
+      // Check both lowercase and uppercase property names (tippecanoe lowercases properties)
+      const acresValue = properties.calcacres || properties.CALCACRES;
+      const acres = acresValue ? `${acresValue.toFixed(1)} acres` : 'Unknown size';
       return `CLU Field (${acres})`;
     },
     layerIds: [`${dataset.id}-fill`, `${dataset.id}-outline`],
     fields: [
       { key: 'id', label: 'Field ID' },
-      { key: 'CALCACRES', label: 'Calculated Acres', format: (value: number) => `${value.toFixed(2)} acres` }
+      { 
+        key: 'calcacres', 
+        label: 'Calculated Acres', 
+        format: (value: number) => value ? `${value.toFixed(2)} acres` : 'N/A'
+      }
     ]
   };
 
