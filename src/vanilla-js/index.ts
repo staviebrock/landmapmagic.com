@@ -32,15 +32,13 @@ interface VanillaLandMapOptions {
   showLegend?: boolean;
   showClickInfo?: boolean;
   borderColor?: string;
-  fillColor?: string;
   onMapLoad?: (map: VanillaLandMap) => void;
   onError?: (error: Error) => void;
 }
 
 // Resolved options type (after merging with defaults)
-type ResolvedVanillaLandMapOptions = Required<Omit<VanillaLandMapOptions, 'borderColor' | 'fillColor'>> & {
+type ResolvedVanillaLandMapOptions = Required<Omit<VanillaLandMapOptions, 'borderColor'>> & {
   borderColor?: string;
-  fillColor?: string;
 }
 
 // Main vanilla implementation class
@@ -387,12 +385,12 @@ class VanillaLandMap {
 }
 
 // Helper function to create land datasets (extracted from React hook)
-function createLandDatasets(apiKey: string, borderColor?: string, fillColor?: string): LandDatasets {
+function createLandDatasets(apiKey: string, borderColor?: string): LandDatasets {
   return {
     // ssurgo: makeSsurgoDataset(apiKey),
     // cdl: makeCdlDataset(apiKey),
     // plss: makePlssDataset(apiKey),
-    clu: makeCluDataset(apiKey, undefined, borderColor, fillColor),
+    clu: makeCluDataset(apiKey, undefined, borderColor),
     // states: makeStatesDataset(apiKey),
   };
 }
@@ -436,7 +434,6 @@ const LandMapMagic: LandMapMagicGlobal = {
       showLegend: options.showLegend !== undefined ? options.showLegend : true,
       showClickInfo: options.showClickInfo !== undefined ? options.showClickInfo : true,
       borderColor: options.borderColor,
-      fillColor: options.fillColor,
       onMapLoad: options.onMapLoad || (() => {}),
       onError: options.onError || ((error) => console.error('LandMapMagic Error:', error))
     };
@@ -473,7 +470,7 @@ const LandMapMagic: LandMapMagicGlobal = {
       
       // Get land datasets
       console.log('🌾 Loading land datasets...');
-      const datasets = createLandDatasets(finalOptions.apiKey, finalOptions.borderColor, finalOptions.fillColor);
+      const datasets = createLandDatasets(finalOptions.apiKey, finalOptions.borderColor);
       
       // Wait for map to load
       await new Promise<void>((resolve, reject) => {

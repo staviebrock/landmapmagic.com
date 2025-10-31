@@ -8,13 +8,11 @@ import { DEFAULT_WORKER_ENDPOINT } from '../utils.js';
  * @param apiKey - API key for accessing the PMTiles endpoint (defaults to 'dev')
  * @param apiUrl - Base API URL for queries (optional, defaults to staging endpoint)
  * @param borderColor - Border/outline color for CLU polygons (defaults to '#fde047' - yellow)
- * @param fillColor - Fill color for CLU polygons (defaults to 'rgba(0,0,0,0)' - transparent)
  */
 export function makeCluDataset(
   apiKey: string = 'dev', 
   apiUrl?: string,
-  borderColor: string = '#fde047',
-  fillColor: string = 'rgba(0,0,0,0)'
+  borderColor: string = '#fde047'
 ): CluDataset {
   const workerEndpoint = apiUrl || DEFAULT_WORKER_ENDPOINT;
   const pmtilesUrl = `pmtiles://${workerEndpoint}/clu.pmtiles?key=${apiKey}`;
@@ -27,30 +25,31 @@ export function makeCluDataset(
     sourceLayer: 'clu',
     attribution: 'LandMapMagic.com',
     minzoom: 12,    // Allow viewing at all zoom levels
+    promoteId: 'id',
     // Don't set maxzoom on source - let PMTiles metadata control it, layers will overzoom
     layers: {
       // Simple field boundary fill layer with hover state
-      fill: {
-        type: 'fill',
-        'source-layer': 'clu',  // Polygon layer
-        paint: {
-          'fill-color': [
-            'case',
-            ['boolean', ['feature-state', 'hover'], false],
-            '#FFD700',  // Bright gold on hover
-            fillColor   // Customizable fill color (default transparent)
-          ],
-          'fill-opacity': [
-            'case',
-            ['boolean', ['feature-state', 'hover'], false],
-            0.7,  // More opaque on hover
-            1.0   // Full opacity for fill color (transparency controlled by color itself)
-          ]
-        },
-        layout: {},
-        minzoom: 11   // Show at all zoom levels, no maxzoom to allow overzooming
-      },
-      // Simple field boundary outline layer with hover state
+      // fill: {
+      //   type: 'fill',
+      //   'source-layer': 'clu',  // Polygon layer
+      //   paint: {
+      //     'fill-color': [
+      //       'case',
+      //       ['boolean', ['feature-state', 'hover'], false],
+      //       '#FFD700',  // Bright gold on hover
+      //       fillColor   // Customizable fill color (default transparent)
+      //     ],
+      //     'fill-opacity': [
+      //       'case',
+      //       ['boolean', ['feature-state', 'hover'], false],
+      //       0.7,  // More opaque on hover
+      //       1.0   // Full opacity for fill color (transparency controlled by color itself)
+      //     ]
+      //   },
+      //   layout: {},
+      //   minzoom: 11   // Show at all zoom levels, no maxzoom to allow overzooming
+      // },
+      // Simple field boundary outline layer with hover effect expressions
       outline: {
         type: 'line',
         'source-layer': 'clu',  // Polygon layer
@@ -59,17 +58,20 @@ export function makeCluDataset(
             'case',
             ['boolean', ['feature-state', 'hover'], false],
             '#FFD700',  // Bright gold on hover
-            borderColor // Customizable border color (default yellow #fde047)
+            borderColor
           ],
           'line-width': [
             'case',
             ['boolean', ['feature-state', 'hover'], false],
-            2,  // Thicker on hover
-            1   // Default width
+            4,
+            2
           ],
-          'line-opacity': 0.8
+          'line-opacity': 0.9
         },
-        layout: {},
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round'
+        },
         minzoom: 11   // Show at all zoom levels, no maxzoom to allow overzooming
       },
       // Label points layer - representative points with acreage
@@ -77,22 +79,23 @@ export function makeCluDataset(
         type: 'symbol',
         'source-layer': 'clu_labels',  // Point layer
         paint: {
-          'text-color': '#333',
-          'text-halo-color': '#fff',
-          'text-halo-width': 2
+          'text-color': '#000000',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 3,
+          'text-halo-blur': 1,
+          'text-opacity': 1.0
         },
         layout: {
           'text-field': ['concat', ['get', 'calcacres'], ' ac'],
-          'text-size': 11,
-          'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
-          // 'text-allow-overlap': true,  // Allow labels to overlap with other symbols
-          // 'text-ignore-placement': true,  // Don't hide labels due to collision
-          // 'symbol-placement': 'point',  // Place at exact point location
-          // 'text-anchor': 'center',  // Center text on point
-          // 'text-rotation-alignment': 'map',  // Rotate with map
-          // 'text-pitch-alignment': 'map'  // Pitch with map (stay flat on surface)
+          'text-size': 14,
+          'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold', 'Open Sans Regular', 'Arial Unicode MS Regular'],
+          'text-allow-overlap': false,
+          'text-anchor': 'center',
+          'symbol-placement': 'point',
+          'text-padding': 2,
+          'text-optional': false
         },
-        minzoom: 14   // Only show labels at high zoom, no maxzoom to allow overzooming
+        minzoom: 13   // Show labels earlier at zoom 13+
       }
     }
   });
@@ -105,7 +108,7 @@ export function makeCluDataset(
       const acres = acresValue ? `${acresValue.toFixed(1)} acres` : 'Unknown size';
       return `CLU Field (${acres})`;
     },
-    layerIds: [`${dataset.id}-fill`, `${dataset.id}-outline`],
+    layerIds: [`${dataset.id}-outline`],
     fields: [
       { key: 'id', label: 'Field ID' },
       { 

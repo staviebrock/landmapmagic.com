@@ -11,15 +11,13 @@ import type { UseLandMapsReturn } from '../core/types.js';
  * @param debugPMTilesPath - Optional debug PMTiles path for generic viewing
  * @param debugSourceLayer - Optional source layer name for debug PMTiles (defaults to 'generic')
  * @param borderColor - Border/outline color for layers (defaults vary by layer)
- * @param fillColor - Fill color for layers (defaults vary by layer)
  */
 export function useLandMaps(
   apiKey: string = 'dev', 
   apiUrl?: string, 
   debugPMTilesPath?: string,
   debugSourceLayer?: string,
-  borderColor?: string,
-  fillColor?: string
+  borderColor?: string
 ): UseLandMapsReturn {
   const datasets = useMemo(() => {
     // Use generic PMTiles dataset if debug path is provided
@@ -31,10 +29,10 @@ export function useLandMaps(
       ssurgo: makeSsurgoDataset(apiKey, apiUrl),
       cdl: makeCdlDataset(apiKey, apiUrl),
       plss: makePlssDataset(apiKey, apiUrl),
-      clu: makeCluDataset(apiKey, apiUrl, borderColor, fillColor),
+      clu: makeCluDataset(apiKey, apiUrl, borderColor),
       states: statesDataset,
     };
-  }, [apiKey, apiUrl, debugPMTilesPath, debugSourceLayer, borderColor, fillColor]);
+  }, [apiKey, apiUrl, debugPMTilesPath, debugSourceLayer, borderColor]);
 
   return datasets;
 }

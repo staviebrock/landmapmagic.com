@@ -77,13 +77,12 @@ export function LandMap({
   height = '500px',
   width = '100%',
   borderColor,
-  fillColor,
 }: LandMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const sourcesAddedRef = useRef<Set<string>>(new Set());
 
-  const { ssurgo, cdl, plss, clu, states } = useLandMaps(apiKey, apiUrl, undefined, undefined, borderColor, fillColor);
+  const { ssurgo, cdl, plss, clu, states } = useLandMaps(apiKey, apiUrl, undefined, undefined, borderColor);
 
   // Track which layers are currently visible
   const [dataLayers, setDataLayers] = useState<string[]>(initialVisibleLayers);
@@ -155,6 +154,60 @@ export function LandMap({
 
         mapRef.current = map;
 
+        let hoveredFeatureId: string | number | null = null;
+        const clearHoverState = () => {
+          if (hoveredFeatureId !== null) {
+            try {
+              map.setFeatureState(
+                { source: 'clu', sourceLayer: 'clu', id: hoveredFeatureId },
+                { hover: false }
+              );
+            } catch (err) {
+              console.warn('Failed to clear Mapbox CLU hover state:', err);
+            }
+            hoveredFeatureId = null;
+          }
+          map.getCanvas().style.cursor = '';
+        };
+
+        const handleHoverMove = (e: any) => {
+          if (!e.features?.length) {
+            clearHoverState();
+            return;
+          }
+
+          const feature = e.features[0];
+          const featureId = feature.id;
+
+          if (featureId === undefined || featureId === null) {
+            clearHoverState();
+            return;
+          }
+
+          if (hoveredFeatureId !== featureId) {
+            clearHoverState();
+            try {
+              map.setFeatureState(
+                {
+                  source: feature.source || 'clu',
+                  sourceLayer: feature.sourceLayer || 'clu',
+                  id: featureId,
+                },
+                { hover: true }
+              );
+              hoveredFeatureId = featureId;
+            } catch (err) {
+              console.warn('Failed to set Mapbox CLU hover state:', err);
+            }
+          }
+
+          map.getCanvas().style.cursor = 'pointer';
+        };
+
+        const handleHoverLeave = () => {
+          clearHoverState();
+        };
+
         // Wait for map to load
         map.on('load', () => {
           // Add only available land datasets (we'll control visibility via props and legend)
@@ -206,6 +259,10 @@ export function LandMap({
               }
             });
           });
+
+          map.on('mousemove', 'clu-outline', handleHoverMove);
+          map.on('mouseleave', 'clu-outline', handleHoverLeave);
+          clearHoverState();
         });
 
 

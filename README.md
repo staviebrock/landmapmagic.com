@@ -144,3 +144,7 @@ For Flask, Django, PHP, or plain HTML apps, use the CDN version:
 Check [Releases](https://github.com/staviebrock/landmapmagic.com/releases) for the latest version number.
 
 Built with ❤️ for the agricultural and geospatial communities.
+
+## Google Maps Integration
+
+Need to overlay CLU boundaries on an existing Google Maps implementation? Follow the step-by-step guide in [`docs/google-maps/README.md`](./docs/google-maps/README.md).

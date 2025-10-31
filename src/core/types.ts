@@ -40,6 +40,7 @@ export interface DatasetSource {
   bounds?: [number, number, number, number];
   minzoom?: number;
   maxzoom?: number;
+  promoteId?: string | Record<string, string>;
   [key: string]: any;
 }
 
@@ -111,7 +112,6 @@ export interface LandMapProps {
   height?: string | number;
   width?: string | number;
   borderColor?: string; // Border/outline color for layers - defaults vary by layer
-  fillColor?: string; // Fill color for layers - defaults vary by layer
 }
 
 // Hook return types

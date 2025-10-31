@@ -14,8 +14,9 @@ export function makeVectorDataset(config: {
   minzoom?: number;
   maxzoom?: number;
   bounds?: [number, number, number, number];
+  promoteId?: string | Record<string, string>;
 }): VectorDataset {
-  const { id, name, description, url, sourceLayer, layers, attribution, minzoom, maxzoom, bounds } = config;
+  const { id, name, description, url, sourceLayer, layers, attribution, minzoom, maxzoom, bounds, promoteId } = config;
 
   // Create source properties
   const sourceProps: DatasetSource = {
@@ -25,6 +26,7 @@ export function makeVectorDataset(config: {
     ...(maxzoom !== undefined && { maxzoom }),
     ...(bounds && { bounds }),
     ...(attribution && { attribution }),
+    ...(promoteId && { promoteId }),
   };
 
   // Create layer configurations with proper IDs and source-layer

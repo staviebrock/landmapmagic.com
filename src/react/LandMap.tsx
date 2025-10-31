@@ -23,7 +23,6 @@ export function LandMap({
   height = '500px',
   width = '100%',
   borderColor,
-  fillColor,
 }: LandMapProps) {
 
   const [dataLayers, setDataLayers] = useState<string[]>(initialVisibleLayers);
@@ -66,7 +65,7 @@ export function LandMap({
       })()
     : undefined;
 
-  const { ssurgo, cdl, plss, clu, states } = useLandMaps(apiKey, apiUrl, debugPMTilesPath, debugSourceLayer, borderColor, fillColor);
+  const { ssurgo, cdl, plss, clu, states } = useLandMaps(apiKey, apiUrl, debugPMTilesPath, debugSourceLayer, borderColor);
 
   // AOI handlers
   // const handleAOIComplete = (aoi: Feature<Polygon>) => {
@@ -165,6 +164,60 @@ export function LandMap({
 
         mapRef.current = map;
 
+        let hoveredFeatureId: string | number | null = null;
+        const clearHoverState = () => {
+          if (hoveredFeatureId !== null) {
+            try {
+              map.setFeatureState(
+                { source: 'clu', sourceLayer: 'clu', id: hoveredFeatureId },
+                { hover: false }
+              );
+            } catch (err) {
+              console.warn('Failed to clear CLU hover state:', err);
+            }
+            hoveredFeatureId = null;
+          }
+          map.getCanvas().style.cursor = '';
+        };
+
+        const handleHoverMove = (e: any) => {
+          if (!e.features?.length) {
+            clearHoverState();
+            return;
+          }
+
+          const feature = e.features[0];
+          const featureId = feature.id;
+
+          if (featureId === undefined || featureId === null) {
+            clearHoverState();
+            return;
+          }
+
+          if (hoveredFeatureId !== featureId) {
+            clearHoverState();
+            try {
+              map.setFeatureState(
+                {
+                  source: feature.source || 'clu',
+                  sourceLayer: feature.sourceLayer || 'clu',
+                  id: featureId,
+                },
+                { hover: true }
+              );
+              hoveredFeatureId = featureId;
+            } catch (err) {
+              console.warn('Failed to set CLU hover state:', err);
+            }
+          }
+
+          map.getCanvas().style.cursor = 'pointer';
+        };
+
+        const handleHoverLeave = () => {
+          clearHoverState();
+        };
+
         // Add error handlers
         map.on('error', (e: any) => {
           console.error('Map error:', e);
@@ -250,6 +303,9 @@ export function LandMap({
             });
           });
 
+          map.on('mousemove', 'clu-outline', handleHoverMove);
+          map.on('mouseleave', 'clu-outline', handleHoverLeave);
+          clearHoverState();
         });
 
 
@@ -326,80 +382,6 @@ export function LandMap({
       map.off('click', handleMapClick);
     };
   }, [showClickInfo, dataLayers, showAOITool, availableLayers]); // Re-attach handler when these change
-
-  // Handle efficient hover events using feature state
-  useEffect(() => {
-    if (!mapRef.current) return;
-
-    const map = mapRef.current;
-    let hoveredFeatureId: string | number | null = null;
-
-    const handleMouseMove = (e: any) => {
-      if (showAOITool) return; // Don't highlight when AOI tool is active
-
-      const features = map.queryRenderedFeatures(e.point, {
-        layers: ['clu-fill', 'clu-outline'] // Only query CLU layers
-      });
-
-      // Reset previous hover state
-      if (hoveredFeatureId !== null) {
-        map.setFeatureState(
-          { source: 'clu', id: hoveredFeatureId },
-          { hover: false }
-        );
-        hoveredFeatureId = null;
-      }
-
-      if (features.length > 0 && dataLayers.includes('clu')) {
-        const feature = features[0];
-        hoveredFeatureId = feature.id;
-
-        // Set hover state for the feature
-        if (hoveredFeatureId !== null) {
-          map.setFeatureState(
-            { source: 'clu', id: hoveredFeatureId },
-            { hover: true }
-          );
-        }
-
-        // Change cursor to pointer
-        map.getCanvas().style.cursor = 'pointer';
-      } else {
-        // No CLU feature found, reset cursor
-        map.getCanvas().style.cursor = '';
-      }
-    };
-
-    const handleMouseLeave = () => {
-      if (hoveredFeatureId !== null) {
-        map.setFeatureState(
-          { source: 'clu', id: hoveredFeatureId },
-          { hover: false }
-        );
-        hoveredFeatureId = null;
-      }
-      map.getCanvas().style.cursor = '';
-    };
-
-    map.on('mousemove', handleMouseMove);
-    map.on('mouseleave', handleMouseLeave);
-
-    return () => {
-      map.off('mousemove', handleMouseMove);
-      map.off('mouseleave', handleMouseLeave);
-      if (hoveredFeatureId !== null && map.getSource('clu')) {
-        try {
-          map.setFeatureState(
-            { source: 'clu', id: hoveredFeatureId },
-            { hover: false }
-          );
-        } catch (error) {
-          // Ignore cleanup errors when map is being destroyed
-          console.warn('Error cleaning up hover state:', error);
-        }
-      }
-    };
-  }, [dataLayers, showAOITool]); // Re-attach when layers change or AOI tool state changes
 
   // Handle click outside to close popup
   useEffect(() => {
