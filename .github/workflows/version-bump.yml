@@ -57,25 +57,21 @@ jobs:
       - name: Create release commit
         run: |
           git add package.json package-lock.json
-          cat > temp_commit_msg << 'EOF'
-chore: release v${{ steps.bump.outputs.new_version }} - BREAKING CHANGE
-
-${{ github.event.inputs.release_notes }}
-
-This is a major version release with breaking changes.
-EOF
+          echo "chore: release v${{ steps.bump.outputs.new_version }} - BREAKING CHANGE" > temp_commit_msg
+          echo "" >> temp_commit_msg
+          echo "${{ github.event.inputs.release_notes }}" >> temp_commit_msg
+          echo "" >> temp_commit_msg
+          echo "This is a major version release with breaking changes." >> temp_commit_msg
           git commit -F temp_commit_msg
           rm temp_commit_msg
           git push origin main
       
       - name: Create release tag
         run: |
-          cat > temp_tag_msg << 'EOF'
-Release v${{ steps.bump.outputs.new_version }}
-
-BREAKING CHANGES:
-${{ github.event.inputs.release_notes }}
-EOF
+          echo "Release v${{ steps.bump.outputs.new_version }}" > temp_tag_msg
+          echo "" >> temp_tag_msg
+          echo "BREAKING CHANGES:" >> temp_tag_msg
+          echo "${{ github.event.inputs.release_notes }}" >> temp_tag_msg
           git tag -a "v${{ steps.bump.outputs.new_version }}" -F temp_tag_msg
           rm temp_tag_msg
           git push --tags
