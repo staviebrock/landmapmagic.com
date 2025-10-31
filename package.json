@@ -1,7 +1,7 @@
 {
   "name": "landmapmagic",
-  "version": "0.0.6",
-  "description": "The easiest way to build maps about land in your apps",
+  "version": "0.0.4",
+  "description": "The easiest way to build land maps in your apps.",
   "type": "module",
   "main": "./dist/root.cjs",
   "module": "./dist/root.js",
