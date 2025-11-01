@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LandMapMagic - Vanilla HTML Example</title>
+    
+    <!-- MapLibre CSS (required) -->
+    <link href='https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css' rel='stylesheet' />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .header {
+            padding: 20px;
+            background: linear-gradient(135deg, #2E8B57, #4A90E2);
+            color: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0 0 8px 0;
+            font-size: 24px;
+        }
+        
+        .header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .controls {
+            padding: 15px 20px;
+            background: white;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .controls label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .controls input[type="text"],
+        .controls input[type="color"] {
+            padding: 6px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .controls input[type="text"] {
+            min-width: 200px;
+        }
+        
+        .controls button {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .controls button:hover {
+            background: #0056b3;
+        }
+        
+        .controls button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        #map {
+            flex: 1;
+            width: 100%;
+        }
+        
+        .info {
+            padding: 15px 20px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .info strong {
+            color: #333;
+        }
+        
+        .status {
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌾 LandMapMagic - Vanilla HTML Example</h1>
+            <p>Pure HTML/JS integration - no build tools required</p>
+        </div>
+        
+        <div class="controls">
+            <label>
+                API Key:
+                <input type="text" id="apiKey" value="dev" placeholder="Your API key">
+            </label>
+            
+            <label>
+                API URL:
+                <input type="text" id="apiUrl" value="https://api.landmapmagic.com" placeholder="API base URL">
+            </label>
+            
+            <label>
+                Border Color:
+                <input type="color" id="borderColor" value="#fde047">
+            </label>
+            
+            <button id="initMapBtn" onclick="initMap()">Initialize Map</button>
+            <button id="toggleLayerBtn" onclick="toggleLayer()" disabled>Toggle CLU Layer</button>
+            
+            <div id="status" class="status">Ready to initialize map</div>
+        </div>
+        
+        <div id="map"></div>
+        
+        <div class="info">
+            <strong>About:</strong> This is a pure HTML example using the LandMapMagic vanilla JS library. 
+            No build tools or frameworks required - just include the script and start mapping!
+            <br><br>
+            <strong>Usage:</strong> Include the script tag: <code>&lt;script src="https://static.landmapmagic.com/js/landmap-vanilla.js"&gt;&lt;/script&gt;</code>
+            <br><br>
+            <strong>API:</strong> The library uses the LandMapMagic API to fetch CLU field boundary data. 
+            Click on fields to see acreage information.
+        </div>
+    </div>
+
+    <!-- LandMapMagic Vanilla JS Library -->
+    <!-- In production, use: https://static.landmapmagic.com/js/landmap-vanilla.js -->
+    <!-- For local development, you'll need to build and serve the vanilla bundle -->
+    <script src="../dist/landmap-vanilla.js"></script>
+    <!-- Alternative CDN (when deployed): -->
+    <!-- <script src="https://static.landmapmagic.com/js/landmap-vanilla.js"></script> -->
+
+    <script>
+        let landMap;
+        let cluLayerVisible = true;
+        
+        function updateStatus(message, type = '') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = 'status ' + type;
+        }
+        
+        async function initMap() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            
+            if (!apiKey) {
+                updateStatus('Please enter an API key', 'error');
+                return;
+            }
+            
+            if (!apiUrl) {
+                updateStatus('Please enter an API URL', 'error');
+                return;
+            }
+            
+            updateStatus('Initializing map...', 'loading');
+            document.getElementById('initMapBtn').disabled = true;
+            
+            try {
+                // Configure LandMapMagic
+                if (typeof LandMapMagic !== 'undefined') {
+                    LandMapMagic.configure({
+                        defaultApiKey: apiKey,
+                        defaultEndpoint: apiUrl
+                    });
+                } else {
+                    throw new Error('LandMapMagic library not loaded. Make sure the script tag is included.');
+                }
+                
+                // Get border color
+                const borderColor = document.getElementById('borderColor').value;
+                
+                // Create map
+                landMap = await LandMapMagic.createMap('map', {
+                    apiKey: apiKey,
+                    initialCenter: [-93.5, 42.0], // Iowa
+                    initialZoom: 12,
+                    availableLayers: ['clu'],
+                    initialVisibleLayers: ['clu'],
+                    showLegend: true,
+                    showClickInfo: true,
+                    borderColor: borderColor,
+                    onMapLoad: function(map) {
+                        console.log('🎉 Map loaded successfully!');
+                        console.log('Visible layers:', map.getVisibleLayers());
+                        updateStatus('Map initialized successfully! Click on fields to see details.', 'success');
+                        document.getElementById('toggleLayerBtn').disabled = false;
+                    },
+                    onError: function(error) {
+                        console.error('Map error:', error);
+                        updateStatus('Error: ' + error.message, 'error');
+                        document.getElementById('initMapBtn').disabled = false;
+                    }
+                });
+                
+                // Update border color when changed
+                document.getElementById('borderColor').addEventListener('change', async (e) => {
+                    if (landMap) {
+                        const newColor = e.target.value;
+                        // Destroy and recreate with new color
+                        landMap.destroy();
+                        await initMap();
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error initializing map:', error);
+                updateStatus('Error: ' + error.message, 'error');
+                document.getElementById('initMapBtn').disabled = false;
+            }
+        }
+        
+        function toggleLayer() {
+            if (!landMap) return;
+            
+            cluLayerVisible = !cluLayerVisible;
+            
+            if (cluLayerVisible) {
+                landMap.showLayer('clu');
+                updateStatus('CLU layer visible', 'success');
+            } else {
+                landMap.hideLayer('clu');
+                updateStatus('CLU layer hidden', 'success');
+            }
+        }
+        
+        // Auto-initialize on page load (optional)
+        // Uncomment the line below to auto-initialize when the page loads
+        // window.addEventListener('DOMContentLoaded', () => {
+        //     setTimeout(initMap, 1000);
+        // });
+    </script>
+</body>
+</html>
+
