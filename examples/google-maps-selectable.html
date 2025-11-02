@@ -423,8 +423,8 @@
                     }
                     
                     if (isSelected) {
-                        // Very light green fill - subtle but visible
-                        return [34, 197, 94, 40];  // Light green with low opacity (40)
+                        // Brighter green fill with more opacity
+                        return [0, 255, 0, 80];  // Pure bright green with more opacity
                     }
                     return [0, 0, 0, 0];  // Transparent for unselected
                 },
@@ -434,8 +434,8 @@
                     const isSelected = idLookupSnapshot.has(fieldId);
                     
                     if (isSelected) {
-                        // BRIGHT GREEN outline for selected - very obvious!
-                        return [34, 197, 94, 255];  // Bright green, full opacity
+                        // SUPER BRIGHT LIME GREEN outline - very obvious!
+                        return [0, 255, 0, 255];  // Pure lime green, full opacity
                     }
                     return [253, 224, 71, 230];  // Yellow for unselected
                 },
@@ -443,11 +443,11 @@
                 getLineWidth: (feature) => {
                     const fieldId = getFieldId(feature);
                     const isSelected = idLookupSnapshot.has(fieldId);
-                    return isSelected ? 6 : 2;  // MUCH thicker border for selected
+                    return isSelected ? 10 : 2;  // VERY thick border for selected
                 },
                 
                 lineWidthMinPixels: 2,
-                lineWidthMaxPixels: 12,  // Allow thicker lines
+                lineWidthMaxPixels: 15,  // Allow very thick lines
                 pickable: true,
                 
                 onClick: (info) => {
