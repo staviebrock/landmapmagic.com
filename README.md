@@ -145,6 +145,27 @@ Check [Releases](https://github.com/staviebrock/landmapmagic.com/releases) for t
 
 Built with ❤️ for the agricultural and geospatial communities.
 
+## Environment Variables
+
+For local development and examples, create a `.env.local` file in the root directory:
+
+```bash
+# Google Maps API Key (for Google Maps examples)
+# Get your key at: https://console.cloud.google.com/google/maps-apis
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+
+# LandMapMagic API Key (optional - defaults to 'dev' for testing)
+# Get your key at: https://landmapmagic.com
+VITE_LANDMAP_API_KEY=dev
+```
+
+When you run `npm run dev` in the `examples/` directory, Vite will:
+1. Load these environment variables from the root `.env.local` file
+2. Inject them into the HTML examples
+3. Auto-initialize the map if both keys are present
+
+**Note:** After creating or modifying `.env.local`, restart the Vite dev server.
+
 ## Integration Guides
 
 ### Existing MapLibre Map

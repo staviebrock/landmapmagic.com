@@ -3,408 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LandMapMagic - Google Maps Integration Example</title>
+    <title>LandMapMagic - Google Maps + CLU</title>
     
     <style>
-        * {
+        html, body, #map {
+            height: 100%;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #f5f5f5;
-        }
-        
-        .container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-        
-        .header {
-            padding: 20px;
-            background: linear-gradient(135deg, #2E8B57, #4A90E2);
-            color: white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .header h1 {
-            margin: 0 0 8px 0;
-            font-size: 24px;
-        }
-        
-        .header p {
-            margin: 0;
-            opacity: 0.9;
-            font-size: 14px;
-        }
-        
-        .controls {
-            padding: 15px 20px;
-            background: white;
-            border-bottom: 1px solid #e9ecef;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-        
-        .controls label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 14px;
-            color: #333;
-        }
-        
-        .controls input[type="text"],
-        .controls select {
-            padding: 6px 12px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        
-        .controls input[type="text"] {
-            min-width: 200px;
-        }
-        
-        .controls button {
-            padding: 8px 16px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-        }
-        
-        .controls button:hover {
-            background: #0056b3;
-        }
-        
-        .controls button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
-        #map {
-            flex: 1;
-            width: 100%;
-        }
-        
-        .info {
-            padding: 15px 20px;
-            background: white;
-            border-top: 1px solid #e9ecef;
-            font-size: 13px;
-            color: #666;
-        }
-        
-        .info strong {
-            color: #333;
-        }
-        
-        .status {
-            padding: 8px 12px;
-            background: #f8f9fa;
-            border-radius: 4px;
-            font-size: 12px;
-            color: #666;
-        }
-        
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
         }
     </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🌾 LandMapMagic - Google Maps Integration</h1>
-            <p>Add USDA CLU field boundaries to your Google Maps application</p>
-        </div>
-
-        <div class="controls">
-            <label>
-                LandMap API Key:
-                <input type="text" id="apiKey" value="dev" placeholder="Get your free key at landmapmagic.com">
-            </label>
-
-            <label>
-                Google Maps API Key:
-                <input type="text" id="googleApiKey" value="" placeholder="Your Google Maps API key">
-            </label>
-
-            <label>
-                Border Color:
-                <input type="color" id="borderColor" value="#fde047">
-            </label>
-
-            <button id="initMapBtn" onclick="initMap()">Initialize Map</button>
-            <button id="toggleLayerBtn" onclick="toggleLayer()" disabled>Toggle CLU Layer</button>
-
-            <div id="status" class="status">Ready to initialize map</div>
-        </div>
-
-        <div id="map"></div>
-
-        <div class="info">
-            <strong>About CLU Data:</strong> Common Land Units (CLU) are field boundaries from the USDA Farm Service Agency.
-            Perfect for agricultural apps, property analysis, and field mapping.
-            <br><br>
-            <strong>Quick Start:</strong>
-            1. Get a free API key from <a href="https://landmapmagic.com" target="_blank">landmapmagic.com</a>
-            2. Enter your Google Maps API key
-            3. Click "Initialize Map" to see CLU field boundaries
-            4. Click on any field to see acreage and field ID
-            <br><br>
-            <strong>For Developers:</strong> This uses the LandMapMagic TileJSON API (<code>https://api.landmapmagic.com/clu.json</code>) with deck.gl MVTLayer.
-            Works with any Google Maps application - just include deck.gl and use the MVTLayer!
-        </div>
-    </div>
 
     <!-- deck.gl dependencies for Google Maps integration -->
     <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
     <script src="https://unpkg.com/@deck.gl/google-maps@^9.0.0/dist.min.js"></script>
+</head>
+<body>
+    <div id="map"></div>
 
     <!-- Google Maps API will be loaded dynamically -->
 
     <script>
         /**
-         * LandMapMagic Google Maps Integration Example
-         *
-         * This example shows how to add CLU (Common Land Unit) field boundaries
-         * to Google Maps using deck.gl's MVTLayer and LandMapMagic's TileJSON API.
-         *
-         * What you need:
-         * 1. deck.gl library (included above)
-         * 2. Google Maps API key
-         * 3. LandMapMagic API key (free at landmapmagic.com)
-         *
-         * Key endpoints:
-         * - TileJSON: https://api.landmapmagic.com/clu.json?key=YOUR_KEY
-         * - Tiles: https://api.landmapmagic.com/clu/{z}/{x}/{y}.mvt?key=YOUR_KEY
-         *
-         * The MVTLayer automatically uses the TileJSON to fetch individual tiles.
+         * LandMapMagic Google Maps Integration
+         * 
+         * Simple example showing CLU field boundaries + acreage labels
+         * using deck.gl MVTLayer with PMTiles backend
          */
 
-        let map;
-        let overlay;
-        let cluLayerVisible = true;
-        const baseApiUrl = 'https://staging-api.landmapmagic.com';
-        let currentTileJsonUrl = null;
+        // Access deck.gl classes from global namespace (loaded via script tags)
+        const { GoogleMapsOverlay } = deck;
+        const { MVTLayer } = deck;
+        const { TextLayer } = deck;
 
-        function updateStatus(message, type = '') {
-            const statusEl = document.getElementById('status');
-            statusEl.textContent = message;
-            statusEl.className = 'status ' + type;
+        // Environment variables injected by Vite at build/serve time
+        const GOOGLE_MAPS_KEY = '%VITE_GOOGLE_MAPS_API_KEY%';
+        const LANDMAP_KEY = '%VITE_LANDMAP_API_KEY%';
+
+        // Check if env vars are set (not placeholders)
+        const googleApiKey = (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('VITE_')) ? GOOGLE_MAPS_KEY : '';
+        const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
+
+        if (!googleApiKey) {
+            document.body.innerHTML = '<div style="padding:20px;color:red;">Missing VITE_GOOGLE_MAPS_API_KEY in .env.local</div>';
+            throw new Error('Missing Google Maps API key');
         }
-        
-        async function initMap() {
-            const landmapapikey = document.getElementById('apiKey').value.trim();
-            const googleApiKey = document.getElementById('googleApiKey').value.trim();
-            
-            if (!landmapapikey) {
-                updateStatus('Please enter a LandMap API key', 'error');
-                return;
-            }
-            
-            if (!googleApiKey) {
-                updateStatus('Please enter a Google Maps API key', 'error');
-                return;
-            }
-            
-            updateStatus('Loading Google Maps...', '');
-            document.getElementById('initMapBtn').disabled = true;
-            
-            try {
-                // Load Google Maps script if not already loaded
-                if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
-                    updateStatus('Loading Google Maps API...', 'loading');
-                    
-                    // Create callback function
-                    window.initGoogleMapCallback = function() {
-                        createMapInstance();
-                    };
-                    
-                    // Load Google Maps script
-                    const script = document.createElement('script');
-                    script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&callback=initGoogleMapCallback`;
-                    script.async = true;
-                    script.defer = true;
-                    script.onerror = function() {
-                        updateStatus('Failed to load Google Maps API', 'error');
-                        document.getElementById('initMapBtn').disabled = false;
-                    };
-                    document.head.appendChild(script);
+
+        // Your LandMapMagic API endpoint
+        const BASE_URL = 'https://staging-api.landmapmagic.com';
+        const TILE_URL = `${BASE_URL}/clu/{z}/{x}/{y}?key=${landmapApiKey}`;
+
+        // Helper to format acres
+        const fmtAcres = (v) => (v == null ? '' : `${Math.round(v)} ac`);
+
+        // Load Google Maps dynamically
+        function loadGoogleMaps() {
+            return new Promise((resolve, reject) => {
+                if (typeof google !== 'undefined' && google.maps) {
+                    resolve();
                     return;
-                } else {
-                    createMapInstance();
                 }
+
+                window.initGoogleMapCallback = resolve;
                 
-                function createMapInstance() {
-                    // Create Google Map
-                    map = new google.maps.Map(document.getElementById('map'), {
-                        center: { lat: 41.878, lng: -93.097 }, // Iowa
-                        zoom: 12,
-                        mapId: 'DEMO_MAP_ID' // Use your vector map ID if you have one
-                    });
-                    
-                    setupDeckGLOverlay();
-                }
-                
-                async function setupDeckGLOverlay() {
-                    updateStatus('Fetching CLU TileJSON...', 'loading');
-
-                    try {
-                        // LandMapMagic API provides TileJSON endpoint for CLU data
-                        const cacheBuster = Date.now(); // Force fresh request
-                        const tileJsonUrl = `${baseApiUrl}/clu.json?key=${landmapapikey}&_t=${cacheBuster}`;
-                        currentTileJsonUrl = `${baseApiUrl}/clu.json?key=${landmapapikey}`; // Clean URL for deck.gl
-
-                        const response = await fetch(tileJsonUrl);
-                        if (!response.ok) {
-                            throw new Error(`Failed to load TileJSON (${response.status}). Check your API key.`);
-                        }
-
-                        const tileJson = await response.json();
-                        console.log('✅ CLU TileJSON loaded:', tileJson);
-
-                        updateStatus('Creating CLU layer...', 'loading');
-
-                        // Helper function to create the CLU layer
-                        const createCluLayer = () => {
-                            const colorInput = document.getElementById('borderColor');
-                            const hex = colorInput.value;
-                            const r = parseInt(hex.slice(1, 3), 16);
-                            const g = parseInt(hex.slice(3, 5), 16);
-                            const b = parseInt(hex.slice(5, 7), 16);
-                            const color = [r, g, b, 230];
-
-                            return new deck.MVTLayer({
-                                id: 'clu-layer',
-                                data: tileJsonUrl,
-                                minZoom: 11,
-                                maxZoom: 15,
-                                stroked: true,
-                                filled: false,
-                                lineWidthMinPixels: 2,
-                                lineWidthMaxPixels: 4,
-                                getLineColor: color,
-                                getLineWidth: 2,
-                                pickable: true,
-                                visible: cluLayerVisible,
-                                onClick: (info) => {
-                                    if (info.object && info.object.properties) {
-                                        const props = info.object.properties;
-                                        const acres = props.calcacres || props.CALCACRES || 'Unknown';
-                                        const id = props.id || props.ID || 'N/A';
-                                        alert(`🌾 CLU Field\n\nAcres: ${acres}\nField ID: ${id}`);
-                                    }
-                                },
-                                onHover: (info) => {
-                                    if (map) {
-                                        map.getDiv().style.cursor = info.object ? 'pointer' : '';
-                                    }
-                                }
-                            });
-                        };
-
-                        // Create deck.gl overlay with CLU layer
-                        overlay = new deck.GoogleMapsOverlay({
-                            layers: [createCluLayer()]
-                        });
-
-                        overlay.setMap(map);
-
-                        // Handle color changes
-                        const colorInput = document.getElementById('borderColor');
-                        let colorChangeTimeout;
-                        colorInput.addEventListener('change', () => {
-                            clearTimeout(colorChangeTimeout);
-                            colorChangeTimeout = setTimeout(() => {
-                                if (overlay) {
-                                    overlay.setProps({ layers: [createCluLayer()] });
-                                }
-                            }, 100);
-                        });
-
-                        updateStatus('✅ Map ready! Click on fields to see details.', 'success');
-                        document.getElementById('toggleLayerBtn').disabled = false;
-
-                    } catch (error) {
-                        console.error('❌ Error setting up CLU layer:', error);
-                        updateStatus(`Error: ${error.message}`, 'error');
-                        document.getElementById('initMapBtn').disabled = false;
-
-                        alert(`Failed to load CLU data\n\n${error.message}\n\nMake sure:\n1. Your API key is valid\n2. The API is running at ${baseApiUrl}`);
-                    }
-                }
-                
-            } catch (error) {
-                console.error('Error initializing map:', error);
-                updateStatus('Error: ' + error.message, 'error');
-                document.getElementById('initMapBtn').disabled = false;
-            }
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&callback=initGoogleMapCallback`;
+                script.async = true;
+                script.defer = true;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
         }
-        
-        function toggleLayer() {
-            if (!overlay || !currentTileJsonUrl) return;
 
-            cluLayerVisible = !cluLayerVisible;
+        // Initialize map
+        async function initMap() {
+            await loadGoogleMaps();
 
-            const colorInput = document.getElementById('borderColor');
-            const hex = colorInput.value;
-            const r = parseInt(hex.slice(1, 3), 16);
-            const g = parseInt(hex.slice(3, 5), 16);
-            const b = parseInt(hex.slice(5, 7), 16);
-            const color = [r, g, b, 230];
-
-            overlay.setProps({
-                layers: [
-                    new deck.MVTLayer({
-                        id: 'clu-layer',
-                        data: currentTileJsonUrl,
-                        minZoom: 11,
-                        maxZoom: 15,
-                        stroked: true,
-                        filled: false,
-                        lineWidthMinPixels: 2,
-                        lineWidthMaxPixels: 4,
-                        getLineColor: color,
-                        getLineWidth: 2,
-                        pickable: true,
-                        visible: cluLayerVisible,
-                        onClick: (info) => {
-                            if (info.object && info.object.properties) {
-                                const props = info.object.properties;
-                                const acres = props.calcacres || props.CALCACRES || 'Unknown';
-                                const id = props.id || props.ID || 'N/A';
-                                alert(`🌾 CLU Field\n\nAcres: ${acres}\nField ID: ${id}`);
-                            }
-                        },
-                        onHover: (info) => {
-                            if (map) {
-                                map.getDiv().style.cursor = info.object ? 'pointer' : '';
-                            }
-                        }
-                    })
-                ]
+            // 1) Create Google Map
+            const map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 41.878, lng: -93.097 }, // Iowa
+                zoom: 13, // Start at zoom 13 so labels are visible
+                mapId: 'DEMO_MAP_ID'
             });
 
-            updateStatus(cluLayerVisible ? '✅ CLU layer visible' : 'CLU layer hidden', 'success');
+            // 2) CLU Polygons (source-layer "clu")
+            const cluPolygons = new MVTLayer({
+                id: 'clu-polygons',
+                data: TILE_URL,
+                loadOptions: { 
+                    mvt: { 
+                        layers: ['clu']  // Only load 'clu' layer for polygons
+                    } 
+                },
+                minZoom: 11,
+                maxZoom: 15,
+                filled: false,
+                stroked: true,
+                getLineColor: [255, 107, 53, 230], // #FF6B35 orange
+                getLineWidth: 2,
+                lineWidthMinPixels: 2,
+                lineWidthMaxPixels: 4,
+                pickable: true,
+                onClick: (info) => {
+                    if (!info.object) return;
+                    const props = info.object.properties || {};
+                    const acres = props.calcacres || props.CALCACRES || 'Unknown';
+                    const fieldId = props.id || props.ID || 'N/A';
+                    alert(`🌾 CLU Field\n\nAcres: ${acres}\nField ID: ${fieldId}`);
+                    console.log('CLU polygon:', props);
+                }
+            });
+
+            // 3) CLU Labels as TEXT (source-layer "clu_labels")
+            const cluLabels = new MVTLayer({
+                id: 'clu-labels',
+                data: TILE_URL,
+                binary: false,  // Required to use TextLayer in renderSubLayers
+                loadOptions: { 
+                    mvt: { 
+                        layers: ['clu_labels']  // Only load 'clu_labels' layer for points
+                    } 
+                },
+                minZoom: 13,  // Labels start at zoom 13
+                maxZoom: 15,
+                pickable: false,
+
+                // Override renderSubLayers to turn point features into TextLayer
+                renderSubLayers: (sublayerProps) => {
+                    const { data } = sublayerProps;
+
+                    if (!data || !data.length) {
+                        return null;
+                    }
+
+                    return new TextLayer({
+                        ...sublayerProps,
+                        id: `${sublayerProps.id}-text`,
+                        data,
+                        // MVT points come through as GeoJSON features
+                        getPosition: (f) => f.geometry.coordinates,
+                        getText: (f) => {
+                            const props = f.properties || {};
+                            const acres = props.calcacres || props.CALCACRES;
+                            return fmtAcres(acres);
+                        },
+                        getSize: 14,
+                        sizeUnits: 'pixels',
+                        getColor: [0, 0, 0, 255],
+                        getTextAnchor: 'middle',
+                        getAlignmentBaseline: 'center',
+                        
+                        // Better legibility
+                        background: true,
+                        getBackgroundColor: [255, 255, 255, 220],
+                        backgroundPadding: [4, 2, 4, 2],
+                        
+                        // Font styling
+                        fontFamily: 'Arial, sans-serif',
+                        fontWeight: 'bold',
+                        
+                        pickable: false
+                    });
+                }
+            });
+
+            // 4) Mount on Google Maps
+            const overlay = new GoogleMapsOverlay({
+                layers: [cluPolygons, cluLabels]
+            });
+            overlay.setMap(map);
+
+            console.log('✅ Map initialized with CLU data');
         }
+
+        // Auto-initialize on load
+        initMap().catch((error) => {
+            console.error('Failed to initialize map:', error);
+            document.body.innerHTML = `<div style="padding:20px;color:red;">Failed to load map: ${error.message}</div>`;
+        });
     </script>
 </body>
 </html>
-
