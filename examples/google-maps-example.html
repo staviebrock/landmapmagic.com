@@ -52,8 +52,8 @@
         const BASE_URL = 'https://staging-api.landmapmagic.com';
         const TILE_URL = `${BASE_URL}/clu/{z}/{x}/{y}?key=${landmapApiKey}`;
 
-        // Helper to format acres
-        const fmtAcres = (v) => (v == null ? '' : `${Math.round(v)} ac`);
+        // Helper to format acres with 2 decimal places (no "ac" suffix)
+        const fmtAcres = (v) => (v == null ? '' : v.toFixed(2));
 
         // Load Google Maps dynamically
         function loadGoogleMaps() {
@@ -82,7 +82,8 @@
             const map = new google.maps.Map(document.getElementById('map'), {
                 center: { lat: 41.878, lng: -93.097 }, // Iowa
                 zoom: 13, // Start at zoom 13 so labels are visible
-                mapId: 'DEMO_MAP_ID'
+                mapId: 'DEMO_MAP_ID',
+                mapTypeId: 'satellite'
             });
 
             // 2) CLU Polygons (source-layer "clu")
@@ -98,7 +99,7 @@
                 maxZoom: 15,
                 filled: false,
                 stroked: true,
-                getLineColor: [255, 107, 53, 230], // #FF6B35 orange
+                getLineColor: [253, 224, 71, 230], // #fde047 yellow
                 getLineWidth: 2,
                 lineWidthMinPixels: 2,
                 lineWidthMaxPixels: 4,
@@ -146,20 +147,24 @@
                             const acres = props.calcacres || props.CALCACRES;
                             return fmtAcres(acres);
                         },
-                        getSize: 14,
+                        getSize: 13,
                         sizeUnits: 'pixels',
-                        getColor: [0, 0, 0, 255],
+                        getColor: [0, 0, 0, 255],  // Black text
                         getTextAnchor: 'middle',
                         getAlignmentBaseline: 'center',
                         
-                        // Better legibility
-                        background: true,
-                        getBackgroundColor: [255, 255, 255, 220],
-                        backgroundPadding: [4, 2, 4, 2],
+                        // White outline for contrast - requires SDF fonts
+                        fontSettings: {
+                            sdf: true,
+                            fontSize: 64,
+                            buffer: 4
+                        },
+                        outlineWidth: 6,  // White outline
+                        outlineColor: [255, 255, 255, 255],
                         
                         // Font styling
                         fontFamily: 'Arial, sans-serif',
-                        fontWeight: 'bold',
+                        // fontWeight: 'bold',
                         
                         pickable: false
                     });
