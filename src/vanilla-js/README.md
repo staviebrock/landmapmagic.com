@@ -2,7 +2,7 @@
 
 **For non-React applications** - Flask, Django, PHP, Rails, plain HTML, and any web framework.
 
-The easiest way to add interactive land data maps to your web applications without React dependencies.
+The easiest way to build land maps in your apps
 
 ## Quick Start
 

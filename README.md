@@ -3,7 +3,7 @@
 
 <br>
 
-  The easiest way to show land maps in your apps. 
+  The easiest way to build land maps in your apps
 </div>
 
 A single npm package that makes it **extremely easy** for developers to display geospatial datasets (CLU, SSURGO, CDL, PLSS, etc.) in interactive maps.
