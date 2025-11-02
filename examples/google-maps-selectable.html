@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LandMapMagic - Google Maps Selectable CLU</title>
+    
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        #stats-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            min-width: 250px;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+        
+        #stats-panel h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #333;
+        }
+        
+        #stats-panel .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        #stats-panel .stat-label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        #stats-panel .stat-value {
+            color: #000;
+        }
+        
+        #selected-list {
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        #selected-list h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #555;
+        }
+        
+        .selected-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .selected-item:hover {
+            background: #e5e5e5;
+        }
+        
+        .remove-btn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 2px 8px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .remove-btn:hover {
+            background: #cc0000;
+        }
+        
+        .clear-all-btn {
+            width: 100%;
+            padding: 8px;
+            margin-top: 10px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .clear-all-btn:hover {
+            background: #0052a3;
+        }
+        
+        .empty-message {
+            color: #999;
+            font-style: italic;
+            font-size: 12px;
+            text-align: center;
+            padding: 20px 0;
+        }
+    </style>
+
+    <!-- deck.gl dependencies for Google Maps integration -->
+    <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+    <script src="https://unpkg.com/@deck.gl/google-maps@^9.0.0/dist.min.js"></script>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <!-- Stats Panel -->
+    <div id="stats-panel">
+        <h3>📊 Selected Fields</h3>
+        
+        <div class="stat-row">
+            <span class="stat-label">Count:</span>
+            <span class="stat-value" id="stat-count">0</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Total Acres:</span>
+            <span class="stat-value" id="stat-total">0.00</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Average Acres:</span>
+            <span class="stat-value" id="stat-average">0.00</span>
+        </div>
+        
+        <div id="selected-list">
+            <h4>Selected Polygons:</h4>
+            <div id="selected-items">
+                <div class="empty-message">Click polygons to select</div>
+            </div>
+        </div>
+        
+        <button class="clear-all-btn" onclick="clearAllSelections()">Clear All</button>
+    </div>
+
+    <!-- Google Maps API will be loaded dynamically -->
+
+    <script>
+        /**
+         * LandMapMagic Google Maps Selectable Integration
+         * 
+         * Allows users to click to select/deselect CLU polygons
+         * Displays statistics and list of selected polygons
+         */
+
+        // Access deck.gl classes from global namespace (loaded via script tags)
+        const { GoogleMapsOverlay } = deck;
+        const { MVTLayer } = deck;
+        const { TextLayer } = deck;
+
+        // Environment variables injected by Vite at build/serve time
+        const GOOGLE_MAPS_KEY = '%VITE_GOOGLE_MAPS_API_KEY%';
+        const LANDMAP_KEY = '%VITE_LANDMAP_API_KEY%';
+
+        // Check if env vars are set (not placeholders)
+        const googleApiKey = (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('VITE_')) ? GOOGLE_MAPS_KEY : '';
+        const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
+
+        if (!googleApiKey) {
+            document.body.innerHTML = '<div style="padding:20px;color:red;">Missing VITE_GOOGLE_MAPS_API_KEY in .env.local</div>';
+            throw new Error('Missing Google Maps API key');
+        }
+
+        // Your LandMapMagic API endpoint
+        const BASE_URL = 'https://staging-api.landmapmagic.com';
+        const TILE_URL = `${BASE_URL}/clu/{z}/{x}/{y}?key=${landmapApiKey}`;
+
+        // Helper to format acres with 2 decimal places (no "ac" suffix)
+        const fmtAcres = (v) => (v == null ? '' : v.toFixed(2));
+
+        // ==================== SELECTION STATE ====================
+        // Map to store selected polygons: key = unique ID, value = full feature object
+        const selectedPolygons = new Map();
+        
+        // Reference to the overlay (set during initialization)
+        let overlayInstance = null;
+
+        /**
+         * Toggle polygon selection
+         */
+        function togglePolygonSelection(feature) {
+            const props = feature.properties || {};
+            const fieldId = props.id || props.ID || `field_${Math.random()}`;
+            
+            if (selectedPolygons.has(fieldId)) {
+                // Deselect
+                selectedPolygons.delete(fieldId);
+                console.log('Deselected:', fieldId);
+            } else {
+                // Select
+                selectedPolygons.set(fieldId, feature);
+                console.log('Selected:', fieldId);
+            }
+            
+            // Update UI and layer styling
+            updateStatistics();
+            updateSelectedList();
+            refreshLayers();
+        }
+
+        /**
+         * Calculate and update statistics
+         */
+        function updateStatistics() {
+            const count = selectedPolygons.size;
+            let totalAcres = 0;
+            
+            selectedPolygons.forEach((feature) => {
+                const props = feature.properties || {};
+                const acres = parseFloat(props.calcacres || props.CALCACRES || 0);
+                totalAcres += acres;
+            });
+            
+            const avgAcres = count > 0 ? totalAcres / count : 0;
+            
+            // Update UI
+            document.getElementById('stat-count').textContent = count;
+            document.getElementById('stat-total').textContent = totalAcres.toFixed(2);
+            document.getElementById('stat-average').textContent = avgAcres.toFixed(2);
+            
+            console.log('Statistics:', { count, totalAcres, avgAcres, selectedPolygons: Array.from(selectedPolygons.entries()) });
+        }
+
+        /**
+         * Update the list of selected polygons in the UI
+         */
+        function updateSelectedList() {
+            const container = document.getElementById('selected-items');
+            
+            if (selectedPolygons.size === 0) {
+                container.innerHTML = '<div class="empty-message">Click polygons to select</div>';
+                return;
+            }
+            
+            let html = '';
+            selectedPolygons.forEach((feature, fieldId) => {
+                const props = feature.properties || {};
+                const acres = props.calcacres || props.CALCACRES || 'N/A';
+                html += `
+                    <div class="selected-item">
+                        <div>
+                            <strong>ID:</strong> ${fieldId}<br>
+                            <strong>Acres:</strong> ${typeof acres === 'number' ? acres.toFixed(2) : acres}
+                        </div>
+                        <button class="remove-btn" onclick="removeSelection('${fieldId}')">✕</button>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        /**
+         * Remove a single selection
+         */
+        function removeSelection(fieldId) {
+            selectedPolygons.delete(fieldId);
+            updateStatistics();
+            updateSelectedList();
+            refreshLayers();
+        }
+
+        /**
+         * Clear all selections
+         */
+        function clearAllSelections() {
+            selectedPolygons.clear();
+            updateStatistics();
+            updateSelectedList();
+            refreshLayers();
+        }
+
+        /**
+         * Refresh deck.gl layers to update styling
+         */
+        function refreshLayers() {
+            if (overlayInstance) {
+                overlayInstance.setProps({
+                    layers: createLayers()
+                });
+            }
+        }
+
+        /**
+         * Create deck.gl layers with selection styling
+         */
+        function createLayers() {
+            // 1) CLU Polygons (source-layer "clu")
+            const cluPolygons = new MVTLayer({
+                id: 'clu-polygons',
+                data: TILE_URL,
+                loadOptions: { 
+                    mvt: { 
+                        layers: ['clu']  // Only load 'clu' layer for polygons
+                    } 
+                },
+                minZoom: 11,
+                maxZoom: 15,
+                filled: true,
+                stroked: true,
+                
+                // Dynamic styling based on selection
+                getFillColor: (feature) => {
+                    const props = feature.properties || {};
+                    const fieldId = props.id || props.ID;
+                    
+                    if (selectedPolygons.has(fieldId)) {
+                        return [34, 197, 94, 100];  // Green with transparency for selected
+                    }
+                    return [0, 0, 0, 0];  // Transparent for unselected
+                },
+                
+                getLineColor: (feature) => {
+                    const props = feature.properties || {};
+                    const fieldId = props.id || props.ID;
+                    
+                    if (selectedPolygons.has(fieldId)) {
+                        return [34, 197, 94, 255];  // Bright green for selected
+                    }
+                    return [253, 224, 71, 230];  // Yellow for unselected
+                },
+                
+                getLineWidth: (feature) => {
+                    const props = feature.properties || {};
+                    const fieldId = props.id || props.ID;
+                    return selectedPolygons.has(fieldId) ? 4 : 2;
+                },
+                
+                lineWidthMinPixels: 2,
+                lineWidthMaxPixels: 6,
+                pickable: true,
+                
+                onClick: (info) => {
+                    if (!info.object) return;
+                    togglePolygonSelection(info.object);
+                },
+                
+                // Highlight on hover
+                autoHighlight: true,
+                highlightColor: [255, 255, 255, 100]
+            });
+
+            // 2) CLU Labels as TEXT (source-layer "clu_labels")
+            const cluLabels = new MVTLayer({
+                id: 'clu-labels',
+                data: TILE_URL,
+                binary: false,  // Required to use TextLayer in renderSubLayers
+                loadOptions: { 
+                    mvt: { 
+                        layers: ['clu_labels']  // Only load 'clu_labels' layer for points
+                    } 
+                },
+                minZoom: 13,  // Labels start at zoom 13
+                maxZoom: 15,
+                pickable: false,
+
+                // Override renderSubLayers to turn point features into TextLayer
+                renderSubLayers: (sublayerProps) => {
+                    const { data } = sublayerProps;
+
+                    if (!data || !data.length) {
+                        return null;
+                    }
+
+                    return new TextLayer({
+                        ...sublayerProps,
+                        id: `${sublayerProps.id}-text`,
+                        data,
+                        // MVT points come through as GeoJSON features
+                        getPosition: (f) => f.geometry.coordinates,
+                        getText: (f) => {
+                            const props = f.properties || {};
+                            const acres = props.calcacres || props.CALCACRES;
+                            return fmtAcres(acres);
+                        },
+                        getSize: 13,
+                        sizeUnits: 'pixels',
+                        getColor: [0, 0, 0, 255],  // Black text
+                        getTextAnchor: 'middle',
+                        getAlignmentBaseline: 'center',
+                        
+                        // White outline for contrast - requires SDF fonts
+                        fontSettings: {
+                            sdf: true,
+                            fontSize: 64,
+                            buffer: 4
+                        },
+                        outlineWidth: 6,  // White outline
+                        outlineColor: [255, 255, 255, 255],
+                        
+                        // Font styling
+                        fontFamily: 'Arial, sans-serif',
+                        
+                        pickable: false
+                    });
+                }
+            });
+
+            return [cluPolygons, cluLabels];
+        }
+
+        // Load Google Maps dynamically
+        function loadGoogleMaps() {
+            return new Promise((resolve, reject) => {
+                if (typeof google !== 'undefined' && google.maps) {
+                    resolve();
+                    return;
+                }
+
+                window.initGoogleMapCallback = resolve;
+                
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&callback=initGoogleMapCallback`;
+                script.async = true;
+                script.defer = true;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // Initialize map
+        async function initMap() {
+            await loadGoogleMaps();
+
+            // 1) Create Google Map
+            const map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 41.878, lng: -93.097 }, // Iowa
+                zoom: 13, // Start at zoom 13 so labels are visible
+                mapId: 'DEMO_MAP_ID',
+                mapTypeId: 'satellite'
+            });
+
+            // 2) Mount on Google Maps
+            overlayInstance = new GoogleMapsOverlay({
+                layers: createLayers()
+            });
+            overlayInstance.setMap(map);
+
+            console.log('✅ Map initialized with selectable CLU data');
+        }
+
+        // Auto-initialize on load
+        initMap().catch((error) => {
+            console.error('Failed to initialize map:', error);
+            document.body.innerHTML = `<div style="padding:20px;color:red;">Failed to load map: ${error.message}</div>`;
+        });
+    </script>
+</body>
+</html>
+
