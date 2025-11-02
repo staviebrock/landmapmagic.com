@@ -194,25 +194,86 @@
         // Map to store selected polygons: key = unique ID, value = full feature object
         const selectedPolygons = new Map();
         
+        // Map to store multiple ID formats for the same feature (for lookup during rendering)
+        const selectedIdLookup = new Map();  // Maps any ID format -> primary ID
+        
         // Reference to the overlay (set during initialization)
         let overlayInstance = null;
+        
+        // State version counter - increment to force deck.gl to re-render
+        let stateVersion = 0;
+
+        /**
+         * Get consistent field ID from feature
+         */
+        function getFieldId(feature) {
+            // Check feature.id first (this is where MVT features store their ID)
+            if (feature.id !== undefined && feature.id !== null && feature.id !== '') {
+                return String(feature.id);
+            }
+            
+            // Fallback: check properties
+            const props = feature.properties || {};
+            const id = props.id || props.ID || props.objectid || props.OBJECTID || 
+                       props.fid || props.FID || props.gid || props.GID;
+            
+            if (id !== undefined && id !== null && id !== '') {
+                return String(id);
+            }
+            
+            // Last resort: generate ID from properties
+            return `field_${JSON.stringify(props)}`;
+        }
+
+        /**
+         * Generate all possible ID formats for a feature
+         */
+        function getAllPossibleIds(feature) {
+            const ids = [];
+            
+            // 1. Root level ID (from click event)
+            if (feature.id !== undefined && feature.id !== null && feature.id !== '') {
+                ids.push(String(feature.id));
+            }
+            
+            // 2. Properties-based IDs
+            const props = feature.properties || {};
+            if (props.id !== undefined && props.id !== null && props.id !== '') {
+                ids.push(String(props.id));
+            }
+            
+            // 3. Fallback ID from properties (what rendering uses)
+            const propsId = `field_${JSON.stringify(props)}`;
+            ids.push(propsId);
+            
+            return ids;
+        }
 
         /**
          * Toggle polygon selection
          */
         function togglePolygonSelection(feature) {
-            const props = feature.properties || {};
-            const fieldId = props.id || props.ID || `field_${Math.random()}`;
+            const allIds = getAllPossibleIds(feature);
+            const primaryId = allIds[0]; // Use first ID as primary
             
-            if (selectedPolygons.has(fieldId)) {
-                // Deselect
-                selectedPolygons.delete(fieldId);
-                console.log('Deselected:', fieldId);
+            console.log('🔍 All IDs for feature:', allIds);
+            console.log('🔍 Acres:', feature.properties?.calcacres);
+            
+            if (selectedPolygons.has(primaryId)) {
+                // Deselect - remove all ID mappings
+                selectedPolygons.delete(primaryId);
+                allIds.forEach(id => selectedIdLookup.delete(id));
+                console.log('❌ Deselected:', primaryId);
             } else {
-                // Select
-                selectedPolygons.set(fieldId, feature);
-                console.log('Selected:', fieldId);
+                // Select - store feature and create mappings for all ID formats
+                selectedPolygons.set(primaryId, feature);
+                allIds.forEach(id => selectedIdLookup.set(id, primaryId));
+                console.log('✅ Selected:', primaryId, '| Total selected:', selectedPolygons.size);
+                console.log('✅ ID mappings created:', allIds);
             }
+            
+            // Increment state version to trigger deck.gl update
+            stateVersion++;
             
             // Update UI and layer styling
             updateStatistics();
@@ -239,8 +300,6 @@
             document.getElementById('stat-count').textContent = count;
             document.getElementById('stat-total').textContent = totalAcres.toFixed(2);
             document.getElementById('stat-average').textContent = avgAcres.toFixed(2);
-            
-            console.log('Statistics:', { count, totalAcres, avgAcres, selectedPolygons: Array.from(selectedPolygons.entries()) });
         }
 
         /**
@@ -258,13 +317,17 @@
             selectedPolygons.forEach((feature, fieldId) => {
                 const props = feature.properties || {};
                 const acres = props.calcacres || props.CALCACRES || 'N/A';
+                const displayAcres = typeof acres === 'number' ? acres.toFixed(2) : acres;
+                // Escape fieldId for safe use in HTML attribute
+                const safeFieldId = String(fieldId).replace(/'/g, "\\'");
+                
                 html += `
                     <div class="selected-item">
                         <div>
                             <strong>ID:</strong> ${fieldId}<br>
-                            <strong>Acres:</strong> ${typeof acres === 'number' ? acres.toFixed(2) : acres}
+                            <strong>Acres:</strong> ${displayAcres}
                         </div>
-                        <button class="remove-btn" onclick="removeSelection('${fieldId}')">✕</button>
+                        <button class="remove-btn" onclick="removeSelection('${safeFieldId}')">✕</button>
                     </div>
                 `;
             });
@@ -276,7 +339,13 @@
          * Remove a single selection
          */
         function removeSelection(fieldId) {
+            const feature = selectedPolygons.get(fieldId);
+            if (feature) {
+                const allIds = getAllPossibleIds(feature);
+                allIds.forEach(id => selectedIdLookup.delete(id));
+            }
             selectedPolygons.delete(fieldId);
+            stateVersion++;
             updateStatistics();
             updateSelectedList();
             refreshLayers();
@@ -287,6 +356,8 @@
          */
         function clearAllSelections() {
             selectedPolygons.clear();
+            selectedIdLookup.clear();
+            stateVersion++;
             updateStatistics();
             updateSelectedList();
             refreshLayers();
@@ -297,9 +368,17 @@
          */
         function refreshLayers() {
             if (overlayInstance) {
+                console.log('🔄 Refreshing layers, stateVersion:', stateVersion, 'Selected:', selectedPolygons.size);
+                console.log('🔄 Selected IDs:', Array.from(selectedPolygons.keys()));
+                
+                const newLayers = createLayers();
                 overlayInstance.setProps({
-                    layers: createLayers()
+                    layers: newLayers
                 });
+                
+                // Force a redraw
+                overlayInstance._deck.redraw();
+                console.log('✅ Layers refreshed and redraw triggered');
             }
         }
 
@@ -307,9 +386,21 @@
          * Create deck.gl layers with selection styling
          */
         function createLayers() {
+            // Capture current stateVersion for updateTriggers
+            const currentStateVersion = stateVersion;
+            
+            // Create a snapshot of the lookup map for this render
+            const idLookupSnapshot = new Map(selectedIdLookup);
+            
+            console.log('🎨 Creating layers with lookup map size:', idLookupSnapshot.size);
+            console.log('🎨 Lookup entries:', Array.from(idLookupSnapshot.entries()).slice(0, 5));
+            
+            // Track if styling functions are called
+            let fillColorCallCount = 0;
+            
             // 1) CLU Polygons (source-layer "clu")
             const cluPolygons = new MVTLayer({
-                id: 'clu-polygons',
+                id: 'clu-polygons',  // Keep ID constant to prevent blinking
                 data: TILE_URL,
                 loadOptions: { 
                     mvt: { 
@@ -323,33 +414,40 @@
                 
                 // Dynamic styling based on selection
                 getFillColor: (feature) => {
-                    const props = feature.properties || {};
-                    const fieldId = props.id || props.ID;
+                    const fieldId = getFieldId(feature);
+                    const isSelected = idLookupSnapshot.has(fieldId);
                     
-                    if (selectedPolygons.has(fieldId)) {
-                        return [34, 197, 94, 100];  // Green with transparency for selected
+                    fillColorCallCount++;
+                    if (fillColorCallCount <= 5) {  // Log first 5 calls
+                        console.log(`🎨 getFillColor called: ID=${fieldId}, selected=${isSelected}`);
+                    }
+                    
+                    if (isSelected) {
+                        // Very light green fill - subtle but visible
+                        return [34, 197, 94, 40];  // Light green with low opacity (40)
                     }
                     return [0, 0, 0, 0];  // Transparent for unselected
                 },
                 
                 getLineColor: (feature) => {
-                    const props = feature.properties || {};
-                    const fieldId = props.id || props.ID;
+                    const fieldId = getFieldId(feature);
+                    const isSelected = idLookupSnapshot.has(fieldId);
                     
-                    if (selectedPolygons.has(fieldId)) {
-                        return [34, 197, 94, 255];  // Bright green for selected
+                    if (isSelected) {
+                        // BRIGHT GREEN outline for selected - very obvious!
+                        return [34, 197, 94, 255];  // Bright green, full opacity
                     }
                     return [253, 224, 71, 230];  // Yellow for unselected
                 },
                 
                 getLineWidth: (feature) => {
-                    const props = feature.properties || {};
-                    const fieldId = props.id || props.ID;
-                    return selectedPolygons.has(fieldId) ? 4 : 2;
+                    const fieldId = getFieldId(feature);
+                    const isSelected = idLookupSnapshot.has(fieldId);
+                    return isSelected ? 6 : 2;  // MUCH thicker border for selected
                 },
                 
                 lineWidthMinPixels: 2,
-                lineWidthMaxPixels: 6,
+                lineWidthMaxPixels: 12,  // Allow thicker lines
                 pickable: true,
                 
                 onClick: (info) => {
@@ -359,12 +457,19 @@
                 
                 // Highlight on hover
                 autoHighlight: true,
-                highlightColor: [255, 255, 255, 100]
+                highlightColor: [255, 255, 255, 100],  // White highlight on hover
+                
+                // Force deck.gl to re-evaluate styling when stateVersion changes
+                updateTriggers: {
+                    getFillColor: currentStateVersion,
+                    getLineColor: currentStateVersion,
+                    getLineWidth: currentStateVersion
+                }
             });
 
             // 2) CLU Labels as TEXT (source-layer "clu_labels")
             const cluLabels = new MVTLayer({
-                id: 'clu-labels',
+                id: 'clu-labels',  // Keep ID constant to prevent blinking
                 data: TILE_URL,
                 binary: false,  // Required to use TextLayer in renderSubLayers
                 loadOptions: { 
