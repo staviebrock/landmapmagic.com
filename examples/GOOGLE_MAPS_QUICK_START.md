@@ -247,12 +247,38 @@ function MapWithCLU() {
 
 ---
 
+## Interactive Examples
+
+### 1. Basic CLU Display
+**File**: `google-maps-example.html`
+
+Shows CLU field boundaries with acreage labels. Click fields to see details.
+
+### 2. CLU AOI Query Demo
+**File**: `google-maps-aoi-example.html`
+
+Interactive example showing:
+- Draw custom AOI (Area of Interest) polygons on the map
+- Query CLU fields within the AOI using the `/aoi/query` API
+- Display results with highlighting and statistics
+- Calculate coverage percentages and total acreage
+
+Perfect for:
+- Farm/property boundary analysis
+- Regional agricultural surveys
+- Field-level data extraction
+
+### 3. Selectable Fields
+**File**: `google-maps-selectable.html`
+
+Click-to-select multiple CLU fields with visual feedback.
+
 ## Getting Help
 
 - **Documentation**: [landmapmagic.com/docs](https://landmapmagic.com/docs)
 - **API Keys**: [landmapmagic.com/signup](https://landmapmagic.com/signup)
 - **Support**: support@landmapmagic.com
-- **Examples**: Check out `google-maps-example.html` for a complete interactive demo
+- **Examples**: See `google-maps-example.html` and `google-maps-aoi-example.html`
 
 ---
 

@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LandMapMagic - CLU AOI Query Demo</title>
+    
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            max-width: 350px;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .control-panel h2 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .control-panel button {
+            width: 100%;
+            padding: 12px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-primary:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .instructions {
+            background: #f0f9ff;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 13px;
+            color: #0369a1;
+            line-height: 1.5;
+        }
+
+        .results {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .results h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #475569;
+        }
+
+        .results .stat {
+            margin: 8px 0;
+            color: #334155;
+        }
+
+        .results .stat strong {
+            color: #0f172a;
+        }
+
+        .feature-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+        }
+
+        .feature-item {
+            padding: 8px;
+            margin: 4px 0;
+            background: #f1f5f9;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .feature-item strong {
+            color: #0f172a;
+        }
+
+        .loading {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        .error {
+            color: #ef4444;
+            padding: 12px;
+            background: #fee2e2;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+
+        .checkbox-group {
+            margin: 15px 0;
+        }
+
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 8px;
+        }
+    </style>
+
+    <!-- deck.gl dependencies for Google Maps integration -->
+    <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+    <script src="https://unpkg.com/@deck.gl/google-maps@^9.0.0/dist.min.js"></script>
+</head>
+<body>
+    <div id="map"></div>
+
+    <div class="control-panel">
+        <h2>🎯 CLU AOI Query</h2>
+        
+        <div class="instructions">
+            <strong>Instructions:</strong><br>
+            1. Click "Start Drawing" below<br>
+            2. Click on the map to draw a polygon<br>
+            3. Complete the polygon (click near start point)<br>
+            4. Click "Query CLU Fields" to search
+        </div>
+
+        <button id="btnStartDrawing" class="btn-primary" onclick="startDrawing()">
+            📐 Start Drawing AOI
+        </button>
+        
+        <button id="btnClearAOI" class="btn-danger" onclick="clearAOI()" style="display:none;">
+            🗑️ Clear AOI
+        </button>
+        
+        <button id="btnQuery" class="btn-success" onclick="queryAOI()" style="display:none;" disabled>
+            🔍 Query CLU Fields
+        </button>
+
+        <div class="checkbox-group">
+            <label>
+                <input type="checkbox" id="chkShowCLU" checked onchange="toggleCLULayer()">
+                Show CLU Field Boundaries
+            </label>
+            <label>
+                <input type="checkbox" id="chkShowLabels" checked onchange="toggleCLULayer()">
+                Show Acreage Labels
+            </label>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        /**
+         * LandMapMagic AOI Query Demo
+         * 
+         * Demonstrates:
+         * - Drawing custom AOI polygons on Google Maps
+         * - Querying CLU fields within the AOI using the /aoi/query endpoint
+         * - Displaying results with highlighting
+         */
+
+        // Access deck.gl classes from global namespace
+        const { GoogleMapsOverlay } = deck;
+        const { MVTLayer, PolygonLayer, TextLayer } = deck;
+
+        // Environment variables
+        const GOOGLE_MAPS_KEY = '%VITE_GOOGLE_MAPS_API_KEY%';
+        const LANDMAP_KEY = '%VITE_LANDMAP_API_KEY%';
+
+        const googleApiKey = (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('VITE_')) ? GOOGLE_MAPS_KEY : '';
+        const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
+
+        if (!googleApiKey) {
+            document.body.innerHTML = '<div style="padding:20px;color:red;">Missing VITE_GOOGLE_MAPS_API_KEY in .env.local</div>';
+            throw new Error('Missing Google Maps API key');
+        }
+
+        // API Configuration
+        const BASE_URL = 'https://staging-api.landmapmagic.com';
+        const TILE_URL = `${BASE_URL}/clu/{z}/{x}/{y}?key=${landmapApiKey}`;
+        const AOI_URL = `${BASE_URL}/aoi/query?key=${landmapApiKey}`;
+
+        // Global state
+        let map;
+        let overlay;
+        let drawingManager;
+        let currentPolygon = null;
+        let aoiPolygonLayer = null;
+        let highlightLayer = null;
+        let queryResults = null;
+        let showCLU = true;
+        let showLabels = true;
+
+        // Helper to format acres
+        const fmtAcres = (v) => (v == null ? '' : v.toFixed(2));
+
+        // Load Google Maps dynamically
+        function loadGoogleMaps() {
+            return new Promise((resolve, reject) => {
+                if (typeof google !== 'undefined' && google.maps) {
+                    resolve();
+                    return;
+                }
+
+                window.initGoogleMapCallback = resolve;
+                
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&libraries=drawing&callback=initGoogleMapCallback`;
+                script.async = true;
+                script.defer = true;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // Initialize map
+        async function initMap() {
+            await loadGoogleMaps();
+
+            // Create Google Map
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 41.878, lng: -93.097 }, // Iowa
+                zoom: 13,
+                mapId: 'DEMO_MAP_ID',
+                mapTypeId: 'satellite'
+            });
+
+            // Initialize deck.gl overlay
+            overlay = new GoogleMapsOverlay({
+                layers: []
+            });
+            overlay.setMap(map);
+
+            // Update layers
+            updateLayers();
+
+            console.log('✅ Map initialized with CLU data');
+        }
+
+        // Update deck.gl layers
+        function updateLayers() {
+            const layers = [];
+
+            // CLU Polygons Layer
+            if (showCLU) {
+                layers.push(new MVTLayer({
+                    id: 'clu-polygons',
+                    data: TILE_URL,
+                    loadOptions: { 
+                        mvt: { 
+                            layers: ['clu']
+                        } 
+                    },
+                    minZoom: 11,
+                    maxZoom: 15,
+                    filled: false,
+                    stroked: true,
+                    getLineColor: [253, 224, 71, 230], // Yellow
+                    getLineWidth: 2,
+                    lineWidthMinPixels: 2,
+                    lineWidthMaxPixels: 4,
+                    pickable: true,
+                    onClick: (info) => {
+                        if (!info.object) return;
+                        const props = info.object.properties || {};
+                        const acres = props.calcacres || props.CALCACRES || 'Unknown';
+                        const fieldId = props.id || props.ID || 'N/A';
+                        alert(`🌾 CLU Field\n\nAcres: ${acres}\nField ID: ${fieldId}`);
+                    }
+                }));
+            }
+
+            // CLU Labels Layer
+            if (showLabels) {
+                layers.push(new MVTLayer({
+                    id: 'clu-labels',
+                    data: TILE_URL,
+                    binary: false,
+                    loadOptions: { 
+                        mvt: { 
+                            layers: ['clu_labels']
+                        } 
+                    },
+                    minZoom: 13,
+                    maxZoom: 15,
+                    pickable: false,
+                    renderSubLayers: (sublayerProps) => {
+                        const { data } = sublayerProps;
+                        if (!data || !data.length) return null;
+
+                        return new TextLayer({
+                            ...sublayerProps,
+                            id: `${sublayerProps.id}-text`,
+                            data,
+                            getPosition: (f) => f.geometry.coordinates,
+                            getText: (f) => {
+                                const props = f.properties || {};
+                                const acres = props.calcacres || props.CALCACRES;
+                                return fmtAcres(acres);
+                            },
+                            getSize: 13,
+                            sizeUnits: 'pixels',
+                            getColor: [0, 0, 0, 255],
+                            getTextAnchor: 'middle',
+                            getAlignmentBaseline: 'center',
+                            fontSettings: {
+                                sdf: true,
+                                fontSize: 64,
+                                buffer: 4
+                            },
+                            outlineWidth: 6,
+                            outlineColor: [255, 255, 255, 255],
+                            fontFamily: 'Arial, sans-serif',
+                            pickable: false
+                        });
+                    }
+                }));
+            }
+
+            // AOI Polygon Layer (user drawn polygon)
+            if (aoiPolygonLayer) {
+                layers.push(aoiPolygonLayer);
+            }
+
+            // Highlight Layer (query results)
+            if (highlightLayer) {
+                layers.push(highlightLayer);
+            }
+
+            overlay.setProps({ layers });
+        }
+
+        // Toggle CLU layer visibility
+        function toggleCLULayer() {
+            showCLU = document.getElementById('chkShowCLU').checked;
+            showLabels = document.getElementById('chkShowLabels').checked;
+            updateLayers();
+        }
+
+        // Start drawing AOI
+        function startDrawing() {
+            // Clear any existing polygon
+            clearAOI();
+
+            // Create drawing manager if it doesn't exist
+            if (!drawingManager) {
+                drawingManager = new google.maps.drawing.DrawingManager({
+                    drawingMode: google.maps.drawing.OverlayType.POLYGON,
+                    drawingControl: false,
+                    polygonOptions: {
+                        fillColor: '#3b82f6',
+                        fillOpacity: 0.2,
+                        strokeWeight: 3,
+                        strokeColor: '#1e40af',
+                        clickable: false,
+                        editable: false,
+                        zIndex: 1
+                    }
+                });
+
+                google.maps.event.addListener(drawingManager, 'polygoncomplete', function(polygon) {
+                    currentPolygon = polygon;
+                    drawingManager.setDrawingMode(null);
+                    
+                    // Update UI
+                    document.getElementById('btnStartDrawing').style.display = 'none';
+                    document.getElementById('btnClearAOI').style.display = 'block';
+                    document.getElementById('btnQuery').style.display = 'block';
+                    document.getElementById('btnQuery').disabled = false;
+
+                    console.log('✅ Polygon drawn successfully');
+                });
+            }
+
+            drawingManager.setMap(map);
+            drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+
+            // Update UI
+            document.getElementById('btnStartDrawing').innerHTML = '✏️ Drawing... (click to create polygon)';
+        }
+
+        // Clear AOI and results
+        function clearAOI() {
+            if (currentPolygon) {
+                currentPolygon.setMap(null);
+                currentPolygon = null;
+            }
+
+            if (drawingManager) {
+                drawingManager.setMap(null);
+            }
+
+            aoiPolygonLayer = null;
+            highlightLayer = null;
+            queryResults = null;
+            
+            // Update UI
+            document.getElementById('btnStartDrawing').style.display = 'block';
+            document.getElementById('btnStartDrawing').innerHTML = '📐 Start Drawing AOI';
+            document.getElementById('btnClearAOI').style.display = 'none';
+            document.getElementById('btnQuery').style.display = 'none';
+            document.getElementById('results').innerHTML = '';
+
+            updateLayers();
+        }
+
+        // Convert Google Maps polygon to GeoJSON
+        function polygonToGeoJSON(polygon) {
+            const path = polygon.getPath();
+            const coordinates = [];
+            
+            for (let i = 0; i < path.getLength(); i++) {
+                const point = path.getAt(i);
+                coordinates.push([point.lng(), point.lat()]);
+            }
+            
+            // Close the polygon
+            coordinates.push([path.getAt(0).lng(), path.getAt(0).lat()]);
+
+            return {
+                type: 'Feature',
+                geometry: {
+                    type: 'Polygon',
+                    coordinates: [coordinates]
+                },
+                properties: {}
+            };
+        }
+
+        // Query AOI
+        async function queryAOI() {
+            if (!currentPolygon) {
+                alert('Please draw a polygon first!');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">⏳ Querying CLU fields...</div>';
+
+            document.getElementById('btnQuery').disabled = true;
+
+            try {
+                // Convert polygon to GeoJSON
+                const aoiGeoJSON = polygonToGeoJSON(currentPolygon);
+
+                console.log('🔍 Querying AOI:', aoiGeoJSON);
+
+                // Query the API
+                const response = await fetch(AOI_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        aoi: aoiGeoJSON,
+                        layers: ['clu'],
+                        options: {
+                            includeGeometry: true,
+                            precision: 2
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                queryResults = await response.json();
+                console.log('✅ Query results:', queryResults);
+
+                displayResults(queryResults);
+                highlightResults(queryResults);
+
+            } catch (error) {
+                console.error('❌ Query failed:', error);
+                resultsDiv.innerHTML = `<div class="error"><strong>Query Failed:</strong><br>${error.message}</div>`;
+            } finally {
+                document.getElementById('btnQuery').disabled = false;
+            }
+        }
+
+        // Display query results in the panel
+        function displayResults(results) {
+            const resultsDiv = document.getElementById('results');
+            
+            const cluResults = results.results_by_layer?.clu;
+            const featuresCount = cluResults?.features_count || 0;
+            const features = cluResults?.features || [];
+
+            let html = '<div class="results">';
+            html += '<h3>📊 Query Results</h3>';
+            html += `<div class="stat"><strong>AOI Area:</strong> ${results.aoi_area.acres.toFixed(2)} acres</div>`;
+            html += `<div class="stat"><strong>CLU Fields Found:</strong> ${featuresCount}</div>`;
+            html += `<div class="stat"><strong>Processing Time:</strong> ${results.query_info.processing_time_ms}ms</div>`;
+
+            if (features.length > 0) {
+                html += '<h3>🌾 CLU Fields:</h3>';
+                html += '<div class="feature-list">';
+                
+                features.forEach((feature, idx) => {
+                    const acres = feature.intersection_area.acres.toFixed(2);
+                    const pctOfField = feature.percentages.percent_of_feature_in_aoi.toFixed(1);
+                    const pctOfAOI = feature.percentages.percent_of_aoi_in_feature.toFixed(1);
+                    
+                    html += `<div class="feature-item">`;
+                    html += `<strong>Field ${idx + 1}</strong><br>`;
+                    html += `Area: ${acres} ac<br>`;
+                    html += `${pctOfField}% of field in AOI<br>`;
+                    html += `${pctOfAOI}% of AOI in this field`;
+                    html += `</div>`;
+                });
+                
+                html += '</div>';
+            }
+
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+        }
+
+        // Highlight query results on map
+        function highlightResults(results) {
+            const cluFeatures = results.results_by_layer?.clu?.features || [];
+            
+            if (cluFeatures.length === 0) {
+                highlightLayer = null;
+                updateLayers();
+                return;
+            }
+
+            // Extract geometries for highlighting
+            const polygons = cluFeatures
+                .filter(f => f.geometry && f.geometry.type === 'Polygon')
+                .map(f => f.geometry.coordinates[0]);
+
+            if (polygons.length === 0) {
+                highlightLayer = null;
+                updateLayers();
+                return;
+            }
+
+            // Create highlight layer with deck.gl PolygonLayer
+            highlightLayer = new PolygonLayer({
+                id: 'clu-highlight',
+                data: polygons,
+                getPolygon: d => d,
+                getFillColor: [16, 185, 129, 100], // Green with transparency
+                getLineColor: [5, 150, 105, 255], // Darker green border
+                getLineWidth: 3,
+                lineWidthMinPixels: 2,
+                pickable: false
+            });
+
+            updateLayers();
+        }
+
+        // Auto-initialize on load
+        initMap().catch((error) => {
+            console.error('Failed to initialize map:', error);
+            document.body.innerHTML = `<div style="padding:20px;color:red;">Failed to load map: ${error.message}</div>`;
+        });
+    </script>
+</body>
+</html>
+
