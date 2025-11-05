@@ -76,55 +76,6 @@ export default function MapboxSelectableExample() {
     );
   }
 
-  // Check if keys are mixed up (Mapbox tokens start with pk.eyJ)
-  if (landmapApiKey && landmapApiKey.startsWith('pk.eyJ')) {
-    return (
-      <div style={{ 
-        height: '100vh', 
-        width: '100vw', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        flexDirection: 'column',
-        gap: '20px',
-        padding: '40px',
-        background: '#fff3cd',
-        fontFamily: 'Arial, sans-serif'
-      }}>
-        <div style={{ fontSize: '48px' }}>🔀</div>
-        <h2 style={{ margin: 0, color: '#856404' }}>API Keys Mixed Up!</h2>
-        <p style={{ margin: 0, color: '#856404', textAlign: 'center', maxWidth: '600px' }}>
-          You have a <strong>Mapbox token</strong> (pk.eyJ...) in <code style={{ background: '#e0e0e0', padding: '2px 6px', borderRadius: '3px' }}>VITE_LANDMAP_API_KEY</code>
-        </p>
-        <div style={{ 
-          background: 'white', 
-          padding: '20px', 
-          borderRadius: '8px', 
-          maxWidth: '600px',
-          textAlign: 'left',
-          fontSize: '14px',
-          lineHeight: '1.6'
-        }}>
-          <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>Your .env.local should look like:</p>
-          <pre style={{ 
-            background: '#f5f5f5', 
-            padding: '12px', 
-            borderRadius: '4px', 
-            margin: 0,
-            fontSize: '13px',
-            overflow: 'auto'
-          }}>{`# Mapbox token (for the satellite basemap - starts with pk.eyJ)
-VITE_MAPBOX_TOKEN=pk.eyJ1IjoieW91ci11c2VybmFtZSIsImEiOiJjbHh4eHh4eHgifQ...
-
-# LandMap API key (for CLU data - starts with pk_live_ or pk_test_)
-VITE_LANDMAP_API_KEY=pk_live_your_key_here
-# Or use 'dev' for development:
-# VITE_LANDMAP_API_KEY=dev`}</pre>
-        </div>
-      </div>
-    );
-  }
-
   /**
    * Toggle polygon selection
    */
@@ -135,14 +86,14 @@ VITE_LANDMAP_API_KEY=pk_live_your_key_here
     console.log('🔍 Feature ID:', primaryId);
     console.log('🔍 Acres:', feature.properties?.calcacres);
     
-    const wasSelected = selectedPolygons.has(primaryId);
-    
     setSelectedPolygons(prev => {
       const newMap = new Map(prev);
+      const wasSelected = newMap.has(primaryId); // Check inside state setter to avoid stale closure
+      
       if (wasSelected) {
-        // Deselect
+        // Deselect - remove from map
         newMap.delete(primaryId);
-        console.log('❌ Deselected:', primaryId);
+        console.log('❌ Deselected:', primaryId, '| Total selected:', newMap.size);
         
         // Clear feature state immediately
         if (map && map.getLayer('clu-fill')) {
@@ -156,12 +107,12 @@ VITE_LANDMAP_API_KEY=pk_live_your_key_here
           }
         }
       } else {
-        // Select
+        // Select - add to map
         newMap.set(primaryId, {
           id: primaryId,
           properties: feature.properties || {}
         });
-        console.log('✅ Selected:', primaryId, '| Total selected:', newMap.size + 1);
+        console.log('✅ Selected:', primaryId, '| Total selected:', newMap.size);
         
         // Set feature state immediately
         if (map && map.getLayer('clu-fill')) {
@@ -293,7 +244,7 @@ VITE_LANDMAP_API_KEY=pk_live_your_key_here
         source: 'clu',
         'source-layer': 'clu',
         minzoom: 11,
-        maxzoom: 15,
+        // No maxzoom - keep displaying zoom 15 tiles even when zoomed in closer
         paint: {
           'fill-color': [
             'case',
@@ -317,7 +268,7 @@ VITE_LANDMAP_API_KEY=pk_live_your_key_here
         source: 'clu',
         'source-layer': 'clu',
         minzoom: 11,
-        maxzoom: 15,
+        // No maxzoom - keep displaying zoom 15 tiles even when zoomed in closer
         paint: {
           'line-color': [
             'case',
@@ -341,7 +292,7 @@ VITE_LANDMAP_API_KEY=pk_live_your_key_here
         source: 'clu',
         'source-layer': 'clu_labels',
         minzoom: 13,
-        maxzoom: 15,
+        // No maxzoom - keep displaying zoom 15 tiles even when zoomed in closer
         layout: {
           'text-field': ['get', 'calcacres'],
           'text-size': 12,
