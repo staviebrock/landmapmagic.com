@@ -147,24 +147,49 @@ Built with ❤️ for the agricultural and geospatial communities.
 
 ## Environment Variables
 
-For local development and examples, create a `.env.local` file in the root directory:
+For local development and examples, create a `.env.local` file in the `examples/` directory:
 
 ```bash
-# Google Maps API Key (for Google Maps examples)
+# Copy env.example to .env.local in the examples/ directory
+cd examples
+cp env.example .env.local
+```
+
+Then edit `.env.local` and add your API keys:
+
+```bash
+# Google Maps API Key (required for Google Maps examples)
 # Get your key at: https://console.cloud.google.com/google/maps-apis
 VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
 
-# LandMapMagic API Key (optional - defaults to 'dev' for testing)
-# Get your key at: https://landmapmagic.com
-VITE_LANDMAP_API_KEY=dev
+# LandMapMagic API Key
+# Get your key at: https://staging-api.landmapmagic.com/admin
+VITE_LANDMAP_API_KEY=your_landmap_api_key_here
+
+# Mapbox Access Token (required for Mapbox examples)
+VITE_MAPBOX_TOKEN=your_mapbox_token_here
 ```
 
+### Development vs Production API Keys
+
+**Development Environment:**
+- For local testing with a development API instance, you can use `VITE_LANDMAP_API_KEY=dev`
+- This **only works** with API instances that have `ENVIRONMENT=development` set
+- Typically used with `http://localhost:8787` or local development servers
+
+**Staging/Production Environments:**
+- You **must** use a real API key obtained from the admin portal
+- The `dev` key will **not work** with staging or production APIs
+- Register at your API URL's `/admin` endpoint to get an API key
+
 When you run `npm run dev` in the `examples/` directory, Vite will:
-1. Load these environment variables from the root `.env.local` file
-2. Inject them into the HTML examples
-3. Auto-initialize the map if both keys are present
+1. Load these environment variables from `.env.local`
+2. Inject them into the HTML examples at build time
+3. Replace placeholders like `%VITE_LANDMAP_API_KEY%` with actual values
 
 **Note:** After creating or modifying `.env.local`, restart the Vite dev server.
+
+See [`examples/SETUP.md`](./examples/SETUP.md) for detailed setup instructions.
 
 ## Integration Guides
 

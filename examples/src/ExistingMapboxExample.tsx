@@ -17,16 +17,6 @@ import 'mapbox-gl/dist/mapbox-gl.css';
  * - Minimal performance impact using MVT tiles
  */
 
-// Extend ImportMeta interface for Vite environment variables
-declare global {
-  interface ImportMeta {
-    env: {
-      VITE_MAPBOX_TOKEN?: string;
-      VITE_LANDMAP_API_KEY?: string;
-    };
-  }
-}
-
 export default function ExistingMapboxExample() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);

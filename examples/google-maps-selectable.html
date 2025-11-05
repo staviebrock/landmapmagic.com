@@ -171,12 +171,16 @@
         const { TextLayer } = deck;
 
         // Environment variables injected by Vite at build/serve time
+        // To set up: Copy env.example to .env.local and add your API keys
         const GOOGLE_MAPS_KEY = '%VITE_GOOGLE_MAPS_API_KEY%';
         const LANDMAP_KEY = '%VITE_LANDMAP_API_KEY%';
 
         // Check if env vars are set (not placeholders)
         const googleApiKey = (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('VITE_')) ? GOOGLE_MAPS_KEY : '';
         const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
+        
+        // Note: 'dev' fallback only works in development environment
+        // For staging/production, you must set VITE_LANDMAP_API_KEY in .env.local
 
         if (!googleApiKey) {
             document.body.innerHTML = '<div style="padding:20px;color:red;">Missing VITE_GOOGLE_MAPS_API_KEY in .env.local</div>';

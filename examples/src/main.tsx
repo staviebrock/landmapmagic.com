@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import GreenFieldExample from './GreenFieldExample';
-import ExistingMapboxExample from './ExistingMapboxExample';
 
 interface Example {
   id: string;
@@ -19,21 +18,6 @@ const EXAMPLES: Example[] = [
     description: 'Basic React component with MapLibre - perfect starting point',
     category: 'react',
     icon: '🗺️'
-  },
-  {
-    id: 'existing-mapbox',
-    title: 'Existing Mapbox Integration',
-    description: 'Add LandMap layers to your existing Mapbox map',
-    category: 'react',
-    icon: '🔌'
-  },
-  {
-    id: 'vanilla-html',
-    title: 'Vanilla HTML',
-    description: 'Pure HTML/JS with no build tools - copy and paste ready',
-    category: 'html',
-    path: '/vanilla-html-example.html',
-    icon: '📄'
   },
   {
     id: 'google-maps',
@@ -239,8 +223,6 @@ function App() {
   // Show React example with back button
   const renderExample = () => {
     switch (currentView) {
-      case 'existing-mapbox':
-        return <ExistingMapboxExample />;
       case 'greenfield':
       default:
         return <GreenFieldExample />;

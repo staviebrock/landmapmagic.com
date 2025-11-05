@@ -1,16 +1,8 @@
 import { LandMap } from 'landmapmagic';
 import { useState, useEffect } from 'react';
 
-// Extend ImportMeta interface for Vite environment variables
-declare global {
-  interface ImportMeta {
-    env: {
-      VITE_STAGE_DEV_API_URL?: string;
-      VITE_STAGE_STAGING_API_URL?: string;
-      VITE_STAGE_PROD_API_URL?: string;
-    };
-  }
-}
+// Vite environment variables are automatically typed by Vite
+// We can access them via import.meta.env
 
 interface Environment {
   name: string;
@@ -20,22 +12,27 @@ interface Environment {
 
 export default function BasicExample() {
 
+  // Get API key from environment variable
+  // For development, 'dev' key is still allowed
+  // For staging/production, you must set VITE_LANDMAP_API_KEY in .env.local
+  const landmapApiKey = import.meta.env.VITE_LANDMAP_API_KEY || 'dev';
+
   // Define environments based on STAGE_ prefixed environment variables
   const environments: Environment[] = [
     {
       name: 'Development',
       apiUrl: import.meta.env.VITE_STAGE_DEV_API_URL || 'http://localhost:8787',
-      apiKey: 'dev'
+      apiKey: 'dev' // Dev environment still allows 'dev' key
     },
     {
       name: 'Staging',
       apiUrl: import.meta.env.VITE_STAGE_STAGING_API_URL || 'https://staging-api.landmapmagic.com',
-      apiKey: 'staging-test-token-12345'
+      apiKey: landmapApiKey // Use env var for staging
     },
     {
       name: 'Production',
       apiUrl: import.meta.env.VITE_STAGE_PROD_API_URL || 'https://api.landmapmagic.com',
-      apiKey: 'prod-test-token-12345'
+      apiKey: landmapApiKey // Use env var for production
     }
   ];
 
@@ -49,6 +46,15 @@ export default function BasicExample() {
   // Save to localStorage whenever environment changes
   useEffect(() => {
     localStorage.setItem('landmap-selected-environment', selectedEnvironment.name);
+    
+    // Debug logging
+    console.log('🔧 GreenField Example Debug Info:');
+    console.log('  Environment:', selectedEnvironment.name);
+    console.log('  API URL:', selectedEnvironment.apiUrl);
+    console.log('  API Key:', selectedEnvironment.apiKey);
+    console.log('  API Key (first 10 chars):', selectedEnvironment.apiKey.substring(0, 10) + '...');
+    console.log('  VITE_LANDMAP_API_KEY from env:', import.meta.env.VITE_LANDMAP_API_KEY || '(not set - using default)');
+    console.log('  Full tile URL would be:', `${selectedEnvironment.apiUrl}/clu/{z}/{x}/{y}?key=${selectedEnvironment.apiKey}`);
   }, [selectedEnvironment]);
 
   const handleEnvironmentChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -101,9 +107,8 @@ export default function BasicExample() {
       {/* Map Component */}
       <div style={{ flex: 1 }}>
         <LandMap
-          // baseApiUrl={selectedEnvironment.apiUrl}
-          baseApiUrl="https://staging-api.landmapmagic.com"
-          apiKey="dev"
+          baseApiUrl={selectedEnvironment.apiUrl}
+          apiKey={selectedEnvironment.apiKey}
           showLegend={false}
           initialVisibleLayers={['clu']}
           availableLayers={['clu']}

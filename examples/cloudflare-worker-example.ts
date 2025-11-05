@@ -14,7 +14,10 @@ import { PMTiles, RangeResponse, Source } from 'pmtiles';
 // Environment variables (set in wrangler.toml or Cloudflare dashboard)
 interface Env {
   PMTILES_BUCKET_URL: string; // e.g., "https://your-r2-bucket.com"
-  API_KEYS: string; // Comma-separated list of valid API keys, e.g., "dev,prod-key-123"
+  API_KEYS: string; // Comma-separated list of valid API keys
+                    // For development: "dev"
+                    // For production: "your-api-key-1,your-api-key-2"
+                    // Note: 'dev' key should only be enabled in development environment
 }
 
 // Custom PMTiles source that works with Cloudflare Workers
