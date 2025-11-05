@@ -8,7 +8,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 /**
  * Example: Integrating LandMapMagic CLU data into an EXISTING Mapbox map
  * 
- * This demonstrates how a customer (like CommonGround) can add CLU field
+ * This demonstrates how a customer can add CLU field
  * boundaries and acreage labels to their existing Mapbox implementation.
  * 
  * Styling matches google-maps-example.html:

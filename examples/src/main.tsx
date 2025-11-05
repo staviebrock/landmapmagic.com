@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import GreenFieldExample from './GreenFieldExample';
+import MapboxSelectableExample from './MapboxSelectableExample';
 
 interface Example {
   id: string;
@@ -18,6 +19,13 @@ const EXAMPLES: Example[] = [
     description: 'Basic React component with MapLibre - perfect starting point',
     category: 'react',
     icon: '🗺️'
+  },
+  {
+    id: 'mapbox-selectable',
+    title: 'MapBox Selectable',
+    description: 'MapBox with clickable CLU polygons - select and track fields',
+    category: 'react',
+    icon: '✅'
   },
   {
     id: 'google-maps',
@@ -224,6 +232,9 @@ function App() {
   const renderExample = () => {
     switch (currentView) {
       case 'greenfield':
+        return <GreenFieldExample />;
+      case 'mapbox-selectable':
+        return <MapboxSelectableExample />;
       default:
         return <GreenFieldExample />;
     }
