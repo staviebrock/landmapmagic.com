@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { MapboxOverlay } from '@deck.gl/mapbox';
-import { MVTLayer } from '@deck.gl/geo-layers';
-import { TextLayer } from '@deck.gl/layers';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 /**
@@ -20,11 +17,9 @@ interface SelectedFeature {
 export default function MapboxSelectableExample() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
-  const deckOverlayRef = useRef<MapboxOverlay | null>(null);
 
   // Selection state
   const [selectedPolygons, setSelectedPolygons] = useState<Map<string, SelectedFeature>>(new Map());
-  const [selectedIdLookup, setSelectedIdLookup] = useState<Map<string, string>>(new Map());
   const [stateVersion, setStateVersion] = useState(0);
 
   // Get API keys from environment
@@ -130,100 +125,60 @@ VITE_LANDMAP_API_KEY=pk_live_your_key_here
     );
   }
 
-  // Helper to format acres
-  const formatAcres = (value: number | null | undefined): string => {
-    if (value == null) return '';
-    return value.toFixed(2);
-  };
-
-  /**
-   * Get consistent field ID from feature
-   */
-  const getFieldId = (feature: any): string => {
-    // Check feature.id first (this is where MVT features store their ID)
-    if (feature.id !== undefined && feature.id !== null && feature.id !== '') {
-      return String(feature.id);
-    }
-    
-    // Fallback: check properties
-    const props = feature.properties || {};
-    const id = props.id || props.ID || props.objectid || props.OBJECTID || 
-               props.fid || props.FID || props.gid || props.GID;
-    
-    if (id !== undefined && id !== null && id !== '') {
-      return String(id);
-    }
-    
-    // Last resort: generate ID from properties
-    return `field_${JSON.stringify(props)}`;
-  };
-
-  /**
-   * Generate all possible ID formats for a feature
-   */
-  const getAllPossibleIds = (feature: any): string[] => {
-    const ids: string[] = [];
-    
-    // 1. Root level ID (from click event)
-    if (feature.id !== undefined && feature.id !== null && feature.id !== '') {
-      ids.push(String(feature.id));
-    }
-    
-    // 2. Properties-based IDs
-    const props = feature.properties || {};
-    if (props.id !== undefined && props.id !== null && props.id !== '') {
-      ids.push(String(props.id));
-    }
-    
-    // 3. Fallback ID from properties (what rendering uses)
-    const propsId = `field_${JSON.stringify(props)}`;
-    ids.push(propsId);
-    
-    return ids;
-  };
-
   /**
    * Toggle polygon selection
    */
   const togglePolygonSelection = (feature: any) => {
-    const allIds = getAllPossibleIds(feature);
-    const primaryId = allIds[0]; // Use first ID as primary
+    const map = mapRef.current;
+    const primaryId = String(feature.id); // Use feature.id from Mapbox
     
-    console.log('🔍 All IDs for feature:', allIds);
+    console.log('🔍 Feature ID:', primaryId);
     console.log('🔍 Acres:', feature.properties?.calcacres);
+    
+    const wasSelected = selectedPolygons.has(primaryId);
     
     setSelectedPolygons(prev => {
       const newMap = new Map(prev);
-      if (newMap.has(primaryId)) {
+      if (wasSelected) {
         // Deselect
         newMap.delete(primaryId);
         console.log('❌ Deselected:', primaryId);
+        
+        // Clear feature state immediately
+        if (map && map.getLayer('clu-fill')) {
+          try {
+            map.setFeatureState(
+              { source: 'clu', sourceLayer: 'clu', id: primaryId },
+              { selected: false }
+            );
+          } catch (error) {
+            console.warn('Failed to clear feature state:', error);
+          }
+        }
       } else {
         // Select
         newMap.set(primaryId, {
           id: primaryId,
           properties: feature.properties || {}
         });
-        console.log('✅ Selected:', primaryId, '| Total selected:', newMap.size);
+        console.log('✅ Selected:', primaryId, '| Total selected:', newMap.size + 1);
+        
+        // Set feature state immediately
+        if (map && map.getLayer('clu-fill')) {
+          try {
+            map.setFeatureState(
+              { source: 'clu', sourceLayer: 'clu', id: primaryId },
+              { selected: true }
+            );
+          } catch (error) {
+            console.warn('Failed to set feature state:', error);
+          }
+        }
       }
       return newMap;
     });
 
-    // Update ID lookup
-    setSelectedIdLookup(prev => {
-      const newLookup = new Map(prev);
-      if (prev.has(primaryId)) {
-        // Remove all ID mappings
-        allIds.forEach(id => newLookup.delete(id));
-      } else {
-        // Create mappings for all ID formats
-        allIds.forEach(id => newLookup.set(id, primaryId));
-        console.log('✅ ID mappings created:', allIds);
-      }
-      return newLookup;
-    });
-    
-    // Increment state version to trigger deck.gl update
+    // Increment state version
     setStateVersion(v => v + 1);
   };
 
@@ -231,19 +186,22 @@ VITE_LANDMAP_API_KEY=pk_live_your_key_here
    * Remove a single selection
    */
   const removeSelection = (fieldId: string) => {
+    const map = mapRef.current;
+    
+    // Clear feature state
+    if (map && map.getLayer('clu-fill')) {
+      try {
+        map.setFeatureState(
+          { source: 'clu', sourceLayer: 'clu', id: fieldId },
+          { selected: false }
+        );
+      } catch (error) {
+        console.warn('Failed to clear feature state:', error);
+      }
+    }
+    
     setSelectedPolygons(prev => {
       const newMap = new Map(prev);
-      const feature = newMap.get(fieldId);
-      
-      if (feature) {
-        const allIds = getAllPossibleIds({ id: fieldId, properties: feature.properties });
-        setSelectedIdLookup(lookup => {
-          const newLookup = new Map(lookup);
-          allIds.forEach(id => newLookup.delete(id));
-          return newLookup;
-        });
-      }
-      
       newMap.delete(fieldId);
       return newMap;
     });
@@ -254,8 +212,23 @@ VITE_LANDMAP_API_KEY=pk_live_your_key_here
    * Clear all selections
    */
   const clearAllSelections = () => {
+    const map = mapRef.current;
+    
+    // Clear feature states for all selected polygons
+    if (map && map.getLayer('clu-fill')) {
+      selectedPolygons.forEach((_feature, fieldId) => {
+        try {
+          map.setFeatureState(
+            { source: 'clu', sourceLayer: 'clu', id: fieldId },
+            { selected: false }
+          );
+        } catch (error) {
+          console.warn('Failed to clear feature state:', error);
+        }
+      });
+    }
+    
     setSelectedPolygons(new Map());
-    setSelectedIdLookup(new Map());
     setStateVersion(v => v + 1);
   };
 
@@ -279,154 +252,6 @@ VITE_LANDMAP_API_KEY=pk_live_your_key_here
       totalAcres: totalAcres.toFixed(2),
       avgAcres: avgAcres.toFixed(2)
     };
-  };
-
-  /**
-   * Create deck.gl layers with selection styling
-   */
-  const createLayers = () => {
-    // Capture current stateVersion for updateTriggers
-    const currentStateVersion = stateVersion;
-    
-    // Create a snapshot of the lookup map for this render
-    const idLookupSnapshot = new Map(selectedIdLookup);
-    
-    console.log('🎨 Creating layers with lookup map size:', idLookupSnapshot.size);
-    
-    // Track if styling functions are called
-    let fillColorCallCount = 0;
-    
-    // 1) CLU Polygons (source-layer "clu")
-    const cluPolygons = new MVTLayer({
-      id: 'clu-polygons',
-      data: TILE_URL,
-      loadOptions: { 
-        mvt: { 
-          layers: ['clu']
-        } 
-      },
-      minZoom: 11,
-      maxZoom: 15,
-      filled: true,
-      stroked: true,
-      
-      // Error handling
-      onDataLoad: (data: any) => {
-        console.log('✅ CLU polygons loaded:', data?.length || 0, 'features');
-      },
-      onError: (error: any) => {
-        console.error('❌ Error loading CLU polygons:', error);
-      },
-      
-      // Dynamic styling based on selection
-      getFillColor: (feature: any) => {
-        const fieldId = getFieldId(feature);
-        const isSelected = idLookupSnapshot.has(fieldId);
-        
-        fillColorCallCount++;
-        if (fillColorCallCount <= 5) {
-          console.log(`🎨 getFillColor called: ID=${fieldId}, selected=${isSelected}`);
-        }
-        
-        if (isSelected) {
-          // Brighter green fill with more opacity
-          return [0, 255, 0, 80];
-        }
-        return [0, 0, 0, 0]; // Transparent for unselected
-      },
-      
-      getLineColor: (feature: any) => {
-        const fieldId = getFieldId(feature);
-        const isSelected = idLookupSnapshot.has(fieldId);
-        
-        if (isSelected) {
-          // SUPER BRIGHT LIME GREEN outline
-          return [0, 255, 0, 255];
-        }
-        return [253, 224, 71, 230]; // Yellow for unselected
-      },
-      
-      getLineWidth: (feature: any) => {
-        const fieldId = getFieldId(feature);
-        const isSelected = idLookupSnapshot.has(fieldId);
-        return isSelected ? 10 : 2;
-      },
-      
-      lineWidthMinPixels: 2,
-      lineWidthMaxPixels: 15,
-      pickable: true,
-      
-      onClick: (info: any) => {
-        if (!info.object) return;
-        togglePolygonSelection(info.object);
-      },
-      
-      // Highlight on hover
-      autoHighlight: true,
-      highlightColor: [255, 255, 255, 100],
-      
-      // Force deck.gl to re-evaluate styling when stateVersion changes
-      updateTriggers: {
-        getFillColor: currentStateVersion,
-        getLineColor: currentStateVersion,
-        getLineWidth: currentStateVersion
-      }
-    });
-
-    // 2) CLU Labels as TEXT (source-layer "clu_labels")
-    const cluLabels = new MVTLayer({
-      id: 'clu-labels',
-      data: TILE_URL,
-      binary: false,
-      loadOptions: { 
-        mvt: { 
-          layers: ['clu_labels']
-        } 
-      },
-      minZoom: 13,
-      maxZoom: 15,
-      pickable: false,
-
-      // Override renderSubLayers to turn point features into TextLayer
-      renderSubLayers: (sublayerProps: any) => {
-        const { data } = sublayerProps;
-
-        if (!data || !data.length) {
-          return null;
-        }
-
-        return new TextLayer({
-          ...sublayerProps,
-          id: `${sublayerProps.id}-text`,
-          data,
-          getPosition: (f: any) => f.geometry.coordinates,
-          getText: (f: any) => {
-            const props = f.properties || {};
-            const acres = props.calcacres || props.CALCACRES;
-            return formatAcres(acres);
-          },
-          getSize: 13,
-          sizeUnits: 'pixels',
-          getColor: [0, 0, 0, 255],
-          getTextAnchor: 'middle',
-          getAlignmentBaseline: 'center',
-          
-          // White outline for contrast
-          fontSettings: {
-            sdf: true,
-            fontSize: 64,
-            buffer: 4
-          },
-          outlineWidth: 6,
-          outlineColor: [255, 255, 255, 255],
-          
-          fontFamily: 'Arial, sans-serif',
-          pickable: false
-        });
-      }
-    });
-
-    return [cluPolygons, cluLabels];
   };
 
   // Initialize map
@@ -453,15 +278,134 @@ VITE_LANDMAP_API_KEY=pk_live_your_key_here
       console.log('🔍 Map zoom:', map.getZoom());
       console.log('🎨 Loading CLU tiles from:', TILE_URL);
 
-      // Create deck.gl overlay WITHOUT interleaved mode (not compatible with mapbox-gl v2)
-      const deckOverlay = new MapboxOverlay({
-        layers: createLayers()
+      // Add CLU vector tile source
+      map.addSource('clu', {
+        type: 'vector',
+        tiles: [TILE_URL],
+        minzoom: 11,
+        maxzoom: 15
       });
 
-      deckOverlayRef.current = deckOverlay;
-      map.addControl(deckOverlay as any);
+      // Add fill layer (for click detection and selection highlighting)
+      map.addLayer({
+        id: 'clu-fill',
+        type: 'fill',
+        source: 'clu',
+        'source-layer': 'clu',
+        minzoom: 11,
+        maxzoom: 15,
+        paint: {
+          'fill-color': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false],
+            '#00ff00', // Bright green for selected
+            'rgba(0, 0, 0, 0.01)' // Nearly invisible for unselected (but still clickable!)
+          ],
+          'fill-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false],
+            0.3, // 30% opacity for selected
+            0.01 // 1% opacity for unselected (makes entire polygon clickable)
+          ]
+        }
+      });
 
-      console.log('✅ Deck.gl overlay added with CLU layers');
+      // Add line layer (yellow borders)
+      map.addLayer({
+        id: 'clu-outline',
+        type: 'line',
+        source: 'clu',
+        'source-layer': 'clu',
+        minzoom: 11,
+        maxzoom: 15,
+        paint: {
+          'line-color': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false],
+            '#00ff00', // Bright green border for selected
+            '#fde047' // Yellow border for unselected
+          ],
+          'line-width': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false],
+            3, // Thicker border for selected
+            1.5 // Regular border for unselected
+          ]
+        }
+      });
+
+      // Add labels layer (using symbol layer for text)
+      map.addLayer({
+        id: 'clu-labels',
+        type: 'symbol',
+        source: 'clu',
+        'source-layer': 'clu_labels',
+        minzoom: 13,
+        maxzoom: 15,
+        layout: {
+          'text-field': ['get', 'calcacres'],
+          'text-size': 12,
+          'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold']
+        },
+        paint: {
+          'text-color': '#000000',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2
+        }
+      });
+
+      console.log('✅ Native Mapbox MVT layers added');
+
+      // Handle click events on the fill layer
+      map.on('click', 'clu-fill', (e) => {
+        if (!e.features || e.features.length === 0) return;
+        
+        const feature = e.features[0];
+        console.log('🖱️ Clicked feature:', feature);
+        
+        togglePolygonSelection({
+          id: feature.id,
+          properties: feature.properties
+        });
+      });
+
+      // Change cursor on hover
+      map.on('mouseenter', 'clu-fill', () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+
+      map.on('mouseleave', 'clu-fill', () => {
+        map.getCanvas().style.cursor = '';
+      });
+
+      // Add hover effect
+      let hoveredFeatureId: string | number | null = null;
+
+      map.on('mousemove', 'clu-fill', (e) => {
+        if (e.features && e.features.length > 0) {
+          if (hoveredFeatureId !== null) {
+            map.setFeatureState(
+              { source: 'clu', sourceLayer: 'clu', id: hoveredFeatureId },
+              { hover: false }
+            );
+          }
+          hoveredFeatureId = e.features[0].id as string | number;
+          map.setFeatureState(
+            { source: 'clu', sourceLayer: 'clu', id: hoveredFeatureId },
+            { hover: true }
+          );
+        }
+      });
+
+      map.on('mouseleave', 'clu-fill', () => {
+        if (hoveredFeatureId !== null) {
+          map.setFeatureState(
+            { source: 'clu', sourceLayer: 'clu', id: hoveredFeatureId },
+            { hover: false }
+          );
+        }
+        hoveredFeatureId = null;
+      });
     });
 
     // Add error handling for tile loading
@@ -478,14 +422,25 @@ VITE_LANDMAP_API_KEY=pk_live_your_key_here
     };
   }, []);
 
-  // Update deck.gl layers when selection changes
+  // Sync feature states when component remounts or map reloads
   useEffect(() => {
-    if (deckOverlayRef.current) {
-      console.log('🔄 Refreshing layers, stateVersion:', stateVersion, 'Selected:', selectedPolygons.size);
-      const newLayers = createLayers();
-      deckOverlayRef.current.setProps({ layers: newLayers });
-    }
-  }, [stateVersion]);
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded() || !map.getLayer('clu-fill')) return;
+
+    console.log('🔄 Syncing selection styling, selected:', selectedPolygons.size);
+
+    // Reapply all feature states (useful if map style reloaded)
+    selectedPolygons.forEach((_feature, fieldId) => {
+      try {
+        map.setFeatureState(
+          { source: 'clu', sourceLayer: 'clu', id: fieldId },
+          { selected: true }
+        );
+      } catch (error) {
+        console.warn('Failed to set feature state for:', fieldId, error);
+      }
+    });
+  }, [stateVersion, selectedPolygons]);
 
   const stats = calculateStats();
 
