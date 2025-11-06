@@ -2,7 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_GOOGLE_MAPS_API_KEY?: string
-  readonly VITE_LANDMAP_API_KEY?: string
+  readonly VITE_LAND_MAP_MAGIC_API_KEY?: string
   readonly VITE_MAPBOX_TOKEN?: string
   readonly VITE_STAGE_DEV_API_URL?: string
   readonly VITE_STAGE_STAGING_API_URL?: string

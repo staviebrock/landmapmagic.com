@@ -38,7 +38,7 @@ Add your API keys:
 
 ```env
 VITE_GOOGLE_MAPS_API_KEY=your_google_maps_key_here
-VITE_LANDMAP_API_KEY=your_landmap_key_here
+VITE_LAND_MAP_MAGIC_API_KEY=your_landmap_key_here
 ```
 
 Save and exit (Ctrl+X, Y, Enter in nano).

@@ -164,7 +164,7 @@ VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
 
 # LandMapMagic API Key
 # Get your key at: https://staging-api.landmapmagic.com/admin
-VITE_LANDMAP_API_KEY=your_landmap_api_key_here
+VITE_LAND_MAP_MAGIC_API_KEY=your_landmap_api_key_here
 
 # Mapbox Access Token (required for Mapbox examples)
 VITE_MAPBOX_TOKEN=your_mapbox_token_here
@@ -173,7 +173,7 @@ VITE_MAPBOX_TOKEN=your_mapbox_token_here
 ### Development vs Production API Keys
 
 **Development Environment:**
-- For local testing with a development API instance, you can use `VITE_LANDMAP_API_KEY=dev`
+- For local testing with a development API instance, you can use `VITE_LAND_MAP_MAGIC_API_KEY=dev`
 - This **only works** with API instances that have `ENVIRONMENT=development` set
 - Typically used with `http://localhost:8787` or local development servers
 
@@ -185,7 +185,7 @@ VITE_MAPBOX_TOKEN=your_mapbox_token_here
 When you run `npm run dev` in the `examples/` directory, Vite will:
 1. Load these environment variables from `.env.local`
 2. Inject them into the HTML examples at build time
-3. Replace placeholders like `%VITE_LANDMAP_API_KEY%` with actual values
+3. Replace placeholders like `%VITE_LAND_MAP_MAGIC_API_KEY%` with actual values
 
 **Note:** After creating or modifying `.env.local`, restart the Vite dev server.
 

@@ -26,11 +26,11 @@ export default function ExistingMapboxExample() {
 
   // Get API keys from environment
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN';
-  const landmapApiKey = import.meta.env.VITE_LANDMAP_API_KEY || 'dev';
+  const LAND_MAP_MAGIC_API_KEY = import.meta.env.VITE_LAND_MAP_MAGIC_API_KEY || 'dev';
+  const LAND_MAP_MAGIC_API_URL = import.meta.env.VITE_LAND_MAP_MAGIC_API_URL || 'https://api.landmapmagic.com';
 
   // LandMapMagic API endpoint
-  const BASE_URL = 'https://staging-api.landmapmagic.com';
-  const TILE_URL = `${BASE_URL}/clu/{z}/{x}/{y}?key=${landmapApiKey}`;
+  const TILE_URL = `${LAND_MAP_MAGIC_API_URL}/clu/{z}/{x}/{y}?key=${LAND_MAP_MAGIC_API_KEY}`;
 
   // Helper to format acres with 2 decimal places
   const formatAcres = (value: number | null | undefined): string => {
@@ -251,7 +251,7 @@ export default function ExistingMapboxExample() {
               fontWeight: '500'
             }}
           >
-            API: staging-api.landmapmagic.com
+            API: api.landmapmagic.com
           </div>
         </div>
       </div>

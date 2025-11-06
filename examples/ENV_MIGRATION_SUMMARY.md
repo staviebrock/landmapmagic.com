@@ -26,7 +26,7 @@ if (env.ENVIRONMENT === 'development' && api_key === 'dev')
 #### Created `examples/env.example`
 A template file showing all available environment variables:
 - `VITE_GOOGLE_MAPS_API_KEY` - For Google Maps examples
-- `VITE_LANDMAP_API_KEY` - For LandMapMagic API access
+- `VITE_LAND_MAP_MAGIC_API_KEY` - For LandMapMagic API access
 - `VITE_MAPBOX_TOKEN` - For Mapbox examples
 - `VITE_STAGE_*_API_URL` - Optional API URL overrides for dev/staging/prod
 
@@ -42,7 +42,7 @@ TypeScript definitions for all Vite environment variables to ensure type safety.
 - Hardcoded API keys in environment configurations
 
 **After:**
-- Uses `import.meta.env.VITE_LANDMAP_API_KEY` with `dev` fallback
+- Uses `import.meta.env.VITE_LAND_MAP_MAGIC_API_KEY` with `dev` fallback
 - Uses `selectedEnvironment.apiKey` from environment selector
 - Uses `selectedEnvironment.apiUrl` from environment selector
 - Development environment: `apiKey: 'dev'` (allowed in dev only)
@@ -50,7 +50,7 @@ TypeScript definitions for all Vite environment variables to ensure type safety.
 - Production environment: `apiKey: landmapApiKey` (uses env var)
 
 #### `examples/src/ExistingMapboxExample.tsx`
-**Already correct** - was already using `import.meta.env.VITE_LANDMAP_API_KEY` with `dev` fallback
+**Already correct** - was already using `import.meta.env.VITE_LAND_MAP_MAGIC_API_KEY` with `dev` fallback
 
 ### 4. HTML Example Updates
 
@@ -66,7 +66,7 @@ TypeScript definitions for all Vite environment variables to ensure type safety.
 
 #### `examples/google-maps-example.html`
 **Before:**
-- Used `VITE_LANDMAP_API_KEY` with `dev` fallback (no comments)
+- Used `VITE_LAND_MAP_MAGIC_API_KEY` with `dev` fallback (no comments)
 
 **After:**
 - Added clear comments explaining setup
@@ -74,7 +74,7 @@ TypeScript definitions for all Vite environment variables to ensure type safety.
 ```javascript
 // To set up: Copy env.example to .env.local and add your API keys
 // Note: 'dev' fallback only works in development environment
-// For staging/production, you must set VITE_LANDMAP_API_KEY in .env.local
+// For staging/production, you must set VITE_LAND_MAP_MAGIC_API_KEY in .env.local
 ```
 
 #### `examples/google-maps-selectable.html`
@@ -109,7 +109,7 @@ Comprehensive setup guide covering:
 #### Updated `README.md` (root)
 **Before:**
 - Brief mention of `.env.local` in root directory
-- Said `VITE_LANDMAP_API_KEY` was "optional" and defaulted to `dev`
+- Said `VITE_LAND_MAP_MAGIC_API_KEY` was "optional" and defaulted to `dev`
 
 **After:**
 - Clear instructions to create `.env.local` in `examples/` directory
@@ -124,7 +124,7 @@ Comprehensive setup guide covering:
 ### For Developers Using the Examples
 
 1. **Local Development (with dev API):**
-   - Can still use `VITE_LANDMAP_API_KEY=dev`
+   - Can still use `VITE_LAND_MAP_MAGIC_API_KEY=dev`
    - Only works when connecting to API with `ENVIRONMENT=development`
    - Typically `http://localhost:8787`
 
@@ -132,7 +132,7 @@ Comprehensive setup guide covering:
    - **Must** obtain a real API key from staging admin portal
    - Visit `https://staging-api.landmapmagic.com/admin`
    - Register and generate an API key
-   - Set `VITE_LANDMAP_API_KEY=your_actual_key` in `.env.local`
+   - Set `VITE_LAND_MAP_MAGIC_API_KEY=your_actual_key` in `.env.local`
 
 3. **Production:**
    - **Must** use real production API key
@@ -172,7 +172,7 @@ If you were using the examples before this change:
 
 3. **Update `.env.local`:**
    ```bash
-   VITE_LANDMAP_API_KEY=your_api_key_here
+   VITE_LAND_MAP_MAGIC_API_KEY=your_api_key_here
    VITE_GOOGLE_MAPS_API_KEY=your_google_key_here
    VITE_MAPBOX_TOKEN=your_mapbox_token_here
    ```
@@ -215,7 +215,7 @@ If you were using the examples before this change:
 ## Testing Checklist
 
 - [x] TypeScript compiles without errors (`npx tsc --noEmit`)
-- [ ] Development examples work with `VITE_LANDMAP_API_KEY=dev`
+- [ ] Development examples work with `VITE_LAND_MAP_MAGIC_API_KEY=dev`
 - [ ] Staging examples work with real API key
 - [ ] Production examples work with real API key
 - [ ] Google Maps examples load with proper API key

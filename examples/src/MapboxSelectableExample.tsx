@@ -24,7 +24,8 @@ export default function MapboxSelectableExample() {
 
   // Get API keys from environment
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
-  const landmapApiKey = import.meta.env.VITE_LANDMAP_API_KEY || 'dev';
+  const LAND_MAP_MAGIC_API_KEY = import.meta.env.VITE_LAND_MAP_MAGIC_API_KEY || 'YOUR_API_KEY_HERE';
+  const LAND_MAP_MAGIC_API_URL = import.meta.env.VITE_LAND_MAP_MAGIC_API_URL || 'https://api.landmapmagic.com';
 
   // Validate that tokens are not mixed up
   // Mapbox tokens start with pk.eyJ...
@@ -32,18 +33,17 @@ export default function MapboxSelectableExample() {
   if (mapboxToken && !mapboxToken.startsWith('pk.eyJ')) {
     console.error('❌ ERROR: VITE_MAPBOX_TOKEN should start with pk.eyJ (Mapbox access token)');
   }
-  if (landmapApiKey && landmapApiKey.startsWith('pk.eyJ')) {
-    console.error('❌ ERROR: You have a Mapbox token in VITE_LANDMAP_API_KEY!');
+  if (LAND_MAP_MAGIC_API_KEY && LAND_MAP_MAGIC_API_KEY.startsWith('pk.eyJ')) {
+    console.error('❌ ERROR: You have a Mapbox token in VITE_LAND_MAP_MAGIC_API_KEY!');
     console.error('   LandMap API keys start with pk_live_, pk_test_, or use "dev" for development');
   }
 
   // LandMapMagic API endpoint
-  const BASE_URL = 'https://staging-api.landmapmagic.com';
-  const TILE_URL = `${BASE_URL}/clu/{z}/{x}/{y}?key=${landmapApiKey}`;
+  const TILE_URL = `${LAND_MAP_MAGIC_API_URL}/clu/{z}/{x}/{y}?key=${LAND_MAP_MAGIC_API_KEY}`;
 
   // Debug logging
   console.log('🔑 Mapbox Token (should start with pk.eyJ):', mapboxToken ? `${mapboxToken.substring(0, 10)}...` : 'NOT SET');
-  console.log('🔑 LandMap API Key (should be dev or pk_live_...):', landmapApiKey ? `${landmapApiKey.substring(0, 10)}...` : 'NOT SET');
+  console.log('🔑 LandMap API Key (should be dev or pk_live_...):', LAND_MAP_MAGIC_API_KEY ? `${LAND_MAP_MAGIC_API_KEY.substring(0, 10)}...` : 'NOT SET');
   console.log('🌐 CLU Tile URL:', TILE_URL);
 
   // Check if Mapbox token is set

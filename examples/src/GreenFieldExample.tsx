@@ -14,10 +14,12 @@ export default function BasicExample() {
 
   // Get API key from environment variable
   // For development, 'dev' key is still allowed
-  // For staging/production, you must set VITE_LANDMAP_API_KEY in .env.local
-  const landmapApiKey = import.meta.env.VITE_LANDMAP_API_KEY || 'dev';
+  // For staging/production, you must set VITE_LAND_MAP_MAGIC_API_KEY in .env.local
+  const landmapApiKey = import.meta.env.VITE_LAND_MAP_MAGIC_API_KEY || 'dev';
+  const baseUrl = import.meta.env.VITE_LAND_MAP_MAGIC_API_URL || 'https://staging-api.landmapmagic.com';
 
   // Define environments based on STAGE_ prefixed environment variables
+  // VITE_LAND_MAP_MAGIC_API_URL is used as the default for staging
   const environments: Environment[] = [
     {
       name: 'Development',
@@ -26,7 +28,7 @@ export default function BasicExample() {
     },
     {
       name: 'Staging',
-      apiUrl: import.meta.env.VITE_STAGE_STAGING_API_URL || 'https://staging-api.landmapmagic.com',
+      apiUrl: import.meta.env.VITE_STAGE_STAGING_API_URL || baseUrl,
       apiKey: landmapApiKey // Use env var for staging
     },
     {
@@ -53,7 +55,7 @@ export default function BasicExample() {
     console.log('  API URL:', selectedEnvironment.apiUrl);
     console.log('  API Key:', selectedEnvironment.apiKey);
     console.log('  API Key (first 10 chars):', selectedEnvironment.apiKey.substring(0, 10) + '...');
-    console.log('  VITE_LANDMAP_API_KEY from env:', import.meta.env.VITE_LANDMAP_API_KEY || '(not set - using default)');
+    console.log('  VITE_LAND_MAP_MAGIC_API_KEY from env:', import.meta.env.VITE_LAND_MAP_MAGIC_API_KEY || '(not set - using default)');
     console.log('  Full tile URL would be:', `${selectedEnvironment.apiUrl}/clu/{z}/{x}/{y}?key=${selectedEnvironment.apiKey}`);
   }, [selectedEnvironment]);
 

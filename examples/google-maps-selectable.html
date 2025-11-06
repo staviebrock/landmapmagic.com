@@ -173,14 +173,16 @@
         // Environment variables injected by Vite at build/serve time
         // To set up: Copy env.example to .env.local and add your API keys
         const GOOGLE_MAPS_KEY = '%VITE_GOOGLE_MAPS_API_KEY%';
-        const LANDMAP_KEY = '%VITE_LANDMAP_API_KEY%';
+        const LANDMAP_KEY = '%VITE_LAND_MAP_MAGIC_API_KEY%';
+        const BASE_URL_ENV = '%VITE_LAND_MAP_MAGIC_API_URL%';
 
         // Check if env vars are set (not placeholders)
         const googleApiKey = (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('VITE_')) ? GOOGLE_MAPS_KEY : '';
         const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
+        const BASE_URL = (BASE_URL_ENV && !BASE_URL_ENV.includes('VITE_')) ? BASE_URL_ENV : 'https://staging-api.landmapmagic.com';
         
         // Note: 'dev' fallback only works in development environment
-        // For staging/production, you must set VITE_LANDMAP_API_KEY in .env.local
+        // For staging/production, you must set VITE_LAND_MAP_MAGIC_API_KEY and VITE_LAND_MAP_MAGIC_API_URL in .env.local
 
         if (!googleApiKey) {
             document.body.innerHTML = '<div style="padding:20px;color:red;">Missing VITE_GOOGLE_MAPS_API_KEY in .env.local</div>';
@@ -188,7 +190,6 @@
         }
 
         // Your LandMapMagic API endpoint
-        const BASE_URL = 'https://staging-api.landmapmagic.com';
         const TILE_URL = `${BASE_URL}/clu/{z}/{x}/{y}?key=${landmapApiKey}`;
 
         // Helper to format acres with 2 decimal places (no "ac" suffix)
