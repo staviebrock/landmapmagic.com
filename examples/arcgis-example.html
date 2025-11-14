@@ -60,9 +60,6 @@
             // Your LandMapMagic API endpoint for CLU tiles
             const TILE_URL = `${BASE_URL}/clu/{z}/{x}/{y}?key=${landmapApiKey}`;
 
-            // Helper to format acres with 2 decimal places (no "ac" suffix)
-            const fmtAcres = (v) => (v == null ? '' : v.toFixed(2));
-
             // Create the CLU Vector Tile Layer with Mapbox GL style specification
             // ArcGIS VectorTileLayer supports Mapbox GL style format
             const cluLayer = new VectorTileLayer({
@@ -130,22 +127,6 @@
                 map: map,
                 center: [-93.097, 41.878], // Iowa (longitude, latitude)
                 zoom: 13 // Start at zoom 13 so labels are visible
-            });
-
-            // Add click handler for CLU polygons
-            view.on("click", function(event) {
-                view.hitTest(event).then(function(response) {
-                    if (response.results.length > 0) {
-                        const graphic = response.results[0].graphic;
-                        if (graphic && graphic.attributes) {
-                            const props = graphic.attributes;
-                            const acres = props.calcacres || props.CALCACRES || 'Unknown';
-                            const fieldId = props.id || props.ID || 'N/A';
-                            alert(`🌾 CLU Field\n\nAcres: ${acres}\nField ID: ${fieldId}`);
-                            console.log('CLU polygon:', props);
-                        }
-                    }
-                });
             });
 
             console.log('✅ Map initialized with CLU data');
