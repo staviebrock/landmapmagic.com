@@ -150,7 +150,7 @@
             
             <label>
                 API URL:
-                <input type="text" id="apiUrl" value="https://staging-api.landmapmagic.com" placeholder="API base URL">
+                <input type="text" id="apiUrl" value="https://api.landmapmagic.com" placeholder="API base URL">
             </label>
             
             <label>
@@ -187,7 +187,7 @@
     <script>
         // Environment variables injected by Vite at build/serve time
         const BASE_URL_ENV = '%VITE_LAND_MAP_MAGIC_API_URL%';
-        const BASE_URL = (BASE_URL_ENV && !BASE_URL_ENV.includes('VITE_')) ? BASE_URL_ENV : 'https://staging-api.landmapmagic.com';
+        const BASE_URL = (BASE_URL_ENV && !BASE_URL_ENV.includes('VITE_')) ? BASE_URL_ENV : 'https://api.landmapmagic.com';
         
         // Set default API URL from env variable
         document.addEventListener('DOMContentLoaded', () => {

@@ -23,7 +23,7 @@ Your data is in **PMTiles format** (excellent choice!), and you want to serve it
 
 **What you have now:**
 ```
-GET https://staging-api.landmapmagic.com/clu.pmtiles?key=dev
+GET https://api.landmapmagic.com/clu.pmtiles?key=dev
 → Returns entire PMTiles file (not useful for deck.gl)
 ```
 
@@ -34,7 +34,7 @@ GET https://staging-api.landmapmagic.com/clu.pmtiles?key=dev
 GET /clu.json?key=dev
 → Returns: {
   "tilejson": "3.0.0",
-  "tiles": ["https://staging-api.landmapmagic.com/clu/{z}/{x}/{y}.mvt?key=dev"],
+  "tiles": ["https://api.landmapmagic.com/clu/{z}/{x}/{y}.mvt?key=dev"],
   "minzoom": 11,
   "maxzoom": 15,
   "bounds": [-180, -90, 180, 90],
@@ -160,7 +160,7 @@ async function handleTileRequest(url) {
   const [, z, x, y] = url.pathname.match(/\/clu\/(\d+)\/(\d+)\/(\d+)\.mvt$/);
 
   // Load PMTiles archive (cached)
-  const pmtilesUrl = 'https://staging-api.landmapmagic.com/clu.pmtiles?key=dev';
+  const pmtilesUrl = 'https://api.landmapmagic.com/clu.pmtiles?key=dev';
   const pmtiles = new PMTiles(pmtilesUrl);
 
   const tile = await pmtiles.getZxy(z, x, y);
@@ -222,7 +222,7 @@ docker run -p 8080:8080 \
 
 ### Why?
 
-1. **You're already using Cloudflare Workers** (`staging-api.landmapmagic.com`)
+1. **You're already using Cloudflare Workers** (`api.landmapmagic.com`)
 2. **Minimal code change** - just add 2 endpoints
 3. **Works everywhere** - MapLibre, deck.gl, Google Maps, Leaflet
 4. **Industry standard** - TileJSON is what all map libraries expect
@@ -241,7 +241,7 @@ docker run -p 8080:8080 \
          ▼
 ┌─────────────────────────────────────┐
 │  Cloudflare Worker                  │
-│  (staging-api.landmapmagic.com)    │
+│  (api.landmapmagic.com)    │
 │                                     │
 │  Routes:                            │
 │  • /clu.pmtiles?key=X               │  ← MapLibre (existing)
@@ -268,7 +268,7 @@ Add the two new endpoints (see code example above).
 ### Step 2: Test TileJSON
 
 ```bash
-curl https://staging-api.landmapmagic.com/clu.json?key=dev
+curl https://api.landmapmagic.com/clu.json?key=dev
 ```
 
 Should return TileJSON metadata.
@@ -276,7 +276,7 @@ Should return TileJSON metadata.
 ### Step 3: Test Individual Tile
 
 ```bash
-curl https://staging-api.landmapmagic.com/clu/12/1000/1500.mvt?key=dev
+curl https://api.landmapmagic.com/clu/12/1000/1500.mvt?key=dev
 ```
 
 Should return MVT binary data.

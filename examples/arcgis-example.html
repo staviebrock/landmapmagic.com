@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LandMapMagic - ArcGIS Maps SDK + CLU</title>
+    
+    <style>
+        html, body, #viewDiv {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+
+    <!-- ArcGIS Maps SDK for JavaScript -->
+    <link rel="stylesheet" href="https://js.arcgis.com/4.34/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.34/"></script>
+</head>
+<body>
+    <div id="viewDiv"></div>
+
+    <script>
+        /**
+         * LandMapMagic ArcGIS Maps SDK Integration
+         * 
+         * Simple example showing CLU field boundaries + acreage labels
+         * using VectorTileLayer with MVT tiles
+         */
+
+        require([
+            "esri/Map",
+            "esri/views/MapView",
+            "esri/layers/VectorTileLayer",
+            "esri/config"
+        ], function(Map, MapView, VectorTileLayer, esriConfig) {
+
+            // Environment variables injected by Vite at build/serve time
+            // To set up: Copy env.example to .env and add your API keys
+            const ARCGIS_API_KEY = '%VITE_ARCGIS_API_KEY%';
+            const LANDMAP_KEY = '%VITE_LAND_MAP_MAGIC_API_KEY%';
+            const BASE_URL_ENV = '%VITE_LAND_MAP_MAGIC_API_URL%';
+
+            // Check if env vars are set (not placeholders)
+            const arcgisApiKey = (ARCGIS_API_KEY && !ARCGIS_API_KEY.includes('VITE_')) ? ARCGIS_API_KEY : '';
+            const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
+            const BASE_URL = (BASE_URL_ENV && !BASE_URL_ENV.includes('VITE_')) ? BASE_URL_ENV : 'https://api.landmapmagic.com';
+            
+            // Note: 'dev' fallback only works in development environment
+            // For staging/production, you must set VITE_LAND_MAP_MAGIC_API_KEY and VITE_LAND_MAP_MAGIC_API_URL in .env
+
+            if (!arcgisApiKey) {
+                document.body.innerHTML = '<div style="padding:20px;color:red;">Missing VITE_ARCGIS_API_KEY in .env</div>';
+                throw new Error('Missing ArcGIS API key');
+            }
+
+            // Set ArcGIS API key
+            esriConfig.apiKey = arcgisApiKey;
+
+            // Your LandMapMagic API endpoint for CLU tiles
+            const TILE_URL = `${BASE_URL}/clu/{z}/{x}/{y}?key=${landmapApiKey}`;
+
+            // Helper to format acres with 2 decimal places (no "ac" suffix)
+            const fmtAcres = (v) => (v == null ? '' : v.toFixed(2));
+
+            // Create the CLU Vector Tile Layer with Mapbox GL style specification
+            // ArcGIS VectorTileLayer supports Mapbox GL style format
+            const cluLayer = new VectorTileLayer({
+                style: {
+                    version: 8,
+                    glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
+                    sources: {
+                        "clu-source": {
+                            type: "vector",
+                            tiles: [TILE_URL],
+                            minzoom: 11,
+                            maxzoom: 15 // Actual max zoom of tiles - ArcGIS will use these tiles when zoomed in further
+                        }
+                    },
+                    layers: [
+                        // CLU Polygon outlines
+                        {
+                            id: "clu-polygons",
+                            type: "line",
+                            source: "clu-source",
+                            "source-layer": "clu",
+                            minzoom: 11,
+                            maxzoom: 24, // High maxzoom so layer continues to display when zoomed in past tile max zoom
+                            paint: {
+                                "line-color": "#fde047", // Yellow #fde047
+                                "line-width": 2,
+                                "line-opacity": 0.9
+                            }
+                        },
+                        // CLU Labels
+                        {
+                            id: "clu-labels",
+                            type: "symbol",
+                            source: "clu-source",
+                            "source-layer": "clu_labels",
+                            minzoom: 13,
+                            maxzoom: 24, // High maxzoom so labels continue to display when zoomed in past tile max zoom
+                            layout: {
+                                "text-field": ["to-string", ["get", "calcacres"]],
+                                "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+                                "text-size": 13,
+                                "text-anchor": "center",
+                                "text-allow-overlap": false
+                            },
+                            paint: {
+                                "text-color": "#000000", // Black text
+                                "text-halo-color": "#ffffff", // White outline
+                                "text-halo-width": 2
+                            }
+                        }
+                    ]
+                },
+                maxScale: 0 // Ensures layer is visible at all zoom levels, even beyond tile max zoom
+            });
+
+            // Create the map
+            const map = new Map({
+                basemap: "satellite", // Satellite imagery basemap
+                layers: [cluLayer]
+            });
+
+            // Create the map view
+            const view = new MapView({
+                container: "viewDiv",
+                map: map,
+                center: [-93.097, 41.878], // Iowa (longitude, latitude)
+                zoom: 13 // Start at zoom 13 so labels are visible
+            });
+
+            // Add click handler for CLU polygons
+            view.on("click", function(event) {
+                view.hitTest(event).then(function(response) {
+                    if (response.results.length > 0) {
+                        const graphic = response.results[0].graphic;
+                        if (graphic && graphic.attributes) {
+                            const props = graphic.attributes;
+                            const acres = props.calcacres || props.CALCACRES || 'Unknown';
+                            const fieldId = props.id || props.ID || 'N/A';
+                            alert(`🌾 CLU Field\n\nAcres: ${acres}\nField ID: ${fieldId}`);
+                            console.log('CLU polygon:', props);
+                        }
+                    }
+                });
+            });
+
+            console.log('✅ Map initialized with CLU data');
+        });
+    </script>
+</body>
+</html>
+

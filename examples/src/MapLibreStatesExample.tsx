@@ -8,7 +8,7 @@ import { useEffect } from 'react';
  */
 
 const LANDMAP_KEY = import.meta.env.VITE_LAND_MAP_MAGIC_API_KEY || 'dev';
-const BASE_URL = import.meta.env.VITE_LAND_MAP_MAGIC_API_URL || 'https://staging-api.landmapmagic.com';
+const BASE_URL = import.meta.env.VITE_LAND_MAP_MAGIC_API_URL || 'https://api.landmapmagic.com';
 
 // Our style.json endpoint (similar to protomaps style URL)
 const STYLE_URL = `${BASE_URL}/states/style.json?key=${LANDMAP_KEY}`;

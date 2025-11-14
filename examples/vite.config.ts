@@ -15,7 +15,9 @@ export default defineConfig(({ mode }) => {
         transformIndexHtml(html) {
           return html
             .replace(/%VITE_GOOGLE_MAPS_API_KEY%/g, env.VITE_GOOGLE_MAPS_API_KEY || '')
-            .replace(/%VITE_LAND_MAP_MAGIC_API_KEY%/g, env.VITE_LAND_MAP_MAGIC_API_KEY || 'dev');
+            .replace(/%VITE_ARCGIS_API_KEY%/g, env.VITE_ARCGIS_API_KEY || '')
+            .replace(/%VITE_LAND_MAP_MAGIC_API_KEY%/g, env.VITE_LAND_MAP_MAGIC_API_KEY || 'dev')
+            .replace(/%VITE_LAND_MAP_MAGIC_API_URL%/g, env.VITE_LAND_MAP_MAGIC_API_URL || 'https://api.landmapmagic.com');
         }
       }
     ],

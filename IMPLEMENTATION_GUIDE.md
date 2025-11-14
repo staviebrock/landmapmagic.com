@@ -274,14 +274,14 @@ export default {
 ### Test 1: TileJSON Endpoint
 
 ```bash
-curl https://staging-api.landmapmagic.com/clu.json?key=dev
+curl https://api.landmapmagic.com/clu.json?key=dev
 ```
 
 **Expected output:**
 ```json
 {
   "tilejson": "3.0.0",
-  "tiles": ["https://staging-api.landmapmagic.com/clu/{z}/{x}/{y}.mvt?key=dev"],
+  "tiles": ["https://api.landmapmagic.com/clu/{z}/{x}/{y}.mvt?key=dev"],
   "minzoom": 11,
   "maxzoom": 15,
   ...
@@ -292,7 +292,7 @@ curl https://staging-api.landmapmagic.com/clu.json?key=dev
 
 ```bash
 # Get a tile for Des Moines, Iowa area (z=12, x=1024, y=1536)
-curl https://staging-api.landmapmagic.com/clu/12/1024/1536.mvt?key=dev \
+curl https://api.landmapmagic.com/clu/12/1024/1536.mvt?key=dev \
   --output tile.mvt
 ```
 
@@ -308,7 +308,7 @@ file tile.mvt
 
 ```bash
 curl -H "Range: bytes=0-511" \
-  https://staging-api.landmapmagic.com/clu.pmtiles?key=dev
+  https://api.landmapmagic.com/clu.pmtiles?key=dev
 ```
 
 **Expected:** Partial content response (206 status).

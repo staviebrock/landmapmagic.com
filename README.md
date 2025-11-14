@@ -162,7 +162,7 @@ Then edit `.env.local` and add your API keys:
 VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
 
 # LandMapMagic API Key
-# Get your key at: https://staging-api.landmapmagic.com/admin
+# Get your key at: https://api.landmapmagic.com/admin
 VITE_LAND_MAP_MAGIC_API_KEY=your_landmap_api_key_here
 
 # Mapbox Access Token (required for Mapbox examples)
