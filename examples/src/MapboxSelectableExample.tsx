@@ -37,44 +37,10 @@ export default function MapboxSelectableExample() {
     console.error('❌ ERROR: You have a Mapbox token in VITE_LAND_MAP_MAGIC_API_KEY!');
     console.error('   LandMap API keys start with pk_live_, pk_test_, or use "dev" for development');
   }
-
+  
   // LandMapMagic API endpoint
   const TILE_URL = `${LAND_MAP_MAGIC_API_URL}/clu/{z}/{x}/{y}?key=${LAND_MAP_MAGIC_API_KEY}`;
 
-  // Debug logging
-  console.log('🔑 Mapbox Token (should start with pk.eyJ):', mapboxToken ? `${mapboxToken.substring(0, 10)}...` : 'NOT SET');
-  console.log('🔑 LandMap API Key (should be dev or pk_live_...):', LAND_MAP_MAGIC_API_KEY ? `${LAND_MAP_MAGIC_API_KEY.substring(0, 10)}...` : 'NOT SET');
-  console.log('🌐 CLU Tile URL:', TILE_URL);
-
-  // Check if Mapbox token is set
-  if (!mapboxToken) {
-    return (
-      <div style={{ 
-        height: '100vh', 
-        width: '100vw', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        flexDirection: 'column',
-        gap: '20px',
-        padding: '40px',
-        background: '#f5f5f5',
-        fontFamily: 'Arial, sans-serif'
-      }}>
-        <div style={{ fontSize: '48px' }}>⚠️</div>
-        <h2 style={{ margin: 0, color: '#d32f2f' }}>Missing Mapbox Token</h2>
-        <p style={{ margin: 0, color: '#666', textAlign: 'center', maxWidth: '600px' }}>
-          Please create a <code style={{ background: '#e0e0e0', padding: '2px 6px', borderRadius: '3px' }}>.env.local</code> file 
-          in the <code style={{ background: '#e0e0e0', padding: '2px 6px', borderRadius: '3px' }}>examples</code> directory 
-          and add your <strong>VITE_MAPBOX_TOKEN</strong>.
-        </p>
-        <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
-          Copy <code style={{ background: '#e0e0e0', padding: '2px 6px', borderRadius: '3px' }}>env.example</code> to 
-          <code style={{ background: '#e0e0e0', padding: '2px 6px', borderRadius: '3px' }}>.env.local</code> and fill in your keys.
-        </p>
-      </div>
-    );
-  }
 
   /**
    * Toggle polygon selection
