@@ -50,8 +50,7 @@ export default function App() {
   return (
     <LandMap 
       // API Configuration
-      apiKey="your-api-key-here"              // Your API key (defaults to 'dev')
-      baseApiUrl="https://api.example.com"    // Custom API URL (optional)
+      apiKey="your-api-key-here"              // Your API key
       
       // Map Configuration
       initialCenter={[-93.5, 42.0]}           // [longitude, latitude] - defaults to US center

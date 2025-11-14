@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LandMapMagic - Google Maps + Parcels</title>
+    
+    <style>
+        html, body, #map {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .info-box {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            max-width: 300px;
+            z-index: 100;
+        }
+        
+        .info-box h3 {
+            margin: 0 0 10px 0;
+            font-size: 15px;
+            color: #333;
+        }
+        
+        .info-box p {
+            margin: 5px 0;
+            color: #666;
+        }
+        
+        .info-box .tip {
+            margin-top: 10px;
+            padding: 8px;
+            background: #f0f9ff;
+            border-left: 3px solid #3b82f6;
+            font-size: 12px;
+            color: #1e40af;
+        }
+    </style>
+
+    <!-- deck.gl dependencies for Google Maps integration -->
+    <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+    <script src="https://unpkg.com/@deck.gl/google-maps@^9.0.0/dist.min.js"></script>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="info-box">
+        <h3>🏘️ Property Parcels</h3>
+        <p><strong>Layer:</strong> Property Parcels (MVT)</p>
+        <p><strong>Zoom:</strong> 14-17 (zoom in to see parcels)</p>
+        <div class="tip">
+            💡 Click on a parcel to view ownership and property details
+        </div>
+    </div>
+
+    <!-- Google Maps API will be loaded dynamically -->
+
+    <script>
+        /**
+         * LandMapMagic Google Maps + Property Parcels Integration
+         * 
+         * Demonstrates using property parcel data via MVT tiles
+         * served directly from the Cloudflare Worker for optimal performance
+         */
+
+        // Access deck.gl classes from global namespace (loaded via script tags)
+        const { GoogleMapsOverlay } = deck;
+        const { MVTLayer } = deck;
+
+        // Environment variables injected by Vite at build/serve time
+        // To set up: Copy env.example to .env.local and add your API keys
+        const GOOGLE_MAPS_KEY = '%VITE_GOOGLE_MAPS_API_KEY%';
+        const LANDMAP_KEY = '%VITE_LAND_MAP_MAGIC_API_KEY%';
+        const BASE_URL_ENV = '%VITE_LAND_MAP_MAGIC_API_URL%';
+
+        // Check if env vars are set (not placeholders)
+        const googleApiKey = (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('VITE_')) ? GOOGLE_MAPS_KEY : '';
+        const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
+        const BASE_URL = (BASE_URL_ENV && !BASE_URL_ENV.includes('VITE_')) ? BASE_URL_ENV : 'https://staging-api.landmapmagic.com';
+        
+        // Note: 'dev' fallback only works in development environment
+        // For staging/production, you must set VITE_LAND_MAP_MAGIC_API_KEY and VITE_LAND_MAP_MAGIC_API_URL in .env.local
+
+        if (!googleApiKey) {
+            document.body.innerHTML = '<div style="padding:20px;color:red;">Missing VITE_GOOGLE_MAPS_API_KEY in .env.local</div>';
+            throw new Error('Missing Google Maps API key');
+        }
+
+        // Property Parcel MVT endpoint (served by Cloudflare Worker for optimal performance)
+        // Note: This endpoint requires proper API key authentication
+        // The .mvt extension is recommended (matches protomaps style: https://api.protomaps.com/tiles/v4/{z}/{x}/{y}.mvt)
+        // The endpoint also works without .mvt, but including it is the preferred style
+        const PARCEL_TILE_URL = `${BASE_URL}/parcels/tiles/{z}/{x}/{y}.mvt?key=${landmapApiKey}`;
+
+        // Color scheme for parcels
+        const PARCEL_COLORS = {
+            fill: [200, 220, 240, 120],      // Light blue with transparency
+            stroke: [37, 99, 235, 255],      // Bright blue border
+            highlight: [250, 204, 21, 200]   // Yellow highlight on hover
+        };
+
+        // Load Google Maps dynamically
+        function loadGoogleMaps() {
+            return new Promise((resolve, reject) => {
+                if (typeof google !== 'undefined' && google.maps) {
+                    resolve();
+                    return;
+                }
+
+                window.initGoogleMapCallback = resolve;
+                
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&callback=initGoogleMapCallback`;
+                script.async = true;
+                script.defer = true;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // Format property info for display
+        function formatParcelInfo(properties) {
+            const owner = properties.owner || 'Unknown';
+            const acreage = properties.acreage_calc || properties.acreage || 'Unknown';
+            const marketValue = properties.mkt_val_tot || properties.market_value || 'Unknown';
+            const parcelId = properties.parcel_id || properties.id || 'N/A';
+            
+            let info = `🏠 Parcel Information\n\n`;
+            info += `Owner: ${owner}\n`;
+            info += `Acreage: ${typeof acreage === 'number' ? acreage.toFixed(2) : acreage} ac\n`;
+            info += `Market Value: ${typeof marketValue === 'number' ? '$' + marketValue.toLocaleString() : marketValue}\n`;
+            info += `Parcel ID: ${parcelId}`;
+            
+            return info;
+        }
+
+        // Initialize map
+        async function initMap() {
+            await loadGoogleMaps();
+
+            // 1) Create Google Map centered on Des Moines, IA
+            const map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 41.5868, lng: -93.6250 },  // Des Moines, IA
+                zoom: 15,  // Start at zoom 15 to see parcels
+                mapId: 'DEMO_MAP_ID',
+                mapTypeId: 'satellite'
+            });
+
+            // Track hovered parcel
+            let hoveredParcelId = null;
+
+            // 2) Property Parcel MVT Layer
+            const parcelLayer = new MVTLayer({
+                id: 'parcels',
+                data: PARCEL_TILE_URL,
+                minZoom: 14,  // Parcels available at zoom 14-17
+                maxZoom: 17,
+                
+                // Styling
+                filled: true,
+                stroked: true,
+                
+                // Dynamic fill color based on hover state
+                getFillColor: (feature) => {
+                    const parcelId = feature.properties?.parcel_id || feature.properties?.id;
+                    return parcelId === hoveredParcelId ? PARCEL_COLORS.highlight : PARCEL_COLORS.fill;
+                },
+                
+                getLineColor: PARCEL_COLORS.stroke,
+                getLineWidth: 2,
+                lineWidthMinPixels: 1,
+                lineWidthMaxPixels: 3,
+                
+                // Make pickable for click/hover
+                pickable: true,
+                autoHighlight: false,  // We'll handle highlighting manually
+                
+                // Click handler
+                onClick: (info) => {
+                    if (!info.object) return;
+                    const props = info.object.properties || {};
+                    
+                    console.log('Parcel clicked:', props);
+                    alert(formatParcelInfo(props));
+                },
+                
+                // Hover handler
+                onHover: (info) => {
+                    const newHoveredId = info.object?.properties?.parcel_id || info.object?.properties?.id || null;
+                    
+                    if (newHoveredId !== hoveredParcelId) {
+                        hoveredParcelId = newHoveredId;
+                        overlay.setProps({ layers: [parcelLayer] });  // Trigger re-render
+                        
+                        // Change cursor
+                        document.body.style.cursor = hoveredParcelId ? 'pointer' : 'default';
+                    }
+                }
+            });
+
+            // 3) Mount on Google Maps
+            const overlay = new GoogleMapsOverlay({
+                layers: [parcelLayer]
+            });
+            overlay.setMap(map);
+
+            // Update info box with zoom level
+            const infoBox = document.querySelector('.info-box p:nth-child(3)');
+            map.addListener('zoom_changed', () => {
+                const zoom = map.getZoom();
+                if (infoBox) {
+                    infoBox.innerHTML = `<strong>Zoom:</strong> ${zoom} ${zoom < 14 ? '(zoom in to see parcels)' : '✓'}`;
+                }
+            });
+
+            console.log('✅ Map initialized with property parcel data');
+            console.log('📍 Parcels will be visible at zoom level 14+');
+        }
+
+        // Auto-initialize on load
+        initMap().catch((error) => {
+            console.error('Failed to initialize map:', error);
+            document.body.innerHTML = `<div style="padding:20px;color:red;">Failed to load map: ${error.message}<br><br>Make sure you have set up your API keys in .env.local</div>`;
+        });
+    </script>
+</body>
+</html>
+

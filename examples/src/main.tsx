@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import GreenFieldExample from './GreenFieldExample';
 import MapboxSelectableExample from './MapboxSelectableExample';
+import MapLibreStatesExample from './MapLibreStatesExample';
 
 interface Example {
   id: string;
@@ -28,12 +29,27 @@ const EXAMPLES: Example[] = [
     icon: '✅'
   },
   {
+    id: 'maplibre-states',
+    title: 'MapLibre States',
+    description: 'Simple MapLibre example using our /states/style.json endpoint',
+    category: 'react',
+    icon: '🇺🇸'
+  },
+  {
     id: 'google-maps',
     title: 'Google Maps Basic',
     description: 'Google Maps with CLU field boundaries overlay',
     category: 'html',
     path: '/google-maps-example.html',
     icon: '🌍'
+  },
+  {
+    id: 'google-maps-parcels',
+    title: 'Google Maps Parcels',
+    description: 'Property parcels with ownership data using ReportAll MVT tiles',
+    category: 'html',
+    path: '/google-maps-parcels-example.html',
+    icon: '🏘️'
   },
   {
     id: 'google-maps-selectable',
@@ -86,7 +102,8 @@ function App() {
   if (currentView === 'home') {
     return (
       <div style={{
-        minHeight: '100vh',
+        height: '100vh',
+        overflow: 'auto',
         background: '#18181b',
         padding: '60px 20px',
         fontFamily: 'Space Grotesk, -apple-system, BlinkMacSystemFont, sans-serif'
@@ -235,6 +252,8 @@ function App() {
         return <GreenFieldExample />;
       case 'mapbox-selectable':
         return <MapboxSelectableExample />;
+      case 'maplibre-states':
+        return <MapLibreStatesExample />;
       default:
         return <GreenFieldExample />;
     }
