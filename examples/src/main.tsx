@@ -44,6 +44,14 @@ const EXAMPLES: Example[] = [
     icon: '🌍'
   },
   {
+    id: 'google-maps-states',
+    title: 'Google Maps States',
+    description: 'Google Maps with US state boundaries and labels',
+    category: 'html',
+    path: '/google-maps-states-example.html',
+    icon: '🗺️'
+  },
+  {
     id: 'google-maps-parcels',
     title: 'Google Maps Parcels',
     description: 'Property parcels with ownership data using ReportAll MVT tiles',

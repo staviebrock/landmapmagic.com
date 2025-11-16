@@ -1,5 +1,5 @@
 import { Map } from 'react-map-gl/maplibre';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 /**
@@ -16,10 +16,10 @@ const normalizedBaseUrl = BASE_URL.replace(/\/$/, '');
 const STATES_TILES_URL = `${normalizedBaseUrl}/states/{z}/{x}/{y}?key=${LANDMAP_KEY}`;
 
 // Basemap style - ESRI World Imagery satellite (same as used in other examples)
-const BASEMAP_STYLE = {
-  version: 8 as const,
-  glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
-  sources: {
+  const BASEMAP_STYLE = {
+    version: 8 as const,
+    glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
+    sources: {
     'esri-satellite': {
       type: 'raster' as const,
       tiles: [
@@ -42,9 +42,10 @@ const BASEMAP_STYLE = {
 
 export default function MapLibreStatesExample() {
   const mapRef = useRef<any>(null);
+  const [zoom, setZoom] = useState(4);
 
   return (
-    <div style={{ height: '100vh', width: '100vw' }}>
+    <div style={{ height: '100vh', width: '100vw', position: 'relative' }}>
       <Map
         ref={mapRef}
         initialViewState={{
@@ -54,6 +55,9 @@ export default function MapLibreStatesExample() {
         }}
         style={{ width: '100%', height: '100%' }}
         mapStyle={BASEMAP_STYLE}
+        onMove={(evt) => {
+          setZoom(Math.round(evt.viewState.zoom * 10) / 10);
+        }}
         onLoad={(e) => {
           const map = e.target;
           console.log('✅ Map loaded');
@@ -69,6 +73,7 @@ export default function MapLibreStatesExample() {
                 maxzoom: 12,
                 attribution: 'US Census Bureau TIGER/Line / LandMapMagic'
               });
+             
               console.log('✅ States MVT tiles source added:', STATES_TILES_URL);
               
               // Add layers immediately (vector tiles don't need to wait for TileJSON)
@@ -77,6 +82,7 @@ export default function MapLibreStatesExample() {
               // Listen for tile loading events to debug
               map.on('sourcedata', (e) => {
                 if (e.sourceId === 'states') {
+                  console.log('🔍 Source data event:', e);
                   if (e.tile) {
                     console.log('📦 Tile loaded:', e.tile.tileID, {
                       state: e.tile.state,
@@ -84,33 +90,36 @@ export default function MapLibreStatesExample() {
                       expires: e.tile.expires
                     });
                     
-                    // Try to inspect tile contents
-                    if (e.tile.state === 'loaded') {
+                    // Try to inspect tile contents when loaded
+                    if (e.tile.state === 'loaded' && e.tile.buckets) {
                       try {
+                        // Check what buckets/layers are in the tile (these are the rendered layers)
+                        const bucketKeys = Object.keys(e.tile.buckets);
+                        console.log('🔍 Available buckets (rendered layers) in tile:', bucketKeys);
+                        
+                        // Also check the source for vectorTile data (these are the source-layers)
                         const source = map.getSource('states') as any;
-                        if (source) {
-                          // Try multiple ways to access tile data
-                          const tileKey = e.tile.tileID.canonical.key;
-                          console.log('🔑 Tile key:', tileKey);
-                          
-                          if (source._tiles) {
-                            const tile = source._tiles[tileKey];
-                            if (tile) {
-                              console.log('📦 Tile object keys:', Object.keys(tile));
-                              if (tile.vectorTile) {
-                                const layers = Object.keys(tile.vectorTile.layers || {});
-                                console.log('🔍 Available layers in tile:', layers);
-                                // Log feature count for each layer
-                                layers.forEach(layerName => {
-                                  const layer = tile.vectorTile.layers[layerName];
-                                  console.log(`   - ${layerName}: ${layer.length} features`);
-                                });
+                        const tileKey = e.tile.tileID.canonical.key;
+                        
+                        if (source?._tiles?.[tileKey]) {
+                          const tile = source._tiles[tileKey];
+                          if (tile.vectorTile) {
+                            const layers = Object.keys(tile.vectorTile.layers || {});
+                            console.log('🔍 Available source-layers in vectorTile:', layers);
+                            layers.forEach(layerName => {
+                              const layer = tile.vectorTile.layers[layerName];
+                              console.log(`   - ${layerName}: ${layer.length} features`);
+                              
+                              // Check if this is the states_labels layer
+                              if (layerName === 'states_labels' && layer.length > 0) {
+                                console.log(`   ✅ Found states_labels with ${layer.length} point features!`);
+                                // Log first feature to see properties
+                                if (layer.feature) {
+                                  const firstFeature = layer.feature(0);
+                                  console.log('   First feature properties:', firstFeature.properties);
+                                }
                               }
-                            } else {
-                              console.log('⚠️ Tile not found in source._tiles');
-                            }
-                          } else {
-                            console.log('⚠️ source._tiles not available');
+                            });
                           }
                         }
                       } catch (inspectError) {
@@ -121,6 +130,30 @@ export default function MapLibreStatesExample() {
                   
                   if (e.isSourceLoaded) {
                     console.log('✅ States source fully loaded');
+                    
+                    // Inspect all loaded tiles to see what layers are available
+                    try {
+                      const source = map.getSource('states') as any;
+                      if (source?._tiles) {
+                        const tileKeys = Object.keys(source._tiles);
+                        console.log(`📊 Total tiles loaded: ${tileKeys.length}`);
+                        
+                        // Check first few tiles for layers
+                        tileKeys.slice(0, 3).forEach(key => {
+                          const tile = source._tiles[key];
+                          if (tile?.vectorTile?.layers) {
+                            const layers = Object.keys(tile.vectorTile.layers);
+                            console.log(`🔍 Tile ${key} has layers:`, layers);
+                            layers.forEach(layerName => {
+                              const layer = tile.vectorTile.layers[layerName];
+                              console.log(`   - ${layerName}: ${layer.length} features`);
+                            });
+                          }
+                        });
+                      }
+                    } catch (err) {
+                      console.warn('⚠️ Could not inspect source after load:', err);
+                    }
                   }
                 }
               });
@@ -156,6 +189,24 @@ export default function MapLibreStatesExample() {
           }
         }}
       />
+      
+      {/* Zoom level indicator */}
+      <div style={{
+        position: 'absolute',
+        bottom: '10px',
+        left: '10px',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        color: 'white',
+        padding: '8px 12px',
+        borderRadius: '4px',
+        fontSize: '14px',
+        fontFamily: 'monospace',
+        fontWeight: 'bold',
+        pointerEvents: 'none',
+        zIndex: 1000
+      }}>
+        Zoom: {zoom.toFixed(1)}
+      </div>
     </div>
   );
 }
@@ -235,58 +286,41 @@ function addStatesLayers(map: any) {
     console.error('   Full error:', error);
   }
 
-  // Skip labels layer for now - font issues and focus on getting polygons visible first
-  // try {
-  //   // Add states labels layer
-  //   if (!map.getLayer('states-labels')) {
-  //     map.addLayer({
-  //       id: 'states-labels',
-  //       type: 'symbol',
-  //       source: 'states',
-  //       'source-layer': 'states_labels',
-  //       layout: {
-  //         'text-field': ['get', 'NAME'],
-  //         'text-size': [
-  //           'interpolate',
-  //           ['linear'],
-  //           ['zoom'],
-  //           0, 8,
-  //           3, 12,
-  //           5, 16,
-  //           6, 18,
-  //           8, 24,
-  //           12, 30
-  //         ],
-  //         'text-font': ['Noto Sans Regular'],
-  //         'text-anchor': 'center',
-  //         'text-allow-overlap': true,
-  //         'text-ignore-placement': true,
-  //         'text-variable-anchor': ['center', 'top', 'bottom', 'left', 'right'],
-  //         'symbol-placement': 'point',
-  //         'text-padding': 2,
-  //         'text-optional': false
-  //       },
-  //       paint: {
-  //         'text-color': '#1e40af',
-  //         'text-halo-color': '#ffffff',
-  //         'text-halo-width': 3,
-  //         'text-halo-blur': 1,
-  //         'text-opacity': [
-  //           'interpolate',
-  //           ['linear'],
-  //           ['zoom'],
-  //           0, 0.7,
-  //           4, 0.9,
-  //           6, 1.0
-  //         ]
-  //       },
-  //       minzoom: 0
-  //     });
-  //     console.log('✅ States labels layer added (source-layer: states_labels)');
-  //   }
-  // } catch (error) {
-  //   console.error('❌ Error adding states labels layer:', error);
-  // }
+  // Add labels layer with absolute minimal configuration
+  try {
+    if (!map.getLayer('states-labels')) {
+      map.addLayer({
+        id: 'states-labels',
+        type: 'symbol',
+        source: 'states',
+        'source-layer': 'states_labels',
+        layout: {
+          'text-field': ['get', 'NAME'], // Just try uppercase NAME property
+          'text-size': 16
+          // NO text-font specified - let MapLibre use its default
+        },
+        paint: {
+          'text-color': '#ffffff',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2
+        },
+        minzoom: 3
+      });
+      console.log('✅ States labels layer added (source-layer: states_labels) - using default font');
+      
+      const addedLayer = map.getLayer('states-labels');
+      if (addedLayer) {
+        console.log('✅ Verified: states-labels layer exists in map');
+      } else {
+        console.error('❌ Labels layer was not added successfully!');
+      }
+    } else {
+      console.log('⚠️ States labels layer already exists');
+    }
+  } catch (error) {
+    console.error('❌ Error adding states labels layer:', error);
+    console.error('   Full error:', error);
+  }
 
   // Add hover effect
   let hoveredStateId: string | null = null;
