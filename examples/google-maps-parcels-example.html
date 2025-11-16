@@ -101,6 +101,93 @@
         // The .mvt extension is recommended (matches protomaps style: https://api.protomaps.com/tiles/v4/{z}/{x}/{y}.mvt)
         // The endpoint also works without .mvt, but including it is the preferred style
         const PARCEL_TILE_URL = `${BASE_URL}/parcels/tiles/{z}/{x}/{y}.mvt?key=${landmapApiKey}`;
+        
+        // Enhanced logging for debugging
+        function logTileRequest(z, x, y) {
+            const url = PARCEL_TILE_URL.replace('{z}', z).replace('{x}', x).replace('{y}', y);
+            console.log(`[Parcels MVT] 🗺️ Requesting tile: ${z}/${x}/${y}`);
+            console.log(`[Parcels MVT] 📍 URL: ${url}`);
+        }
+        
+        function logTileResponse(z, x, y, success, details = {}) {
+            if (success) {
+                console.log(`[Parcels MVT] ✅ Tile loaded: ${z}/${x}/${y}`, details);
+            } else {
+                console.error(`[Parcels MVT] ❌ Tile failed: ${z}/${x}/${y}`, details);
+            }
+        }
+        
+        function logFeatureData(features) {
+            if (!features || features.length === 0) {
+                console.log('[Parcels MVT] 📦 No features in tile');
+                return;
+            }
+            console.log(`[Parcels MVT] 📦 Tile contains ${features.length} parcel(s)`);
+            features.forEach((feature, index) => {
+                console.log(`[Parcels MVT]   Feature ${index + 1}:`, {
+                    id: feature.id,
+                    properties: feature.properties,
+                    geometry: feature.geometry ? {
+                        type: feature.geometry.type,
+                        coordinates: feature.geometry.coordinates ? 
+                            `${feature.geometry.coordinates.length} coordinate arrays` : 'no coordinates'
+                    } : 'no geometry'
+                });
+            });
+        }
+        
+        // Intercept fetch requests to log tile requests and responses
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            const url = args[0];
+            if (typeof url === 'string' && url.includes('/parcels/tiles/')) {
+                // Extract tile coordinates from URL
+                const match = url.match(/\/parcels\/tiles\/(\d+)\/(\d+)\/(\d+)/);
+                if (match) {
+                    const [, z, x, y] = match;
+                    console.log(`[Parcels MVT] 🌐 Fetch request: ${z}/${x}/${y}`);
+                    console.log(`[Parcels MVT] 📡 Full URL: ${url}`);
+                    
+                    const startTime = Date.now();
+                    return originalFetch.apply(this, args)
+                        .then(response => {
+                            const duration = Date.now() - startTime;
+                            console.log(`[Parcels MVT] 📥 Response received: ${z}/${x}/${y}`, {
+                                status: response.status,
+                                statusText: response.statusText,
+                                ok: response.ok,
+                                duration: `${duration}ms`,
+                                contentType: response.headers.get('content-type'),
+                                contentLength: response.headers.get('content-length'),
+                                headers: Object.fromEntries(response.headers.entries())
+                            });
+                            
+                            if (!response.ok) {
+                                // Try to read error response
+                                response.clone().text().then(text => {
+                                    console.error(`[Parcels MVT] ❌ Error response body:`, text.substring(0, 500));
+                                }).catch(e => {
+                                    console.error(`[Parcels MVT] ❌ Could not read error response:`, e);
+                                });
+                            }
+                            
+                            return response;
+                        })
+                        .catch(error => {
+                            const duration = Date.now() - startTime;
+                            console.error(`[Parcels MVT] ❌ Fetch error for ${z}/${x}/${y}:`, {
+                                error: error.message,
+                                stack: error.stack,
+                                duration: `${duration}ms`
+                            });
+                            throw error;
+                        });
+                }
+            }
+            return originalFetch.apply(this, args);
+        };
+        
+        console.log('[Parcels MVT] 🔧 Fetch interceptor installed - all tile requests will be logged');
 
         // Color scheme for parcels
         const PARCEL_COLORS = {
@@ -160,19 +247,29 @@
             let hoveredParcelId = null;
 
             // 2) Property Parcel MVT Layer
+            // Using simple MVTLayer configuration like the working CLU example
+            // This avoids the complexity of renderSubLayers
             const parcelLayer = new MVTLayer({
                 id: 'parcels',
                 data: PARCEL_TILE_URL,
                 minZoom: 14,  // Parcels available at zoom 14-17
                 maxZoom: 17,
                 
-                // Styling
+                // Specify which source-layer to load from the MVT tile
+                // ReportAll MVT tiles contain a 'parcels' source-layer
+                loadOptions: {
+                    mvt: {
+                        layers: ['parcels']  // Only load the 'parcels' source-layer
+                    }
+                },
+                
+                // Simple styling - let MVTLayer handle geometry types automatically
                 filled: true,
                 stroked: true,
                 
                 // Dynamic fill color based on hover state
                 getFillColor: (feature) => {
-                    const parcelId = feature.properties?.parcel_id || feature.properties?.id;
+                    const parcelId = feature.properties?.parcel_id || feature.properties?.id || feature.properties?.robust_id;
                     return parcelId === hoveredParcelId ? PARCEL_COLORS.highlight : PARCEL_COLORS.fill;
                 },
                 
@@ -185,20 +282,92 @@
                 pickable: true,
                 autoHighlight: false,  // We'll handle highlighting manually
                 
-                // Click handler
+                // Log tile loading events
+                // Note: onDataLoad may not be available in all deck.gl versions, but including it won't break
+                onDataLoad: (data) => {
+                    console.log('[Parcels MVT] 📥 onDataLoad event:', {
+                        type: data?.constructor?.name || typeof data,
+                        hasFeatures: data?.length > 0 || (data?.features && data.features.length > 0),
+                        dataKeys: data ? Object.keys(data) : [],
+                        sampleFeature: data?.[0] || data?.features?.[0] || null
+                    });
+                    if (data?.features) {
+                        logFeatureData(data.features);
+                    } else if (Array.isArray(data)) {
+                        logFeatureData(data);
+                    }
+                },
+                
+                // Log errors
+                onError: (error) => {
+                    console.error('[Parcels MVT] ❌ Layer error:', error);
+                    console.error('[Parcels MVT] Error details:', {
+                        message: error?.message,
+                        stack: error?.stack,
+                        name: error?.name,
+                        cause: error?.cause
+                    });
+                },
+                
+                // Click handler with detailed logging
                 onClick: (info) => {
-                    if (!info.object) return;
-                    const props = info.object.properties || {};
+                    console.log('[Parcels MVT] 🖱️ Click event:', {
+                        hasObject: !!info.object,
+                        coordinate: info.coordinate,
+                        pixel: info.pixel,
+                        index: info.index,
+                        layer: info.layer
+                    });
                     
-                    console.log('Parcel clicked:', props);
+                    if (!info.object) {
+                        console.log('[Parcels MVT] ⚠️ Clicked but no object found');
+                        return;
+                    }
+                    
+                    const props = info.object.properties || {};
+                    const geometry = info.object.geometry || {};
+                    
+                    console.log('[Parcels MVT] 📋 Clicked parcel details:', {
+                        properties: props,
+                        geometryType: geometry.type,
+                        hasCoordinates: !!geometry.coordinates,
+                        allPropertyKeys: Object.keys(props),
+                        propertyValues: Object.entries(props).reduce((acc, [key, value]) => {
+                            acc[key] = typeof value === 'object' ? JSON.stringify(value).substring(0, 100) : value;
+                            return acc;
+                        }, {})
+                    });
+                    
+                    // Log specific property values
+                    console.log('[Parcels MVT] 🏠 Property details:', {
+                        owner: props.owner,
+                        parcel_id: props.parcel_id,
+                        acreage_calc: props.acreage_calc,
+                        mkt_val_tot: props.mkt_val_tot,
+                        robust_id: props.robust_id,
+                        addr_full: props.addr_full,
+                        county_name: props.county_name,
+                        state_abbr: props.state_abbr
+                    });
+                    
                     alert(formatParcelInfo(props));
                 },
                 
-                // Hover handler
+                // Hover handler with logging
                 onHover: (info) => {
                     const newHoveredId = info.object?.properties?.parcel_id || info.object?.properties?.id || null;
                     
                     if (newHoveredId !== hoveredParcelId) {
+                        if (newHoveredId) {
+                            console.log('[Parcels MVT] 🎯 Hovering over parcel:', {
+                                parcel_id: newHoveredId,
+                                properties: info.object?.properties || {},
+                                coordinate: info.coordinate
+                            });
+                        } else {
+                            console.log('[Parcels MVT] 👋 Hover ended');
+                        }
+                        
                         hoveredParcelId = newHoveredId;
                         overlay.setProps({ layers: [parcelLayer] });  // Trigger re-render
                         
@@ -206,6 +375,16 @@
                         document.body.style.cursor = hoveredParcelId ? 'pointer' : 'default';
                     }
                 }
+            });
+            
+            // Intercept tile requests by wrapping the data URL
+            // Note: deck.gl doesn't expose tile request events directly, but we can log when tiles are requested
+            console.log('[Parcels MVT] 🔧 Layer configuration:', {
+                id: parcelLayer.id,
+                data: PARCEL_TILE_URL,
+                minZoom: 14,
+                maxZoom: 17,
+                pickable: true
             });
 
             // 3) Mount on Google Maps
@@ -221,10 +400,42 @@
                 if (infoBox) {
                     infoBox.innerHTML = `<strong>Zoom:</strong> ${zoom} ${zoom < 14 ? '(zoom in to see parcels)' : '✓'}`;
                 }
+                console.log(`[Parcels MVT] 🔍 Zoom changed to: ${zoom} ${zoom >= 14 && zoom <= 17 ? '(parcels visible)' : '(parcels not available at this zoom)'}`);
+            });
+            
+            // Log map bounds changes to see what tiles should be loading
+            map.addListener('bounds_changed', () => {
+                const bounds = map.getBounds();
+                const center = map.getCenter();
+                const zoom = map.getZoom();
+                
+                if (zoom >= 14 && zoom <= 17) {
+                    // Calculate approximate tile coordinates for center
+                    const lat = center.lat();
+                    const lng = center.lng();
+                    const n = Math.pow(2, zoom);
+                    const x = Math.floor((lng + 180) / 360 * n);
+                    const latRad = lat * Math.PI / 180;
+                    const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
+                    
+                    console.log(`[Parcels MVT] 🗺️ Map bounds changed:`, {
+                        zoom: zoom,
+                        center: { lat, lng },
+                        bounds: {
+                            north: bounds.getNorthEast().lat(),
+                            south: bounds.getSouthWest().lat(),
+                            east: bounds.getNorthEast().lng(),
+                            west: bounds.getSouthWest().lng()
+                        },
+                        approximateCenterTile: `${zoom}/${x}/${y}`
+                    });
+                }
             });
 
             console.log('✅ Map initialized with property parcel data');
             console.log('📍 Parcels will be visible at zoom level 14+');
+            console.log('🔍 Open browser console to see detailed tile loading and feature data');
+            console.log('[Parcels MVT] 📊 All tile requests, responses, and feature data will be logged here');
         }
 
         // Auto-initialize on load
