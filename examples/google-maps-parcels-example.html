@@ -243,46 +243,51 @@
                 mapTypeId: 'satellite'
             });
 
-            // Track hovered parcel
-            let hoveredParcelId = null;
+            // Track hovered parcel - use object reference for efficient updates
+            const hoverState = { parcelId: null, updateCounter: 0 };
 
-            // 2) Property Parcel MVT Layer
-            // Using simple MVTLayer configuration like the working CLU example
-            // This avoids the complexity of renderSubLayers
-            const parcelLayer = new MVTLayer({
-                id: 'parcels',
-                data: PARCEL_TILE_URL,
-                minZoom: 14,  // Parcels available at zoom 14-17
-                maxZoom: 17,
+            // Function to create the parcel layer with current hover state
+            function createParcelLayer() {
+                return new MVTLayer({
+                    id: 'parcels',
+                    data: PARCEL_TILE_URL,
+                    minZoom: 14,  // Parcels available at zoom 14-17
+                    maxZoom: 17,
+                    
+                    // Specify which source-layer to load from the MVT tile
+                    // ReportAll MVT tiles contain a 'parcels' source-layer
+                    loadOptions: {
+                        mvt: {
+                            layers: ['parcels']  // Only load the 'parcels' source-layer
+                        }
+                    },
+                    
+                    // Simple styling - let MVTLayer handle geometry types automatically
+                    filled: true,
+                    stroked: true,
+                    
+                    // Dynamic fill color based on hover state
+                    getFillColor: (feature) => {
+                        const parcelId = feature.properties?.parcel_id || feature.properties?.id || feature.properties?.robust_id;
+                        return parcelId === hoverState.parcelId ? PARCEL_COLORS.highlight : PARCEL_COLORS.fill;
+                    },
+                    
+                    getLineColor: PARCEL_COLORS.stroke,
+                    getLineWidth: 2,
+                    lineWidthMinPixels: 1,
+                    lineWidthMaxPixels: 3,
+                    
+                    // Make pickable for click/hover
+                    pickable: true,
+                    autoHighlight: false,  // We'll handle highlighting manually
+                    
+                    // Use updateTriggers to efficiently update styling on hover
+                    // The counter changes when hover changes, triggering a re-evaluation
+                    updateTriggers: {
+                        getFillColor: hoverState.updateCounter
+                    },
                 
-                // Specify which source-layer to load from the MVT tile
-                // ReportAll MVT tiles contain a 'parcels' source-layer
-                loadOptions: {
-                    mvt: {
-                        layers: ['parcels']  // Only load the 'parcels' source-layer
-                    }
-                },
-                
-                // Simple styling - let MVTLayer handle geometry types automatically
-                filled: true,
-                stroked: true,
-                
-                // Dynamic fill color based on hover state
-                getFillColor: (feature) => {
-                    const parcelId = feature.properties?.parcel_id || feature.properties?.id || feature.properties?.robust_id;
-                    return parcelId === hoveredParcelId ? PARCEL_COLORS.highlight : PARCEL_COLORS.fill;
-                },
-                
-                getLineColor: PARCEL_COLORS.stroke,
-                getLineWidth: 2,
-                lineWidthMinPixels: 1,
-                lineWidthMaxPixels: 3,
-                
-                // Make pickable for click/hover
-                pickable: true,
-                autoHighlight: false,  // We'll handle highlighting manually
-                
-                // Log tile loading events
+                    // Log tile loading events
                 // Note: onDataLoad may not be available in all deck.gl versions, but including it won't break
                 onDataLoad: (data) => {
                     console.log('[Parcels MVT] 📥 onDataLoad event:', {
@@ -353,11 +358,11 @@
                     alert(formatParcelInfo(props));
                 },
                 
-                // Hover handler with logging
+                // Hover handler - efficient update using updateTriggers
                 onHover: (info) => {
-                    const newHoveredId = info.object?.properties?.parcel_id || info.object?.properties?.id || null;
+                    const newHoveredId = info.object?.properties?.parcel_id || info.object?.properties?.id || info.object?.properties?.robust_id || null;
                     
-                    if (newHoveredId !== hoveredParcelId) {
+                    if (newHoveredId !== hoverState.parcelId) {
                         if (newHoveredId) {
                             console.log('[Parcels MVT] 🎯 Hovering over parcel:', {
                                 parcel_id: newHoveredId,
@@ -368,14 +373,25 @@
                             console.log('[Parcels MVT] 👋 Hover ended');
                         }
                         
-                        hoveredParcelId = newHoveredId;
-                        overlay.setProps({ layers: [parcelLayer] });  // Trigger re-render
+                        // Update hover state and increment counter to trigger re-render
+                        hoverState.parcelId = newHoveredId;
+                        hoverState.updateCounter++;
+                        
+                        // Update overlay with new layer that has updated trigger
+                        // This is efficient because deck.gl only re-evaluates getFillColor, not the entire layer
+                        overlay.setProps({ 
+                            layers: [createParcelLayer()]
+                        });
                         
                         // Change cursor
-                        document.body.style.cursor = hoveredParcelId ? 'pointer' : 'default';
+                        document.body.style.cursor = hoverState.parcelId ? 'pointer' : 'default';
                     }
                 }
             });
+            }
+            
+            // Create initial parcel layer
+            const parcelLayer = createParcelLayer();
             
             // Intercept tile requests by wrapping the data URL
             // Note: deck.gl doesn't expose tile request events directly, but we can log when tiles are requested
