@@ -14,7 +14,7 @@ interface Example {
   tags: {
     framework: 'react' | 'html';
     sdk: 'maplibre' | 'mapbox' | 'google-maps' | 'arcgis' | 'deck.gl';
-    data: ('clu' | 'states' | 'parcels')[];
+    data: ('clu' | 'states' | 'counties' | 'parcels')[];
     features: ('selection' | 'hover' | 'labels' | 'aoi-query' | 'click-to-zoom')[];
   };
 }
@@ -84,6 +84,20 @@ const EXAMPLES: Example[] = [
       framework: 'html',
       sdk: 'google-maps',
       data: ['states'],
+      features: ['hover', 'click-to-zoom']
+    }
+  },
+  {
+    id: 'google-maps-counties',
+    title: 'Google Maps Counties',
+    description: 'Google Maps with US county boundaries - hover and click to zoom',
+    category: 'html',
+    path: '/google-maps-counties-example.html',
+    icon: '🏛️',
+    tags: {
+      framework: 'html',
+      sdk: 'google-maps',
+      data: ['counties'],
       features: ['hover', 'click-to-zoom']
     }
   },
