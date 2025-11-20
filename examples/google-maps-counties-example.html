@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LandMapMagic - Google Maps + Counties</title>
-    
+
     <style>
-        html, body, #map {
+        html,
+        body,
+        #map {
             height: 100%;
             margin: 0;
             padding: 0;
@@ -17,6 +20,7 @@
     <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
     <script src="https://unpkg.com/@deck.gl/google-maps@^9.0.0/dist.min.js"></script>
 </head>
+
 <body>
     <div id="map"></div>
 
@@ -45,7 +49,7 @@
         const googleApiKey = (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('VITE_')) ? GOOGLE_MAPS_KEY : '';
         const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
         const BASE_URL = (BASE_URL_ENV && !BASE_URL_ENV.includes('VITE_')) ? BASE_URL_ENV : 'https://api.landmapmagic.com';
-        
+
         // Note: 'dev' fallback only works in development environment
         // For staging/production, you must set VITE_LAND_MAP_MAGIC_API_KEY and VITE_LAND_MAP_MAGIC_API_URL in .env.local
 
@@ -66,7 +70,7 @@
                 }
 
                 window.initGoogleMapCallback = resolve;
-                
+
                 const script = document.createElement('script');
                 script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&callback=initGoogleMapCallback`;
                 script.async = true;
@@ -124,48 +128,103 @@
             const countiesPolygons = new MVTLayer({
                 id: 'counties-polygons',
                 data: TILE_URL,
-                loadOptions: { 
-                    mvt: { 
+                loadOptions: {
+                    mvt: {
                         layers: ['counties']  // Only load 'counties' layer for polygons
-                    } 
+                    }
                 },
                 minZoom: 0,
                 maxZoom: 12,
                 filled: true,  // Enable fill for hover effect
                 stroked: true,
                 getFillColor: [0, 0, 0, 0],  // Transparent fill (no color)
-                getLineColor: [59, 130, 246, 230], // Blue outline
-                getLineWidth: 1.5,
-                lineWidthMinPixels: 1,
-                lineWidthMaxPixels: 3,
+                getLineColor: [253, 224, 71, 230], // #fde047 yellow (Matches CLU)
+                getLineWidth: 2,
+                lineWidthMinPixels: 2,
+                lineWidthMaxPixels: 4,
                 pickable: true,
                 autoHighlight: true,
-                highlightColor: [59, 130, 246, 80],  // Light blue on hover only
-                
+                highlightColor: [253, 224, 71, 80],  // Light yellow on hover only
+
                 // Hover handler for cursor
                 onHover: (info) => {
                     map.getDiv().style.cursor = info.object ? 'pointer' : '';
                 },
-                
+
                 // Click handler - zoom to county bounds
                 onClick: (info) => {
                     if (!info.object) return;
-                    
+
                     const props = info.object.properties || {};
                     const countyName = props.NAME || props.name || 'Unknown';
                     const stateName = props.STATE_NAME || props.state_name || '';
-                    
+
                     console.log(`🗺️ Clicked: ${countyName}${stateName ? ', ' + stateName : ''}`);
-                    
+
                     // Calculate bounds and zoom to county
                     const bounds = getGeometryBounds(info.object.geometry);
                     map.fitBounds(bounds, { padding: 50 });
                 }
             });
 
-            // 3) Mount on Google Maps
+            // 3) Counties Labels as TEXT (source-layer "counties_labels")
+            const countiesLabels = new MVTLayer({
+                id: 'counties-labels',
+                data: TILE_URL,
+                binary: false,  // Required to use TextLayer in renderSubLayers
+                loadOptions: {
+                    mvt: {
+                        layers: ['counties_labels']  // Only load 'counties_labels' layer for points
+                    }
+                },
+                minZoom: 6,  // Labels start at zoom 6 (increased from 5 to reduce crowding)
+                maxZoom: 12,
+                pickable: false,
+
+                // Override renderSubLayers to turn point features into TextLayer
+                renderSubLayers: (sublayerProps) => {
+                    const { data } = sublayerProps;
+
+                    if (!data || !data.length) {
+                        return null;
+                    }
+
+                    return new TextLayer({
+                        ...sublayerProps,
+                        id: `${sublayerProps.id}-text`,
+                        data,
+                        // MVT points come through as GeoJSON features
+                        getPosition: (f) => f.geometry.coordinates,
+                        getText: (f) => {
+                            const props = f.properties || {};
+                            return props.NAME || props.name || '';
+                        },
+                        getSize: 13,
+                        sizeUnits: 'pixels',
+                        getColor: [0, 0, 0, 255],  // Black text
+                        getTextAnchor: 'middle',
+                        getAlignmentBaseline: 'center',
+
+                        // White outline for contrast - requires SDF fonts
+                        fontSettings: {
+                            sdf: true,
+                            fontSize: 64,
+                            buffer: 4
+                        },
+                        outlineWidth: 6,  // White outline
+                        outlineColor: [255, 255, 255, 255],
+
+                        // Font styling
+                        fontFamily: 'Arial, sans-serif',
+
+                        pickable: false
+                    });
+                }
+            });
+
+            // 4) Mount on Google Maps
             const overlay = new GoogleMapsOverlay({
-                layers: [countiesPolygons]
+                layers: [countiesPolygons, countiesLabels]
             });
             overlay.setMap(map);
 
@@ -179,5 +238,5 @@
         });
     </script>
 </body>
-</html>
 
+</html>

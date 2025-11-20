@@ -296,6 +296,26 @@ function App() {
 
   const hasActiveFilters = Object.values(selectedFilters).some(arr => arr.length > 0);
 
+  // Extract all unique data layers from examples
+  const allDataLayers = Array.from(
+    new Set(EXAMPLES.flatMap(example => example.tags.data))
+  ).sort();
+
+  // Extract all unique SDKs from examples
+  const allSDKs = Array.from(
+    new Set(EXAMPLES.map(example => example.tags.sdk))
+  ).sort();
+
+  // Extract all unique frameworks from examples
+  const allFrameworks = Array.from(
+    new Set(EXAMPLES.map(example => example.tags.framework))
+  ).sort();
+
+  // Extract all unique features from examples
+  const allFeatures = Array.from(
+    new Set(EXAMPLES.flatMap(example => example.tags.features))
+  ).sort();
+
   // Show example selector
   if (currentView === 'home') {
     return (
@@ -349,7 +369,7 @@ function App() {
           {/* Framework Filter */}
           <FilterSection
             title="Framework"
-            options={['react', 'html']}
+            options={allFrameworks}
             selected={selectedFilters.framework}
             onToggle={(val) => toggleFilter('framework', val)}
           />
@@ -357,7 +377,7 @@ function App() {
           {/* SDK Filter */}
           <FilterSection
             title="Map SDK"
-            options={['maplibre', 'mapbox', 'google-maps', 'arcgis']}
+            options={allSDKs}
             selected={selectedFilters.sdk}
             onToggle={(val) => toggleFilter('sdk', val)}
           />
@@ -365,7 +385,7 @@ function App() {
           {/* Data Filter */}
           <FilterSection
             title="Data Layer"
-            options={['clu', 'states', 'parcels']}
+            options={allDataLayers}
             selected={selectedFilters.data}
             onToggle={(val) => toggleFilter('data', val)}
           />
@@ -373,7 +393,7 @@ function App() {
           {/* Features Filter */}
           <FilterSection
             title="Features"
-            options={['selection', 'hover', 'labels', 'aoi-query', 'click-to-zoom']}
+            options={allFeatures}
             selected={selectedFilters.features}
             onToggle={(val) => toggleFilter('features', val)}
           />
