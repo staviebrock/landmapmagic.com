@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LandMapMagic - Google Maps + Townships</title>
+
+    <style>
+        html,
+        body,
+        #map {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+
+    <!-- deck.gl dependencies for Google Maps integration -->
+    <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+    <script src="https://unpkg.com/@deck.gl/google-maps@^9.0.0/dist.min.js"></script>
+</head>
+
+<body>
+    <div id="map"></div>
+
+    <!-- Google Maps API will be loaded dynamically -->
+
+    <script>
+        /**
+         * LandMapMagic Google Maps Integration - Townships
+         * 
+         * Simple example showing PLSS township boundaries + labels
+         * using deck.gl MVTLayer with vector tiles backend
+         */
+
+        // Access deck.gl classes from global namespace (loaded via script tags)
+        const { GoogleMapsOverlay } = deck;
+        const { MVTLayer } = deck;
+        const { TextLayer } = deck;
+
+        // Environment variables injected by Vite at build/serve time
+        // To set up: Copy env.example to .env.local and add your API keys
+        const GOOGLE_MAPS_KEY = '%VITE_GOOGLE_MAPS_API_KEY%';
+        const LANDMAP_KEY = '%VITE_LAND_MAP_MAGIC_API_KEY%';
+        const BASE_URL_ENV = '%VITE_LAND_MAP_MAGIC_API_URL%';
+
+        // Check if env vars are set (not placeholders)
+        const googleApiKey = (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('VITE_')) ? GOOGLE_MAPS_KEY : '';
+        const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
+        const BASE_URL = (BASE_URL_ENV && !BASE_URL_ENV.includes('VITE_')) ? BASE_URL_ENV : 'https://api.landmapmagic.com';
+
+        // Note: 'dev' fallback only works in development environment
+        // For staging/production, you must set VITE_LAND_MAP_MAGIC_API_KEY and VITE_LAND_MAP_MAGIC_API_URL in .env.local
+
+        if (!googleApiKey) {
+            document.body.innerHTML = '<div style="padding:20px;color:red;">Missing VITE_GOOGLE_MAPS_API_KEY in .env.local</div>';
+            throw new Error('Missing Google Maps API key');
+        }
+
+        // Your LandMapMagic API endpoint for townships
+        const TILE_URL = `${BASE_URL}/townships/{z}/{x}/{y}?key=${landmapApiKey}`;
+
+        // Load Google Maps dynamically
+        function loadGoogleMaps() {
+            return new Promise((resolve, reject) => {
+                if (typeof google !== 'undefined' && google.maps) {
+                    resolve();
+                    return;
+                }
+
+                window.initGoogleMapCallback = resolve;
+
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&callback=initGoogleMapCallback`;
+                script.async = true;
+                script.defer = true;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // Helper to calculate bounds from geometry
+        function getGeometryBounds(geometry) {
+            let minLat = Infinity, maxLat = -Infinity;
+            let minLng = Infinity, maxLng = -Infinity;
+
+            function processCoords(coords) {
+                if (typeof coords[0] === 'number') {
+                    // Single coordinate [lng, lat]
+                    minLng = Math.min(minLng, coords[0]);
+                    maxLng = Math.max(maxLng, coords[0]);
+                    minLat = Math.min(minLat, coords[1]);
+                    maxLat = Math.max(maxLat, coords[1]);
+                } else {
+                    // Array of coordinates
+                    coords.forEach(processCoords);
+                }
+            }
+
+            if (geometry.type === 'Polygon') {
+                processCoords(geometry.coordinates);
+            } else if (geometry.type === 'MultiPolygon') {
+                geometry.coordinates.forEach(polygon => processCoords(polygon));
+            }
+
+            return {
+                north: maxLat,
+                south: minLat,
+                east: maxLng,
+                west: minLng
+            };
+        }
+
+        // Initialize map
+        async function initMap() {
+            await loadGoogleMaps();
+
+            // 1) Create Google Map - centered on USA
+            const map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 39.8283, lng: -98.5795 }, // Center of USA
+                zoom: 8, // Start at zoom 8 to see townships
+                mapId: 'DEMO_MAP_ID',
+                mapTypeId: 'satellite'
+            });
+
+            // 2) Townships Polygons (source-layer "townships")
+            const townshipsPolygons = new MVTLayer({
+                id: 'townships-polygons',
+                data: TILE_URL,
+                loadOptions: {
+                    mvt: {
+                        layers: ['townships']  // Only load 'townships' layer for polygons
+                    }
+                },
+                minZoom: 8,
+                maxZoom: 15,
+                filled: true,  // Enable fill for hover effect
+                stroked: true,
+                getFillColor: [0, 0, 0, 0],  // Transparent fill (no color)
+                getLineColor: [253, 224, 71, 230], // #fde047 yellow (Matches PLSS styling)
+                getLineWidth: 2,
+                lineWidthMinPixels: 1,
+                lineWidthMaxPixels: 3,
+                pickable: true,
+                autoHighlight: true,
+                highlightColor: [254, 240, 138, 80],  // Light yellow on hover
+
+                // Hover handler for cursor
+                onHover: (info) => {
+                    map.getDiv().style.cursor = info.object ? 'pointer' : '';
+                },
+
+                // Click handler - zoom to township bounds
+                onClick: (info) => {
+                    if (!info.object) return;
+
+                    const props = info.object.properties || {};
+                    const township = props.township || props.TOWNSHIP || 'Unknown';
+                    const range = props.range || props.RANGE || '';
+
+                    console.log(`🗺️ Clicked: Township ${township}${range ? ', Range ' + range : ''}`);
+
+                    // Calculate bounds and zoom to township
+                    const bounds = getGeometryBounds(info.object.geometry);
+                    map.fitBounds(bounds, { padding: 50 });
+                }
+            });
+
+            // 3) Townships Labels as TEXT (source-layer "townships_labels")
+            const townshipsLabels = new MVTLayer({
+                id: 'townships-labels',
+                data: TILE_URL,
+                binary: false,  // Required to use TextLayer in renderSubLayers
+                loadOptions: {
+                    mvt: {
+                        layers: ['townships_labels']  // Only load 'townships_labels' layer for points
+                    }
+                },
+                minZoom: 10,  // Labels start at zoom 10
+                maxZoom: 15,
+                pickable: false,
+
+                // Override renderSubLayers to turn point features into TextLayer
+                renderSubLayers: (sublayerProps) => {
+                    const { data } = sublayerProps;
+
+                    if (!data || !data.length) {
+                        return null;
+                    }
+
+                    return new TextLayer({
+                        ...sublayerProps,
+                        id: `${sublayerProps.id}-text`,
+                        data,
+                        // MVT points come through as GeoJSON features
+                        getPosition: (f) => f.geometry.coordinates,
+                        getText: (f) => {
+                            const props = f.properties || {};
+                            // Try label field first, then construct from township/range
+                            return props.label || 
+                                   (props.township && props.range ? `${props.township} ${props.range}` : '') ||
+                                   (props.TOWNSHIP && props.RANGE ? `${props.TOWNSHIP} ${props.RANGE}` : '') ||
+                                   '';
+                        },
+                        getSize: 12,
+                        sizeUnits: 'pixels',
+                        getColor: [30, 64, 175, 255],  // Blue text (#1e40af)
+                        getTextAnchor: 'middle',
+                        getAlignmentBaseline: 'center',
+
+                        // White outline for contrast - requires SDF fonts
+                        fontSettings: {
+                            sdf: true,
+                            fontSize: 64,
+                            buffer: 4
+                        },
+                        outlineWidth: 6,  // White outline
+                        outlineColor: [255, 255, 255, 255],
+
+                        // Font styling
+                        fontFamily: 'Arial, sans-serif',
+
+                        pickable: false
+                    });
+                }
+            });
+
+            // 4) Mount on Google Maps
+            const overlay = new GoogleMapsOverlay({
+                layers: [townshipsPolygons, townshipsLabels]
+            });
+            overlay.setMap(map);
+
+            console.log('✅ Map initialized with Townships data');
+        }
+
+        // Auto-initialize on load
+        initMap().catch((error) => {
+            console.error('Failed to initialize map:', error);
+            document.body.innerHTML = `<div style="padding:20px;color:red;">Failed to load map: ${error.message}</div>`;
+        });
+    </script>
+</body>
+
+</html>
+

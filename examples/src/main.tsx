@@ -11,12 +11,12 @@ interface Example {
   category: 'react' | 'html';
   path?: string;
   icon: string;
-  tags: {
-    framework: 'react' | 'html';
-    sdk: 'maplibre' | 'mapbox' | 'google-maps' | 'arcgis' | 'deck.gl';
-    data: ('clu' | 'states' | 'counties' | 'parcels')[];
-    features: ('selection' | 'hover' | 'labels' | 'aoi-query' | 'click-to-zoom')[];
-  };
+    tags: {
+      framework: 'react' | 'html';
+      sdk: 'maplibre' | 'mapbox' | 'google-maps' | 'arcgis' | 'deck.gl';
+      data: ('clu' | 'states' | 'counties' | 'parcels' | 'townships')[];
+      features: ('selection' | 'hover' | 'labels' | 'aoi-query' | 'click-to-zoom')[];
+    };
 }
 
 const EXAMPLES: Example[] = [
@@ -98,6 +98,20 @@ const EXAMPLES: Example[] = [
       framework: 'html',
       sdk: 'google-maps',
       data: ['counties'],
+      features: ['hover', 'click-to-zoom']
+    }
+  },
+  {
+    id: 'google-maps-townships',
+    title: 'Google Maps Townships',
+    description: 'Google Maps with PLSS township boundaries - hover and click to zoom',
+    category: 'html',
+    path: '/google-maps-townships-example.html',
+    icon: '🏘️',
+    tags: {
+      framework: 'html',
+      sdk: 'google-maps',
+      data: ['townships'],
       features: ['hover', 'click-to-zoom']
     }
   },
