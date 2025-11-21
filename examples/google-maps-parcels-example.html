@@ -1,17 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LandMapMagic - Google Maps + Parcels</title>
-    
+
     <style>
-        html, body, #map {
+        html,
+        body,
+        #map {
             height: 100%;
             margin: 0;
             padding: 0;
         }
-        
+
         .info-box {
             position: absolute;
             top: 10px;
@@ -19,24 +22,24 @@
             background: rgba(255, 255, 255, 0.95);
             padding: 15px;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
             font-family: Arial, sans-serif;
             font-size: 13px;
             max-width: 300px;
             z-index: 100;
         }
-        
+
         .info-box h3 {
             margin: 0 0 10px 0;
             font-size: 15px;
             color: #333;
         }
-        
+
         .info-box p {
             margin: 5px 0;
             color: #666;
         }
-        
+
         .info-box .tip {
             margin-top: 10px;
             padding: 8px;
@@ -51,13 +54,20 @@
     <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
     <script src="https://unpkg.com/@deck.gl/google-maps@^9.0.0/dist.min.js"></script>
 </head>
+
 <body>
     <div id="map"></div>
-    
+
     <div class="info-box">
         <h3>🏘️ Property Parcels</h3>
         <p><strong>Layer:</strong> Property Parcels (MVT)</p>
         <p><strong>Zoom:</strong> 14-17 (zoom in to see parcels)</p>
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="checkbox" id="show-labels" checked style="margin-right: 8px;">
+                Show Owner Labels
+            </label>
+        </div>
         <div class="tip">
             💡 Click on a parcel to view ownership and property details
         </div>
@@ -76,6 +86,7 @@
         // Access deck.gl classes from global namespace (loaded via script tags)
         const { GoogleMapsOverlay } = deck;
         const { MVTLayer } = deck;
+        const { TextLayer } = deck;
 
         // Environment variables injected by Vite at build/serve time
         // To set up: Copy env.example to .env.local and add your API keys
@@ -87,7 +98,7 @@
         const googleApiKey = (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('VITE_')) ? GOOGLE_MAPS_KEY : '';
         const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
         const BASE_URL = (BASE_URL_ENV && !BASE_URL_ENV.includes('VITE_')) ? BASE_URL_ENV : 'https://api.landmapmagic.com';
-        
+
         // Note: 'dev' fallback only works in development environment
         // For staging/production, you must set VITE_LAND_MAP_MAGIC_API_KEY and VITE_LAND_MAP_MAGIC_API_URL in .env.local
 
@@ -101,14 +112,14 @@
         // The .mvt extension is recommended (matches protomaps style: https://api.protomaps.com/tiles/v4/{z}/{x}/{y}.mvt)
         // The endpoint also works without .mvt, but including it is the preferred style
         const PARCEL_TILE_URL = `${BASE_URL}/parcels/tiles/{z}/{x}/{y}.mvt?key=${landmapApiKey}`;
-        
+
         // Enhanced logging for debugging
         function logTileRequest(z, x, y) {
             const url = PARCEL_TILE_URL.replace('{z}', z).replace('{x}', x).replace('{y}', y);
             console.log(`[Parcels MVT] 🗺️ Requesting tile: ${z}/${x}/${y}`);
             console.log(`[Parcels MVT] 📍 URL: ${url}`);
         }
-        
+
         function logTileResponse(z, x, y, success, details = {}) {
             if (success) {
                 console.log(`[Parcels MVT] ✅ Tile loaded: ${z}/${x}/${y}`, details);
@@ -116,7 +127,7 @@
                 console.error(`[Parcels MVT] ❌ Tile failed: ${z}/${x}/${y}`, details);
             }
         }
-        
+
         function logFeatureData(features) {
             if (!features || features.length === 0) {
                 console.log('[Parcels MVT] 📦 No features in tile');
@@ -129,16 +140,16 @@
                     properties: feature.properties,
                     geometry: feature.geometry ? {
                         type: feature.geometry.type,
-                        coordinates: feature.geometry.coordinates ? 
+                        coordinates: feature.geometry.coordinates ?
                             `${feature.geometry.coordinates.length} coordinate arrays` : 'no coordinates'
                     } : 'no geometry'
                 });
             });
         }
-        
+
         // Intercept fetch requests to log tile requests and responses
         const originalFetch = window.fetch;
-        window.fetch = function(...args) {
+        window.fetch = function (...args) {
             const url = args[0];
             if (typeof url === 'string' && url.includes('/parcels/tiles/')) {
                 // Extract tile coordinates from URL
@@ -147,7 +158,7 @@
                     const [, z, x, y] = match;
                     console.log(`[Parcels MVT] 🌐 Fetch request: ${z}/${x}/${y}`);
                     console.log(`[Parcels MVT] 📡 Full URL: ${url}`);
-                    
+
                     const startTime = Date.now();
                     return originalFetch.apply(this, args)
                         .then(response => {
@@ -161,7 +172,7 @@
                                 contentLength: response.headers.get('content-length'),
                                 headers: Object.fromEntries(response.headers.entries())
                             });
-                            
+
                             if (!response.ok) {
                                 // Try to read error response
                                 response.clone().text().then(text => {
@@ -170,7 +181,7 @@
                                     console.error(`[Parcels MVT] ❌ Could not read error response:`, e);
                                 });
                             }
-                            
+
                             return response;
                         })
                         .catch(error => {
@@ -186,14 +197,14 @@
             }
             return originalFetch.apply(this, args);
         };
-        
+
         console.log('[Parcels MVT] 🔧 Fetch interceptor installed - all tile requests will be logged');
 
-        // Color scheme for parcels
+        // Color scheme for parcels - Updated to Yellow Theme
         const PARCEL_COLORS = {
-            fill: [200, 220, 240, 120],      // Light blue with transparency
-            stroke: [37, 99, 235, 255],      // Bright blue border
-            highlight: [250, 204, 21, 200]   // Yellow highlight on hover
+            fill: [0, 0, 0, 0],              // Transparent fill
+            stroke: [253, 224, 71, 230],     // Yellow border (#fde047)
+            highlight: [253, 224, 71, 80]    // Light yellow highlight on hover
         };
 
         // Load Google Maps dynamically
@@ -205,7 +216,7 @@
                 }
 
                 window.initGoogleMapCallback = resolve;
-                
+
                 const script = document.createElement('script');
                 script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&callback=initGoogleMapCallback`;
                 script.async = true;
@@ -221,13 +232,15 @@
             const acreage = properties.acreage_calc || properties.acreage || 'Unknown';
             const marketValue = properties.mkt_val_tot || properties.market_value || 'Unknown';
             const parcelId = properties.parcel_id || properties.id || 'N/A';
-            
+            const address = properties.addr_full || 'N/A';
+
             let info = `🏠 Parcel Information\n\n`;
             info += `Owner: ${owner}\n`;
+            info += `Address: ${address}\n`;
             info += `Acreage: ${typeof acreage === 'number' ? acreage.toFixed(2) : acreage} ac\n`;
             info += `Market Value: ${typeof marketValue === 'number' ? '$' + marketValue.toLocaleString() : marketValue}\n`;
             info += `Parcel ID: ${parcelId}`;
-            
+
             return info;
         }
 
@@ -237,7 +250,7 @@
 
             // 1) Create Google Map centered on Des Moines, IA
             const map = new google.maps.Map(document.getElementById('map'), {
-                center: { lat: 41.5868, lng: -93.6250 },  // Des Moines, IA
+                center: { lat: 44.4403, lng: -90.1081 },  // 1 mile east of Pittsville, WI
                 zoom: 15,  // Start at zoom 15 to see parcels
                 mapId: 'DEMO_MAP_ID',
                 mapTypeId: 'satellite'
@@ -246,6 +259,9 @@
             // Track hovered parcel - use object reference for efficient updates
             const hoverState = { parcelId: null, updateCounter: 0 };
 
+            // Track label visibility
+            let showLabels = true;
+
             // Function to create the parcel layer with current hover state
             function createParcelLayer() {
                 return new MVTLayer({
@@ -253,7 +269,10 @@
                     data: PARCEL_TILE_URL,
                     minZoom: 14,  // Parcels available at zoom 14-17
                     maxZoom: 17,
-                    
+                    binary: false, // Ensure we get GeoJSON features for TextLayer accessors
+
+                    uniqueIdProperty: 'parcel_id', // Use parcel_id to identify unique features
+
                     // Specify which source-layer to load from the MVT tile
                     // ReportAll MVT tiles contain a 'parcels' source-layer
                     loadOptions: {
@@ -261,138 +280,221 @@
                             layers: ['parcels']  // Only load the 'parcels' source-layer
                         }
                     },
-                    
+
                     // Simple styling - let MVTLayer handle geometry types automatically
                     filled: true,
                     stroked: true,
-                    
+
+                    // Force update when label visibility changes
+                    updateTriggers: {
+                        getFillColor: hoverState.updateCounter,
+                        renderSubLayers: showLabels
+                    },
+
                     // Dynamic fill color based on hover state
                     getFillColor: (feature) => {
                         const parcelId = feature.properties?.parcel_id || feature.properties?.id || feature.properties?.robust_id;
                         return parcelId === hoverState.parcelId ? PARCEL_COLORS.highlight : PARCEL_COLORS.fill;
                     },
-                    
+
                     getLineColor: PARCEL_COLORS.stroke,
                     getLineWidth: 2,
                     lineWidthMinPixels: 1,
                     lineWidthMaxPixels: 3,
-                    
+
                     // Make pickable for click/hover
                     pickable: true,
                     autoHighlight: false,  // We'll handle highlighting manually
-                    
-                    // Use updateTriggers to efficiently update styling on hover
-                    // The counter changes when hover changes, triggering a re-evaluation
-                    updateTriggers: {
-                        getFillColor: hoverState.updateCounter
-                    },
-                
-                    // Log tile loading events
-                // Note: onDataLoad may not be available in all deck.gl versions, but including it won't break
-                onDataLoad: (data) => {
-                    console.log('[Parcels MVT] 📥 onDataLoad event:', {
-                        type: data?.constructor?.name || typeof data,
-                        hasFeatures: data?.length > 0 || (data?.features && data.features.length > 0),
-                        dataKeys: data ? Object.keys(data) : [],
-                        sampleFeature: data?.[0] || data?.features?.[0] || null
-                    });
-                    if (data?.features) {
-                        logFeatureData(data.features);
-                    } else if (Array.isArray(data)) {
-                        logFeatureData(data);
-                    }
-                },
-                
-                // Log errors
-                onError: (error) => {
-                    console.error('[Parcels MVT] ❌ Layer error:', error);
-                    console.error('[Parcels MVT] Error details:', {
-                        message: error?.message,
-                        stack: error?.stack,
-                        name: error?.name,
-                        cause: error?.cause
-                    });
-                },
-                
-                // Click handler with detailed logging
-                onClick: (info) => {
-                    console.log('[Parcels MVT] 🖱️ Click event:', {
-                        hasObject: !!info.object,
-                        coordinate: info.coordinate,
-                        pixel: info.pixel,
-                        index: info.index,
-                        layer: info.layer
-                    });
-                    
-                    if (!info.object) {
-                        console.log('[Parcels MVT] ⚠️ Clicked but no object found');
-                        return;
-                    }
-                    
-                    const props = info.object.properties || {};
-                    const geometry = info.object.geometry || {};
-                    
-                    console.log('[Parcels MVT] 📋 Clicked parcel details:', {
-                        properties: props,
-                        geometryType: geometry.type,
-                        hasCoordinates: !!geometry.coordinates,
-                        allPropertyKeys: Object.keys(props),
-                        propertyValues: Object.entries(props).reduce((acc, [key, value]) => {
-                            acc[key] = typeof value === 'object' ? JSON.stringify(value).substring(0, 100) : value;
-                            return acc;
-                        }, {})
-                    });
-                    
-                    // Log specific property values
-                    console.log('[Parcels MVT] 🏠 Property details:', {
-                        owner: props.owner,
-                        parcel_id: props.parcel_id,
-                        acreage_calc: props.acreage_calc,
-                        mkt_val_tot: props.mkt_val_tot,
-                        robust_id: props.robust_id,
-                        addr_full: props.addr_full,
-                        county_name: props.county_name,
-                        state_abbr: props.state_abbr
-                    });
-                    
-                    alert(formatParcelInfo(props));
-                },
-                
-                // Hover handler - efficient update using updateTriggers
-                onHover: (info) => {
-                    const newHoveredId = info.object?.properties?.parcel_id || info.object?.properties?.id || info.object?.properties?.robust_id || null;
-                    
-                    if (newHoveredId !== hoverState.parcelId) {
-                        if (newHoveredId) {
-                            console.log('[Parcels MVT] 🎯 Hovering over parcel:', {
-                                parcel_id: newHoveredId,
-                                properties: info.object?.properties || {},
-                                coordinate: info.coordinate
-                            });
-                        } else {
-                            console.log('[Parcels MVT] 👋 Hover ended');
-                        }
-                        
-                        // Update hover state and increment counter to trigger re-render
-                        hoverState.parcelId = newHoveredId;
-                        hoverState.updateCounter++;
-                        
-                        // Update overlay with new layer that has updated trigger
-                        // This is efficient because deck.gl only re-evaluates getFillColor, not the entire layer
-                        overlay.setProps({ 
-                            layers: [createParcelLayer()]
+
+                    // Render sub-layers to add labels
+                    renderSubLayers: (sublayerProps) => {
+                        const { data } = sublayerProps;
+
+                        // 1. Render the polygon layer (default behavior)
+                        const polygonLayer = new deck.GeoJsonLayer({
+                            ...sublayerProps
                         });
-                        
-                        // Change cursor
-                        document.body.style.cursor = hoverState.parcelId ? 'pointer' : 'default';
+
+                        // 2. Render the text layer for labels
+                        // We need to filter for valid features and create a centroid or use the geometry
+                        // MVT features are already processed, but we need to be careful with data
+
+                        if (!data || !data.length) {
+                            return [polygonLayer];
+                        }
+
+                        const textLayer = new TextLayer({
+                            ...sublayerProps,
+                            id: `${sublayerProps.id}-text`,
+                            data,
+
+                            // Enable collision detection to reduce clutter
+                            collisionEnabled: true,
+                            getCollisionPriority: d => d.properties?.acreage_calc || 0, // Prioritize larger parcels
+
+                            // Use the geometry coordinates for placement
+                            // For polygons, MVTLayer/deck.gl usually handles centroids automatically for point layers
+                            // But here we need to be explicit if we're passing polygon features to TextLayer
+                            // TextLayer expects a position. If data is polygons, we need to calculate centroid or use a property
+                            // However, MVT tiles often don't have centroids pre-calculated.
+                            // A simple approach for MVT polygons in deck.gl TextLayer:
+                            // We can use getPosition on the feature. 
+                            // BUT: TextLayer with polygon features might be tricky without a centroid calculation.
+                            // Let's try using the deck.gl's automatic handling or a simple center approximation.
+                            // Actually, for MVTLayer renderSubLayers, the data is already tiled.
+
+                            getPosition: (d) => {
+                                // Simple centroid approximation for the label
+                                // This is a bit expensive to do on the fly for every frame, but okay for this example
+                                const geometry = d.geometry;
+                                if (geometry.type === 'Polygon') {
+                                    const coords = geometry.coordinates[0];
+                                    let x = 0, y = 0;
+                                    coords.forEach(p => { x += p[0]; y += p[1]; });
+                                    return [x / coords.length, y / coords.length];
+                                } else if (geometry.type === 'MultiPolygon') {
+                                    // Just take the first polygon's centroid
+                                    const coords = geometry.coordinates[0][0];
+                                    let x = 0, y = 0;
+                                    coords.forEach(p => { x += p[0]; y += p[1]; });
+                                    return [x / coords.length, y / coords.length];
+                                }
+                                return [0, 0];
+                            },
+
+                            getText: (d) => {
+                                const props = d.properties || {};
+                                return props.owner || props.owner_name || '';
+                            },
+
+                            getSize: 13,
+                            sizeUnits: 'pixels',
+                            getColor: [0, 0, 0, 255], // Black text
+
+                            // Outline for readability
+                            fontSettings: {
+                                sdf: true,
+                                fontSize: 64,
+                                buffer: 4
+                            },
+                            outlineWidth: 4,
+                            outlineColor: [255, 255, 255, 255], // White outline
+
+                            pickable: false,
+
+                            // Only show labels at higher zoom levels to avoid clutter
+                            visible: showLabels
+                        });
+
+                        return [polygonLayer, textLayer];
+                    },
+
+                    // Log tile loading events
+                    // Note: onDataLoad may not be available in all deck.gl versions, but including it won't break
+                    onDataLoad: (data) => {
+                        console.log('[Parcels MVT] 📥 onDataLoad event:', {
+                            type: data?.constructor?.name || typeof data,
+                            hasFeatures: data?.length > 0 || (data?.features && data.features.length > 0),
+                            dataKeys: data ? Object.keys(data) : [],
+                            sampleFeature: data?.[0] || data?.features?.[0] || null
+                        });
+                        if (data?.features) {
+                            logFeatureData(data.features);
+                        } else if (Array.isArray(data)) {
+                            logFeatureData(data);
+                        }
+                    },
+
+                    // Log errors
+                    onError: (error) => {
+                        console.error('[Parcels MVT] ❌ Layer error:', error);
+                        console.error('[Parcels MVT] Error details:', {
+                            message: error?.message,
+                            stack: error?.stack,
+                            name: error?.name,
+                            cause: error?.cause
+                        });
+                    },
+
+                    // Click handler with detailed logging
+                    onClick: (info) => {
+                        console.log('[Parcels MVT] 🖱️ Click event:', {
+                            hasObject: !!info.object,
+                            coordinate: info.coordinate,
+                            pixel: info.pixel,
+                            index: info.index,
+                            layer: info.layer
+                        });
+
+                        if (!info.object) {
+                            console.log('[Parcels MVT] ⚠️ Clicked but no object found');
+                            return;
+                        }
+
+                        const props = info.object.properties || {};
+                        const geometry = info.object.geometry || {};
+
+                        console.log('[Parcels MVT] 📋 Clicked parcel details:', {
+                            properties: props,
+                            geometryType: geometry.type,
+                            hasCoordinates: !!geometry.coordinates,
+                            allPropertyKeys: Object.keys(props),
+                            propertyValues: Object.entries(props).reduce((acc, [key, value]) => {
+                                acc[key] = typeof value === 'object' ? JSON.stringify(value).substring(0, 100) : value;
+                                return acc;
+                            }, {})
+                        });
+
+                        // Log specific property values
+                        console.log('[Parcels MVT] 🏠 Property details:', {
+                            owner: props.owner,
+                            parcel_id: props.parcel_id,
+                            acreage_calc: props.acreage_calc,
+                            mkt_val_tot: props.mkt_val_tot,
+                            robust_id: props.robust_id,
+                            addr_full: props.addr_full,
+                            county_name: props.county_name,
+                            state_abbr: props.state_abbr
+                        });
+
+                        alert(formatParcelInfo(props));
+                    },
+
+                    // Hover handler - efficient update using updateTriggers
+                    onHover: (info) => {
+                        const newHoveredId = info.object?.properties?.parcel_id || info.object?.properties?.id || info.object?.properties?.robust_id || null;
+
+                        if (newHoveredId !== hoverState.parcelId) {
+                            if (newHoveredId) {
+                                console.log('[Parcels MVT] 🎯 Hovering over parcel:', {
+                                    parcel_id: newHoveredId,
+                                    properties: info.object?.properties || {},
+                                    coordinate: info.coordinate
+                                });
+                            } else {
+                                console.log('[Parcels MVT] 👋 Hover ended');
+                            }
+
+                            // Update hover state and increment counter to trigger re-render
+                            hoverState.parcelId = newHoveredId;
+                            hoverState.updateCounter++;
+
+                            // Update overlay with new layer that has updated trigger
+                            // This is efficient because deck.gl only re-evaluates getFillColor, not the entire layer
+                            overlay.setProps({
+                                layers: [createParcelLayer()]
+                            });
+
+                            // Change cursor
+                            document.body.style.cursor = hoverState.parcelId ? 'pointer' : 'default';
+                        }
                     }
-                }
-            });
+                });
             }
-            
+
             // Create initial parcel layer
             const parcelLayer = createParcelLayer();
-            
+
             // Intercept tile requests by wrapping the data URL
             // Note: deck.gl doesn't expose tile request events directly, but we can log when tiles are requested
             console.log('[Parcels MVT] 🔧 Layer configuration:', {
@@ -409,6 +511,22 @@
             });
             overlay.setMap(map);
 
+            // Add checkbox listener
+            const checkbox = document.getElementById('show-labels');
+            if (checkbox) {
+                checkbox.addEventListener('change', (e) => {
+                    showLabels = e.target.checked;
+                    console.log(`[Parcels MVT] 🏷️ Labels toggled: ${showLabels ? 'ON' : 'OFF'}`);
+
+                    // Update the overlay with a new layer that respects the new showLabels value
+                    // We need to recreate the layer to pick up the new renderSubLayers logic 
+                    // (or at least trigger an update that respects it)
+                    overlay.setProps({
+                        layers: [createParcelLayer()]
+                    });
+                });
+            }
+
             // Update info box with zoom level
             const infoBox = document.querySelector('.info-box p:nth-child(3)');
             map.addListener('zoom_changed', () => {
@@ -418,13 +536,13 @@
                 }
                 console.log(`[Parcels MVT] 🔍 Zoom changed to: ${zoom} ${zoom >= 14 && zoom <= 17 ? '(parcels visible)' : '(parcels not available at this zoom)'}`);
             });
-            
+
             // Log map bounds changes to see what tiles should be loading
             map.addListener('bounds_changed', () => {
                 const bounds = map.getBounds();
                 const center = map.getCenter();
                 const zoom = map.getZoom();
-                
+
                 if (zoom >= 14 && zoom <= 17) {
                     // Calculate approximate tile coordinates for center
                     const lat = center.lat();
@@ -433,7 +551,7 @@
                     const x = Math.floor((lng + 180) / 360 * n);
                     const latRad = lat * Math.PI / 180;
                     const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
-                    
+
                     console.log(`[Parcels MVT] 🗺️ Map bounds changed:`, {
                         zoom: zoom,
                         center: { lat, lng },
@@ -461,5 +579,5 @@
         });
     </script>
 </body>
-</html>
 
+</html>
