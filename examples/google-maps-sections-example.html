@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LandMapMagic - Google Maps + Sections</title>
+
+    <style>
+        html,
+        body,
+        #map {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+
+    <!-- deck.gl dependencies for Google Maps integration -->
+    <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+    <script src="https://unpkg.com/@deck.gl/google-maps@^9.0.0/dist.min.js"></script>
+</head>
+
+<body>
+    <div id="map"></div>
+
+    <!-- Google Maps API will be loaded dynamically -->
+
+    <script>
+        /**
+         * LandMapMagic Google Maps Integration - Sections
+         * 
+         * Simple example showing PLSS Sections boundaries + labels
+         * using deck.gl MVTLayer with vector tiles backend
+         */
+
+        // Access deck.gl classes from global namespace (loaded via script tags)
+        const { GoogleMapsOverlay } = deck;
+        const { MVTLayer } = deck;
+        const { TextLayer } = deck;
+
+        // Environment variables injected by Vite at build/serve time
+        // To set up: Copy env.example to .env.local and add your API keys
+        const GOOGLE_MAPS_KEY = '%VITE_GOOGLE_MAPS_API_KEY%';
+        const LANDMAP_KEY = '%VITE_LAND_MAP_MAGIC_API_KEY%';
+        const BASE_URL_ENV = '%VITE_LAND_MAP_MAGIC_API_URL%';
+
+        // Check if env vars are set (not placeholders)
+        const googleApiKey = (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('VITE_')) ? GOOGLE_MAPS_KEY : '';
+        const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
+        const BASE_URL = (BASE_URL_ENV && !BASE_URL_ENV.includes('VITE_')) ? BASE_URL_ENV : 'https://api.landmapmagic.com';
+
+        // Note: 'dev' fallback only works in development environment
+        // For staging/production, you must set VITE_LAND_MAP_MAGIC_API_KEY and VITE_LAND_MAP_MAGIC_API_URL in .env.local
+
+        if (!googleApiKey) {
+            document.body.innerHTML = '<div style="padding:20px;color:red;">Missing VITE_GOOGLE_MAPS_API_KEY in .env.local</div>';
+            throw new Error('Missing Google Maps API key');
+        }
+
+        // Your LandMapMagic API endpoint for sections
+        const TILE_URL = `${BASE_URL}/sections/{z}/{x}/{y}?key=${landmapApiKey}`;
+
+        // Load Google Maps dynamically
+        function loadGoogleMaps() {
+            return new Promise((resolve, reject) => {
+                if (typeof google !== 'undefined' && google.maps) {
+                    resolve();
+                    return;
+                }
+
+                window.initGoogleMapCallback = resolve;
+
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&callback=initGoogleMapCallback`;
+                script.async = true;
+                script.defer = true;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // Helper to calculate bounds from geometry
+        function getGeometryBounds(geometry) {
+            let minLat = Infinity, maxLat = -Infinity;
+            let minLng = Infinity, maxLng = -Infinity;
+
+            function processCoords(coords) {
+                if (typeof coords[0] === 'number') {
+                    // Single coordinate [lng, lat]
+                    minLng = Math.min(minLng, coords[0]);
+                    maxLng = Math.max(maxLng, coords[0]);
+                    minLat = Math.min(minLat, coords[1]);
+                    maxLat = Math.max(maxLat, coords[1]);
+                } else {
+                    // Array of coordinates
+                    coords.forEach(processCoords);
+                }
+            }
+
+            if (geometry.type === 'Polygon') {
+                processCoords(geometry.coordinates);
+            } else if (geometry.type === 'MultiPolygon') {
+                geometry.coordinates.forEach(polygon => processCoords(polygon));
+            }
+
+            return {
+                north: maxLat,
+                south: minLat,
+                east: maxLng,
+                west: minLng
+            };
+        }
+
+        // Initialize map
+        async function initMap() {
+            await loadGoogleMaps();
+
+            // 1) Create Google Map - centered on Des Moines, IA (good for sections)
+            const map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 41.6005, lng: -93.6091 }, // Des Moines, IA
+                zoom: 12, // Start at zoom 12 to see sections
+                mapId: 'DEMO_MAP_ID',
+                mapTypeId: 'hybrid'
+            });
+
+            // 2) Sections Polygons (source-layer "sections")
+            const sectionsPolygons = new MVTLayer({
+                id: 'sections-polygons',
+                data: TILE_URL,
+                loadOptions: {
+                    mvt: {
+                        layers: ['sections']  // Only load 'sections' layer for polygons
+                    }
+                },
+                minZoom: 10,
+                maxZoom: 15,
+                filled: true,  // Enable fill for hover effect
+                stroked: true,
+                getFillColor: [0, 0, 0, 0],  // Transparent fill (no color)
+                getLineColor: [255, 165, 0, 230], // Orange for sections
+                getLineWidth: 1,
+                lineWidthMinPixels: 1,
+                lineWidthMaxPixels: 3,
+                pickable: true,
+                autoHighlight: true,
+                highlightColor: [255, 165, 0, 80],  // Light orange on hover only
+
+                // Hover handler for cursor
+                onHover: (info) => {
+                    map.getDiv().style.cursor = info.object ? 'pointer' : '';
+                },
+
+                // Click handler - zoom to section bounds
+                onClick: (info) => {
+                    if (!info.object) return;
+
+                    const props = info.object.properties || {};
+                    const sectionId = props.section_id || props.frstdivid || 'Unknown';
+                    const sectionLabel = props.section_label || props.frstdivlab || '';
+
+                    console.log(`🗺️ Clicked Section: ${sectionId} (${sectionLabel})`);
+
+                    // Calculate bounds and zoom to section
+                    const bounds = getGeometryBounds(info.object.geometry);
+                    map.fitBounds(bounds, { padding: 50 });
+                }
+            });
+
+            // 3) Sections Labels as TEXT (source-layer "sections_labels")
+            const sectionsLabels = new MVTLayer({
+                id: 'sections-labels',
+                data: TILE_URL,
+                binary: false,  // Required to use TextLayer in renderSubLayers
+                loadOptions: {
+                    mvt: {
+                        layers: ['sections_labels']  // Only load 'sections_labels' layer for points
+                    }
+                },
+                minZoom: 12,  // Labels start at zoom 12
+                maxZoom: 15,
+                pickable: false,
+
+                // Override renderSubLayers to turn point features into TextLayer
+                renderSubLayers: (sublayerProps) => {
+                    const { data } = sublayerProps;
+
+                    if (!data || !data.length) {
+                        return null;
+                    }
+
+                    return new TextLayer({
+                        ...sublayerProps,
+                        id: `${sublayerProps.id}-text`,
+                        data,
+                        // MVT points come through as GeoJSON features
+                        getPosition: (f) => f.geometry.coordinates,
+                        getText: (f) => {
+                            const props = f.properties || {};
+                            return props.section_label || props.frstdivlab || props.display_name || '';
+                        },
+                        getSize: 14,
+                        sizeUnits: 'pixels',
+                        getColor: [255, 255, 255, 255],  // White text
+                        getTextAnchor: 'middle',
+                        getAlignmentBaseline: 'center',
+
+                        // Black outline for contrast
+                        fontSettings: {
+                            sdf: true,
+                            fontSize: 64,
+                            buffer: 4
+                        },
+                        outlineWidth: 4,
+                        outlineColor: [0, 0, 0, 255],
+
+                        // Font styling
+                        fontFamily: 'Arial, sans-serif',
+                        fontWeight: 'bold',
+
+                        pickable: false
+                    });
+                }
+            });
+
+            // 4) Mount on Google Maps
+            const overlay = new GoogleMapsOverlay({
+                layers: [sectionsPolygons, sectionsLabels]
+            });
+            overlay.setMap(map);
+
+            console.log('✅ Map initialized with Sections data');
+        }
+
+        // Auto-initialize on load
+        initMap().catch((error) => {
+            console.error('Failed to initialize map:', error);
+            document.body.innerHTML = `<div style="padding:20px;color:red;">Failed to load map: ${error.message}</div>`;
+        });
+    </script>
+</body>
+
+</html>
