@@ -116,10 +116,10 @@
         async function initMap() {
             await loadGoogleMaps();
 
-            // 1) Create Google Map - centered on USA
+            // 1) Create Google Map - centered on Grass Ridge Farm (Pittsville, WI)
             const map = new google.maps.Map(document.getElementById('map'), {
-                center: { lat: 39.8283, lng: -98.5795 }, // Center of USA
-                zoom: 8, // Start at zoom 8 to see townships
+                center: { lat: 44.4403, lng: -90.1081 }, // 1 mile east of Pittsville, WI (Grass Ridge Farm)
+                zoom: 8, // Start at zoom 8 to see more townships
                 mapId: 'DEMO_MAP_ID',
                 mapTypeId: 'satellite'
             });
@@ -151,16 +151,80 @@
                     map.getDiv().style.cursor = info.object ? 'pointer' : '';
                 },
 
-                // Click handler - zoom to township bounds
+                // Click handler - show all township details and zoom to bounds
                 onClick: (info) => {
                     if (!info.object) return;
 
                     const props = info.object.properties || {};
-                    const township = props.township || props.TOWNSHIP || 'Unknown';
-                    const range = props.range || props.RANGE || '';
-
-                    console.log(`🗺️ Clicked: Township ${township}${range ? ', Range ' + range : ''}`);
-
+                    const geometry = info.object.geometry || {};
+                    
+                    // Build detailed information string
+                    let details = '🏘️ Township Details\n\n';
+                    
+                    // Add all properties
+                    details += 'Properties:\n';
+                    details += '─'.repeat(30) + '\n';
+                    Object.keys(props).sort().forEach(key => {
+                        const value = props[key];
+                        // Format the value nicely
+                        let displayValue = value;
+                        if (value === null || value === undefined) {
+                            displayValue = 'N/A';
+                        } else if (typeof value === 'object') {
+                            displayValue = JSON.stringify(value);
+                        } else if (typeof value === 'number') {
+                            displayValue = value.toString();
+                        } else {
+                            displayValue = String(value);
+                        }
+                        details += `${key}: ${displayValue}\n`;
+                    });
+                    
+                    // Add geometry information
+                    details += '\nGeometry:\n';
+                    details += '─'.repeat(30) + '\n';
+                    details += `Type: ${geometry.type || 'N/A'}\n`;
+                    if (geometry.coordinates) {
+                        if (geometry.type === 'Polygon') {
+                            const coords = geometry.coordinates[0] || [];
+                            details += `Coordinates: ${coords.length} points\n`;
+                            if (coords.length > 0) {
+                                details += `First point: [${coords[0][0]?.toFixed(6)}, ${coords[0][1]?.toFixed(6)}]\n`;
+                                details += `Last point: [${coords[coords.length - 1][0]?.toFixed(6)}, ${coords[coords.length - 1][1]?.toFixed(6)}]\n`;
+                            }
+                        } else if (geometry.type === 'MultiPolygon') {
+                            details += `Polygons: ${geometry.coordinates.length}\n`;
+                            geometry.coordinates.forEach((polygon, idx) => {
+                                const coords = polygon[0] || [];
+                                details += `  Polygon ${idx + 1}: ${coords.length} points\n`;
+                            });
+                        }
+                    }
+                    
+                    // Add tile information if available
+                    if (info.coordinate) {
+                        details += '\nTile Info:\n';
+                        details += '─'.repeat(30) + '\n';
+                        details += `Zoom: ${info.coordinate[2]}\n`;
+                        details += `Tile: [${info.coordinate[0]}, ${info.coordinate[1]}]\n`;
+                    }
+                    
+                    // Add feature index if available
+                    if (info.index !== undefined) {
+                        details += `Feature Index: ${info.index}\n`;
+                    }
+                    
+                    // Log to console as well
+                    console.log('🗺️ Township Clicked:', {
+                        properties: props,
+                        geometry: geometry,
+                        coordinate: info.coordinate,
+                        index: info.index
+                    });
+                    
+                    // Show alert with all details
+                    alert(details);
+                    
                     // Calculate bounds and zoom to township
                     const bounds = getGeometryBounds(info.object.geometry);
                     map.fitBounds(bounds, { padding: 50 });
@@ -197,15 +261,12 @@
                         getPosition: (f) => f.geometry.coordinates,
                         getText: (f) => {
                             const props = f.properties || {};
-                            // Try label field first, then construct from township/range
-                            return props.label || 
-                                   (props.township && props.range ? `${props.township} ${props.range}` : '') ||
-                                   (props.TOWNSHIP && props.RANGE ? `${props.TOWNSHIP} ${props.RANGE}` : '') ||
-                                   '';
+                            // Use friendly_name property like counties example uses NAME
+                            return props.friendly_name || props.friendlyName || '';
                         },
-                        getSize: 12,
+                        getSize: 13,
                         sizeUnits: 'pixels',
-                        getColor: [30, 64, 175, 255],  // Blue text (#1e40af)
+                        getColor: [0, 0, 0, 255],  // Black text (matches counties example)
                         getTextAnchor: 'middle',
                         getAlignmentBaseline: 'center',
 
