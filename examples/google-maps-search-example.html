@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LandMapMagic - Search Example</title>
+
+    <style>
+        html,
+        body,
+        #map {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+        }
+
+        #search-container {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            display: flex;
+            gap: 10px;
+            width: 400px;
+            align-items: center;
+        }
+
+        #search-input {
+            flex: 1;
+            padding: 8px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        #search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ccc;
+            border-top: none;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 4px;
+        }
+
+        .result-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+
+        .result-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .result-name {
+            font-weight: bold;
+        }
+
+        .result-meta {
+            font-size: 12px;
+            color: #666;
+        }
+
+        #legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            font-size: 12px;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3498db;
+            width: 20px;
+            height: 20px;
+            -webkit-animation: spin 1s linear infinite;
+            /* Safari */
+            animation: spin 1s linear infinite;
+            display: none;
+            /* Hidden by default */
+        }
+
+        /* Safari */
+        @-webkit-keyframes spin {
+            0% {
+                -webkit-transform: rotate(0deg);
+            }
+
+            100% {
+                -webkit-transform: rotate(360deg);
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        #controls {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            font-size: 14px;
+        }
+    </style>
+
+    <!-- deck.gl dependencies for Google Maps integration -->
+    <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+    <script src="https://unpkg.com/@deck.gl/google-maps@^9.0.0/dist.min.js"></script>
+</head>
+
+<body>
+    <div id="search-container">
+        <input type="text" id="search-input" placeholder="Search states, counties, townships..." />
+        <div class="spinner" id="search-spinner"></div>
+        <div id="search-results"></div>
+    </div>
+
+    <div id="controls">
+        <label style="display: flex; align-items: center; cursor: pointer;">
+            <input type="checkbox" id="show-parcel-labels" checked style="margin-right: 8px;">
+            Show Parcel Labels
+        </label>
+    </div>
+
+    <div id="map"></div>
+    <div id="legend">
+        <div><strong>Layers (Zoom Dependent)</strong></div>
+        <div>States (z0-6)</div>
+        <div>Counties (z6-10)</div>
+        <div>Townships (z10-12)</div>
+        <div>Sections (z12-14)</div>
+        <div>Parcels (z14-17)</div>
+        <div>CLU (z14+)</div>
+    </div>
+
+    <script>
+        /**
+         * LandMapMagic Google Maps Integration - Search Example
+         */
+
+        // Access deck.gl classes from global namespace
+        const { GoogleMapsOverlay } = deck;
+        const { MVTLayer } = deck;
+        const { TextLayer } = deck;
+
+        // Environment variables injected by Vite
+        const GOOGLE_MAPS_KEY = '%VITE_GOOGLE_MAPS_API_KEY%';
+        const LANDMAP_KEY = '%VITE_LAND_MAP_MAGIC_API_KEY%';
+        const BASE_URL_ENV = '%VITE_LAND_MAP_MAGIC_API_URL%';
+
+        const googleApiKey = (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('VITE_')) ? GOOGLE_MAPS_KEY : '';
+        const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
+        const BASE_URL = (BASE_URL_ENV && !BASE_URL_ENV.includes('VITE_')) ? BASE_URL_ENV : 'https://api.landmapmagic.com';
+
+        if (!googleApiKey) {
+            document.body.innerHTML = '<div style="padding:20px;color:red;">Missing VITE_GOOGLE_MAPS_API_KEY in .env.local</div>';
+            throw new Error('Missing Google Maps API key');
+        }
+
+        // Load Google Maps dynamically
+        function loadGoogleMaps() {
+            return new Promise((resolve, reject) => {
+                if (typeof google !== 'undefined' && google.maps) {
+                    resolve();
+                    return;
+                }
+
+                window.initGoogleMapCallback = resolve;
+
+                const script = document.createElement('script');
+                // Include 'places' library for potential future use
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&callback=initGoogleMapCallback&libraries=places`;
+                script.async = true;
+                script.defer = true;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        async function initMap() {
+            await loadGoogleMaps();
+
+            const map = new google.maps.Map(document.getElementById("map"), {
+                center: { lat: 39.8283, lng: -98.5795 },
+                zoom: 4,
+                mapTypeId: 'satellite',
+                mapId: 'DEMO_MAP_ID'
+            });
+
+            const overlay = new GoogleMapsOverlay({
+                layers: []
+            });
+            overlay.setMap(map);
+
+            let showParcelLabels = true;
+
+            function updateLayers() {
+                const layers = [
+                    // States (Zoom 0-6)
+                    new MVTLayer({
+                        id: 'states',
+                        data: `${BASE_URL}/states/{z}/{x}/{y}?key=${landmapApiKey}`,
+                        minZoom: 0,
+                        maxZoom: 6,
+                        getFillColor: [0, 0, 0, 0],
+                        getLineColor: [253, 224, 71, 230], // #fde047 yellow
+                        getLineWidth: 2,
+                        lineWidthMinPixels: 2,
+                        lineWidthMaxPixels: 4,
+                        pickable: true
+                    }),
+                    // States Labels
+                    new MVTLayer({
+                        id: 'states-labels',
+                        data: `${BASE_URL}/states/{z}/{x}/{y}?key=${landmapApiKey}`,
+                        minZoom: 0,
+                        maxZoom: 6,
+                        binary: false,
+                        loadOptions: { mvt: { layers: ['states_labels'] } }, // Assuming 'states_labels' exists
+                        renderSubLayers: (sublayerProps) => {
+                            return new TextLayer({
+                                ...sublayerProps,
+                                id: `${sublayerProps.id}-text`,
+                                data: sublayerProps.data,
+                                getPosition: d => d.geometry.coordinates,
+                                getText: d => d.properties.NAME || d.properties.name || '',
+                                getSize: 13,
+                                sizeUnits: 'pixels',
+                                getColor: [0, 0, 0, 255], // Black text (matches CLU)
+                                fontSettings: { sdf: true, fontSize: 64, buffer: 4 },
+                                outlineWidth: 6, // Thicker white outline (matches CLU)
+                                outlineColor: [255, 255, 255, 255],
+                                pickable: false
+                            });
+                        }
+                    }),
+
+                    // Counties (Zoom 6-10)
+                    new MVTLayer({
+                        id: 'counties',
+                        data: `${BASE_URL}/counties/{z}/{x}/{y}?key=${landmapApiKey}`,
+                        minZoom: 6,
+                        maxZoom: 10,
+                        getFillColor: [0, 0, 0, 0],
+                        getLineColor: [253, 224, 71, 230],
+                        getLineWidth: 2,
+                        lineWidthMinPixels: 2,
+                        lineWidthMaxPixels: 4,
+                        pickable: true
+                    }),
+                    // Counties Labels
+                    new MVTLayer({
+                        id: 'counties-labels',
+                        data: `${BASE_URL}/counties/{z}/{x}/{y}?key=${landmapApiKey}`,
+                        minZoom: 6,
+                        maxZoom: 10,
+                        binary: false,
+                        loadOptions: { mvt: { layers: ['counties_labels'] } },
+                        renderSubLayers: (sublayerProps) => {
+                            return new TextLayer({
+                                ...sublayerProps,
+                                id: `${sublayerProps.id}-text`,
+                                data: sublayerProps.data,
+                                getPosition: d => d.geometry.coordinates,
+                                getText: d => d.properties.NAME || d.properties.name || '',
+                                getSize: 13,
+                                sizeUnits: 'pixels',
+                                getColor: [255, 255, 255, 255],
+                                fontSettings: { sdf: true, fontSize: 64, buffer: 4 },
+                                outlineWidth: 4,
+                                outlineColor: [0, 0, 0, 255],
+                                pickable: false
+                            });
+                        }
+                    }),
+
+                    // Townships (Zoom 10-12)
+                    new MVTLayer({
+                        id: 'townships',
+                        data: `${BASE_URL}/townships/{z}/{x}/{y}?key=${landmapApiKey}`,
+                        minZoom: 10,
+                        maxZoom: 12,
+                        getFillColor: [0, 0, 0, 0],
+                        getLineColor: [253, 224, 71, 230],
+                        getLineWidth: 2,
+                        lineWidthMinPixels: 2,
+                        lineWidthMaxPixels: 4,
+                        pickable: true
+                    }),
+                    // Townships Labels
+                    new MVTLayer({
+                        id: 'townships-labels',
+                        data: `${BASE_URL}/townships/{z}/{x}/{y}?key=${landmapApiKey}`,
+                        minZoom: 10,
+                        maxZoom: 12,
+                        binary: false,
+                        loadOptions: { mvt: { layers: ['townships_labels'] } },
+                        renderSubLayers: (sublayerProps) => {
+                            return new TextLayer({
+                                ...sublayerProps,
+                                id: `${sublayerProps.id}-text`,
+                                data: sublayerProps.data,
+                                getPosition: d => d.geometry.coordinates,
+                                getText: d => d.properties.friendly_name || d.properties.friendlyName || '',
+                                getSize: 13,
+                                sizeUnits: 'pixels',
+                                getColor: [0, 0, 0, 255],
+                                fontSettings: { sdf: true, fontSize: 64, buffer: 4 },
+                                outlineWidth: 6,
+                                outlineColor: [255, 255, 255, 255],
+                                pickable: false
+                            });
+                        }
+                    }),
+
+                    // Sections (Zoom 12-14)
+                    new MVTLayer({
+                        id: 'sections',
+                        data: `${BASE_URL}/sections/{z}/{x}/{y}?key=${landmapApiKey}`,
+                        minZoom: 12,
+                        maxZoom: 14,
+                        getFillColor: [0, 0, 0, 0],
+                        getLineColor: [253, 224, 71, 230],
+                        getLineWidth: 2,
+                        lineWidthMinPixels: 2,
+                        lineWidthMaxPixels: 4,
+                        pickable: true
+                    }),
+                    // Sections Labels
+                    new MVTLayer({
+                        id: 'sections-labels',
+                        data: `${BASE_URL}/sections/{z}/{x}/{y}?key=${landmapApiKey}`,
+                        minZoom: 12,
+                        maxZoom: 14,
+                        binary: false,
+                        loadOptions: { mvt: { layers: ['sections_labels'] } },
+                        renderSubLayers: (sublayerProps) => {
+                            return new TextLayer({
+                                ...sublayerProps,
+                                id: `${sublayerProps.id}-text`,
+                                data: sublayerProps.data,
+                                getPosition: d => d.geometry.coordinates,
+                                getText: d => d.properties.section_label || d.properties.frstdivlab || d.properties.display_name || '',
+                                getSize: 14,
+                                sizeUnits: 'pixels',
+                                getColor: [255, 255, 255, 255],
+                                fontSettings: { sdf: true, fontSize: 64, buffer: 4 },
+                                outlineWidth: 4,
+                                outlineColor: [0, 0, 0, 255],
+                                pickable: false
+                            });
+                        }
+                    }),
+
+                    // Parcels (Zoom 14-17)
+                    new MVTLayer({
+                        id: 'parcels',
+                        data: `${BASE_URL}/parcels/tiles/{z}/{x}/{y}.mvt?key=${landmapApiKey}`,
+                        minZoom: 14,
+                        maxZoom: 17,
+                        binary: false,
+                        loadOptions: { mvt: { layers: ['parcels'] } },
+                        getFillColor: [0, 0, 0, 0],
+                        getLineColor: [255, 165, 0, 200], // Orange for parcels
+                        getLineWidth: 1,
+                        lineWidthMinPixels: 1,
+                        pickable: true,
+                        renderSubLayers: (sublayerProps) => {
+                            const { data } = sublayerProps;
+                            const polygonLayer = new deck.GeoJsonLayer({ ...sublayerProps });
+
+                            if (!showParcelLabels || !data || !data.length) {
+                                return [polygonLayer];
+                            }
+
+                            const textLayer = new TextLayer({
+                                ...sublayerProps,
+                                id: `${sublayerProps.id}-text`,
+                                data,
+                                getPosition: (d) => {
+                                    // Centroid approximation
+                                    const geometry = d.geometry;
+                                    if (geometry.type === 'Polygon') {
+                                        const coords = geometry.coordinates[0];
+                                        let x = 0, y = 0;
+                                        coords.forEach(p => { x += p[0]; y += p[1]; });
+                                        return [x / coords.length, y / coords.length];
+                                    } else if (geometry.type === 'MultiPolygon') {
+                                        const coords = geometry.coordinates[0][0];
+                                        let x = 0, y = 0;
+                                        coords.forEach(p => { x += p[0]; y += p[1]; });
+                                        return [x / coords.length, y / coords.length];
+                                    }
+                                    return [0, 0];
+                                },
+                                getText: (d) => {
+                                    const props = d.properties || {};
+                                    return props.owner || props.owner_name || '';
+                                },
+                                getSize: 13,
+                                sizeUnits: 'pixels',
+                                getColor: [0, 0, 0, 255],
+                                fontSettings: { sdf: true, fontSize: 64, buffer: 4 },
+                                outlineWidth: 4,
+                                outlineColor: [255, 255, 255, 255],
+                                pickable: false,
+                                collisionEnabled: false, // Disabled collision detection as requested
+                                // getCollisionPriority: d => d.properties?.acreage_calc || 0
+                            });
+
+                            return [polygonLayer, textLayer];
+                        }
+                    }),
+
+                    // CLU (Zoom 14+)
+                    new MVTLayer({
+                        id: 'clu',
+                        data: `${BASE_URL}/clu/tiles/{z}/{x}/{y}.mvt?key=${landmapApiKey}`,
+                        minZoom: 14,
+                        maxZoom: 20,
+                        getFillColor: [0, 255, 0, 20],
+                        getLineColor: [0, 200, 0, 100],
+                        getLineWidth: 1,
+                        lineWidthMinPixels: 1,
+                        pickable: true
+                    })
+                ];
+                overlay.setProps({ layers });
+            }
+
+            updateLayers();
+
+            // Toggle Parcel Labels
+            const parcelLabelsCheckbox = document.getElementById('show-parcel-labels');
+            parcelLabelsCheckbox.addEventListener('change', (e) => {
+                showParcelLabels = e.target.checked;
+                updateLayers();
+            });
+
+            // Search Logic
+            const searchInput = document.getElementById('search-input');
+            const resultsDiv = document.getElementById('search-results');
+            const spinner = document.getElementById('search-spinner');
+            let debounceTimer;
+
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(debounceTimer);
+                const query = e.target.value;
+
+                if (query.length < 2) {
+                    resultsDiv.style.display = 'none';
+                    spinner.style.display = 'none';
+                    return;
+                }
+
+                debounceTimer = setTimeout(() => performSearch(query), 300);
+            });
+
+            async function performSearch(query) {
+                spinner.style.display = 'block'; // Show spinner
+                resultsDiv.style.display = 'none'; // Hide results while loading
+
+                try {
+                    const res = await fetch(`${BASE_URL}/search?q=${encodeURIComponent(query)}&limit=5&key=${landmapApiKey}`);
+                    const data = await res.json();
+
+                    displayResults(data.results);
+                } catch (err) {
+                    console.error("Search failed", err);
+                } finally {
+                    spinner.style.display = 'none'; // Hide spinner
+                }
+            }
+
+            function displayResults(results) {
+                resultsDiv.innerHTML = '';
+                if (!results || results.length === 0) {
+                    resultsDiv.style.display = 'none';
+                    return;
+                }
+
+                results.forEach(result => {
+                    const div = document.createElement('div');
+                    div.className = 'result-item';
+                    div.innerHTML = `
+            <div class="result-name">${result.simpleName}</div>
+            <div class="result-meta">${result.type} • ${result.name}</div>
+          `;
+                    div.onclick = () => selectResult(result);
+                    resultsDiv.appendChild(div);
+                });
+
+                resultsDiv.style.display = 'block';
+            }
+
+            function selectResult(result) {
+                searchInput.value = result.simpleName;
+                resultsDiv.style.display = 'none';
+
+                // Fly to result
+                if (result.bbox) {
+                    const bounds = new google.maps.LatLngBounds(
+                        { lat: result.bbox[1], lng: result.bbox[0] }, // SW
+                        { lat: result.bbox[3], lng: result.bbox[2] }  // NE
+                    );
+                    map.fitBounds(bounds);
+                } else if (result.centroid) {
+                    map.setCenter({ lat: result.centroid[1], lng: result.centroid[0] });
+                    map.setZoom(result.suggestedZoom || 12);
+                }
+            }
+        }
+
+        initMap().catch((error) => {
+            console.error('Failed to initialize map:', error);
+            document.body.innerHTML = `<div style="padding:20px;color:red;">Failed to load map: ${error.message}</div>`;
+        });
+    </script>
+</body>
+
+</html>

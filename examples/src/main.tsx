@@ -11,12 +11,12 @@ interface Example {
   category: 'react' | 'html';
   path?: string;
   icon: string;
-    tags: {
-      framework: 'react' | 'html';
-      sdk: 'maplibre' | 'mapbox' | 'google-maps' | 'arcgis' | 'deck.gl';
-      data: ('clu' | 'states' | 'counties' | 'parcels' | 'townships')[];
-      features: ('selection' | 'hover' | 'labels' | 'aoi-query' | 'click-to-zoom')[];
-    };
+  tags: {
+    framework: 'react' | 'html';
+    sdk: 'maplibre' | 'mapbox' | 'google-maps' | 'arcgis' | 'deck.gl';
+    data: ('clu' | 'states' | 'counties' | 'parcels' | 'townships')[];
+    features: ('selection' | 'hover' | 'labels' | 'aoi-query' | 'click-to-zoom')[];
+  };
 }
 
 const EXAMPLES: Example[] = [
@@ -169,6 +169,20 @@ const EXAMPLES: Example[] = [
       sdk: 'arcgis',
       data: ['clu'],
       features: ['labels']
+    }
+  },
+  {
+    id: 'google-maps-search',
+    title: 'Google Maps Search',
+    description: 'Fuzzy search for places (states, counties, townships, sections) with zoom-to-result',
+    category: 'html',
+    path: '/google-maps-search-example.html',
+    icon: '🔍',
+    tags: {
+      framework: 'html',
+      sdk: 'google-maps',
+      data: ['states', 'counties', 'townships', 'plss', 'clu'],
+      features: ['selection', 'hover', 'labels']
     }
   }
 ];
