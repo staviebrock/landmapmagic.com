@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LandMapMagic - Backend Cache Test</title>
+
+    <style>
+        html,
+        body,
+        #map {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            max-width: 300px;
+            font-family: sans-serif;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ccc;
+            margin-right: 5px;
+        }
+
+        .status-dot.active {
+            background: #22c55e;
+        }
+    </style>
+
+    <!-- deck.gl dependencies -->
+    <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+    <script src="https://unpkg.com/@deck.gl/google-maps@^9.0.0/dist.min.js"></script>
+</head>
+
+<body>
+    <div id="info-panel">
+        <h3>Backend Cache Test</h3>
+        <p>This example forces the browser to bypass its local cache for every tile request.</p>
+        <p><strong>Instructions:</strong></p>
+        <ol>
+            <li>Open Worker Logs in Cloudflare Dashboard</li>
+            <li>Pan/Zoom the map</li>
+            <li>Watch for <strong>HIT</strong> vs <strong>MISS</strong> logs</li>
+        </ol>
+        <p>Every pan should generate new requests to the backend, allowing you to verify CDN caching.</p>
+    </div>
+    <div id="map"></div>
+
+    <script>
+        const { GoogleMapsOverlay } = deck;
+        const { MVTLayer } = deck;
+
+        // Environment variables
+        const GOOGLE_MAPS_KEY = '%VITE_GOOGLE_MAPS_API_KEY%';
+        const LANDMAP_KEY = '%VITE_LAND_MAP_MAGIC_API_KEY%';
+        const BASE_URL_ENV = '%VITE_LAND_MAP_MAGIC_API_URL%';
+
+        const googleApiKey = (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('VITE_')) ? GOOGLE_MAPS_KEY : '';
+        const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
+        const BASE_URL = (BASE_URL_ENV && !BASE_URL_ENV.includes('VITE_')) ? BASE_URL_ENV : 'https://api.landmapmagic.com';
+
+        if (!googleApiKey) {
+            document.body.innerHTML = '<div style="padding:20px;color:red;">Missing Google Maps API Key</div>';
+            throw new Error('Missing Google Maps API key');
+        }
+
+        // Custom fetch function to bypass browser cache
+        const customFetch = async (url, { prop, layer, signal }) => {
+            // cache: 'no-cache' forces browser to validate with server (Cloudflare)
+            // If Cloudflare has it cached, it returns 304 or 200 with cached content
+            // If not, it hits the worker
+            const response = await fetch(url, {
+                signal,
+                cache: 'no-cache',
+                headers: {
+                    // Optional: Add a custom header to trace these requests
+                    'X-Debug-Cache-Test': 'true'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+            }
+
+            return response;
+        };
+
+        async function initMap() {
+            // Load Google Maps
+            if (!window.google) {
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}`;
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+
+            const map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 41.878, lng: -93.097 }, // Iowa
+                zoom: 13,
+                mapId: 'DEMO_MAP_ID',
+                mapTypeId: 'satellite'
+            });
+
+            const cluLayer = new MVTLayer({
+                id: 'clu-cache-test',
+                data: `${BASE_URL}/clu/{z}/{x}/{y}?key=${landmapApiKey}`,
+                minZoom: 11,
+                maxZoom: 15,
+                getFillColor: [0, 0, 0, 0],
+                getLineColor: [255, 255, 0, 255],
+                getLineWidth: 2,
+                lineWidthMinPixels: 2
+            });
+
+            const overlay = new GoogleMapsOverlay({
+                layers: [cluLayer]
+            });
+            overlay.setMap(map);
+        }
+
+        initMap().catch(console.error);
+    </script>
+</body>
+
+</html>

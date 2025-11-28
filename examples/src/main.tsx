@@ -14,7 +14,7 @@ interface Example {
   tags: {
     framework: 'react' | 'html';
     sdk: 'maplibre' | 'mapbox' | 'google-maps' | 'arcgis' | 'deck.gl';
-    data: ('clu' | 'states' | 'counties' | 'parcels' | 'townships')[];
+    data: ('clu' | 'states' | 'counties' | 'parcels' | 'townships' | 'sections')[];
     features: ('selection' | 'hover' | 'labels' | 'aoi-query' | 'click-to-zoom')[];
   };
 }
@@ -181,7 +181,7 @@ const EXAMPLES: Example[] = [
     tags: {
       framework: 'html',
       sdk: 'google-maps',
-      data: ['states', 'counties', 'townships', 'plss', 'clu'],
+      data: ['states', 'counties', 'townships', 'sections', 'clu'],
       features: ['selection', 'hover', 'labels']
     }
   }
