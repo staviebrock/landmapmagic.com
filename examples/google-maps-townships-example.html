@@ -59,7 +59,7 @@
         }
 
         // Your LandMapMagic API endpoint for townships
-        const TILE_URL = `${BASE_URL}/townships/{z}/{x}/{y}?key=${landmapApiKey}`;
+        const TILE_URL = `${BASE_URL}/v1/tiles/townships/{z}/{x}/{y}.mvt?key=${landmapApiKey}`;
 
         // Load Google Maps dynamically
         function loadGoogleMaps() {

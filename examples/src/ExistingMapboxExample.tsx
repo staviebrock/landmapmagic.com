@@ -30,7 +30,7 @@ export default function ExistingMapboxExample() {
   const LAND_MAP_MAGIC_API_URL = import.meta.env.VITE_LAND_MAP_MAGIC_API_URL || 'https://api.landmapmagic.com';
 
   // LandMapMagic API endpoint
-  const TILE_URL = `${LAND_MAP_MAGIC_API_URL}/clu/{z}/{x}/{y}?key=${LAND_MAP_MAGIC_API_KEY}`;
+  const TILE_URL = `${LAND_MAP_MAGIC_API_URL}/v1/tiles/clu/{z}/{x}/{y}.mvt?key=${LAND_MAP_MAGIC_API_KEY}`;
 
   // Helper to format acres with 2 decimal places
   const formatAcres = (value: number | null | undefined): string => {

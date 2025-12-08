@@ -218,7 +218,7 @@
          * 
          * Demonstrates:
          * - Drawing custom AOI polygons on Google Maps
-         * - Querying CLU fields within the AOI using the /aoi/query endpoint
+         * - Querying CLU fields within the AOI using the /v1/data/aoi endpoint
          * - Displaying results with highlighting
          */
 
@@ -245,8 +245,8 @@
         }
 
         // API Configuration
-        const TILE_URL = `${BASE_URL}/clu/{z}/{x}/{y}?key=${landmapApiKey}`;
-        const AOI_URL = `${BASE_URL}/aoi/query?key=${landmapApiKey}`;
+        const TILE_URL = `${BASE_URL}/v1/tiles/clu/{z}/{x}/{y}.mvt?key=${landmapApiKey}`;
+        const AOI_URL = `${BASE_URL}/v1/data/aoi?key=${landmapApiKey}`;
 
         // Global state
         let map;

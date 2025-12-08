@@ -13,7 +13,7 @@ const BASE_URL = import.meta.env.VITE_LAND_MAP_MAGIC_API_URL || 'https://api.lan
 
 // States MVT tiles URL - standard vector tile endpoint
 const normalizedBaseUrl = BASE_URL.replace(/\/$/, '');
-const STATES_TILES_URL = `${normalizedBaseUrl}/states/{z}/{x}/{y}?key=${LANDMAP_KEY}`;
+const STATES_TILES_URL = `${normalizedBaseUrl}/v1/tiles/states/{z}/{x}/{y}.mvt?key=${LANDMAP_KEY}`;
 
 // Basemap style - ESRI World Imagery satellite (same as used in other examples)
   const BASEMAP_STYLE = {

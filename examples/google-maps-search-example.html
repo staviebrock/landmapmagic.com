@@ -228,7 +228,7 @@
                     // States (Zoom 0-6)
                     new MVTLayer({
                         id: 'states',
-                        data: `${BASE_URL}/states/{z}/{x}/{y}?key=${landmapApiKey}`,
+                        data: `${BASE_URL}/v1/tiles/states/{z}/{x}/{y}.mvt?key=${landmapApiKey}`,
                         minZoom: 0,
                         maxZoom: 6,
                         getFillColor: [0, 0, 0, 0],
@@ -241,7 +241,7 @@
                     // States Labels
                     new MVTLayer({
                         id: 'states-labels',
-                        data: `${BASE_URL}/states/{z}/{x}/{y}?key=${landmapApiKey}`,
+                        data: `${BASE_URL}/v1/tiles/states/{z}/{x}/{y}.mvt?key=${landmapApiKey}`,
                         minZoom: 0,
                         maxZoom: 6,
                         binary: false,
@@ -267,7 +267,7 @@
                     // Counties (Zoom 6-10)
                     new MVTLayer({
                         id: 'counties',
-                        data: `${BASE_URL}/counties/{z}/{x}/{y}?key=${landmapApiKey}`,
+                        data: `${BASE_URL}/v1/tiles/counties/{z}/{x}/{y}.mvt?key=${landmapApiKey}`,
                         minZoom: 6,
                         maxZoom: 10,
                         getFillColor: [0, 0, 0, 0],
@@ -280,7 +280,7 @@
                     // Counties Labels
                     new MVTLayer({
                         id: 'counties-labels',
-                        data: `${BASE_URL}/counties/{z}/{x}/{y}?key=${landmapApiKey}`,
+                        data: `${BASE_URL}/v1/tiles/counties/{z}/{x}/{y}.mvt?key=${landmapApiKey}`,
                         minZoom: 6,
                         maxZoom: 10,
                         binary: false,
@@ -306,7 +306,7 @@
                     // Townships (Zoom 10-12)
                     new MVTLayer({
                         id: 'townships',
-                        data: `${BASE_URL}/townships/{z}/{x}/{y}?key=${landmapApiKey}`,
+                        data: `${BASE_URL}/v1/tiles/townships/{z}/{x}/{y}.mvt?key=${landmapApiKey}`,
                         minZoom: 10,
                         maxZoom: 12,
                         getFillColor: [0, 0, 0, 0],
@@ -319,7 +319,7 @@
                     // Townships Labels
                     new MVTLayer({
                         id: 'townships-labels',
-                        data: `${BASE_URL}/townships/{z}/{x}/{y}?key=${landmapApiKey}`,
+                        data: `${BASE_URL}/v1/tiles/townships/{z}/{x}/{y}.mvt?key=${landmapApiKey}`,
                         minZoom: 10,
                         maxZoom: 12,
                         binary: false,
@@ -345,7 +345,7 @@
                     // Sections (Zoom 12-14)
                     new MVTLayer({
                         id: 'sections',
-                        data: `${BASE_URL}/sections/{z}/{x}/{y}?key=${landmapApiKey}`,
+                        data: `${BASE_URL}/v1/tiles/sections/{z}/{x}/{y}.mvt?key=${landmapApiKey}`,
                         minZoom: 12,
                         maxZoom: 14,
                         getFillColor: [0, 0, 0, 0],
@@ -358,7 +358,7 @@
                     // Sections Labels
                     new MVTLayer({
                         id: 'sections-labels',
-                        data: `${BASE_URL}/sections/{z}/{x}/{y}?key=${landmapApiKey}`,
+                        data: `${BASE_URL}/v1/tiles/sections/{z}/{x}/{y}.mvt?key=${landmapApiKey}`,
                         minZoom: 12,
                         maxZoom: 14,
                         binary: false,
@@ -384,7 +384,7 @@
                     // Parcels (Zoom 14-17)
                     new MVTLayer({
                         id: 'parcels',
-                        data: `${BASE_URL}/parcels/tiles/{z}/{x}/{y}.mvt?key=${landmapApiKey}`,
+                        data: `${BASE_URL}/v1/tiles/parcels/{z}/{x}/{y}.mvt?key=${landmapApiKey}`,
                         minZoom: 14,
                         maxZoom: 17,
                         binary: false,
@@ -444,7 +444,7 @@
                     // CLU (Zoom 14+)
                     new MVTLayer({
                         id: 'clu',
-                        data: `${BASE_URL}/clu/tiles/{z}/{x}/{y}.mvt?key=${landmapApiKey}`,
+                        data: `${BASE_URL}/v1/tiles/clu/{z}/{x}/{y}.mvt?key=${landmapApiKey}`,
                         minZoom: 14,
                         maxZoom: 20,
                         getFillColor: [0, 255, 0, 20],
@@ -490,7 +490,7 @@
                 resultsDiv.style.display = 'none'; // Hide results while loading
 
                 try {
-                    const res = await fetch(`${BASE_URL}/search?q=${encodeURIComponent(query)}&limit=5&key=${landmapApiKey}`);
+                    const res = await fetch(`${BASE_URL}/v1/data/search?q=${encodeURIComponent(query)}&limit=5&key=${landmapApiKey}`);
                     const data = await res.json();
 
                     displayResults(data.results);

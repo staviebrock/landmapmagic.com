@@ -49,7 +49,7 @@ const EXAMPLES: Example[] = [
   {
     id: 'maplibre-states',
     title: 'MapLibre States',
-    description: 'Simple MapLibre example using our /states/style.json endpoint',
+    description: 'Simple MapLibre example using our /v1/styles/states/style.json endpoint',
     category: 'react',
     icon: '🇺🇸',
     tags: {

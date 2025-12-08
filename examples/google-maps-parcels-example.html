@@ -109,9 +109,8 @@
 
         // Property Parcel MVT endpoint (served by Cloudflare Worker for optimal performance)
         // Note: This endpoint requires proper API key authentication
-        // The .mvt extension is recommended (matches protomaps style: https://api.protomaps.com/tiles/v4/{z}/{x}/{y}.mvt)
-        // The endpoint also works without .mvt, but including it is the preferred style
-        const PARCEL_TILE_URL = `${BASE_URL}/parcels/tiles/{z}/{x}/{y}.mvt?key=${landmapApiKey}`;
+        // The .mvt extension is required (matches MapTiler style: /v1/tiles/{layer}/{z}/{x}/{y}.mvt)
+        const PARCEL_TILE_URL = `${BASE_URL}/v1/tiles/parcels/{z}/{x}/{y}.mvt?key=${landmapApiKey}`;
 
         // Enhanced logging for debugging
         function logTileRequest(z, x, y) {
@@ -151,9 +150,9 @@
         const originalFetch = window.fetch;
         window.fetch = function (...args) {
             const url = args[0];
-            if (typeof url === 'string' && url.includes('/parcels/tiles/')) {
+            if (typeof url === 'string' && url.includes('/v1/tiles/parcels/')) {
                 // Extract tile coordinates from URL
-                const match = url.match(/\/parcels\/tiles\/(\d+)\/(\d+)\/(\d+)/);
+                const match = url.match(/\/v1\/tiles\/parcels\/(\d+)\/(\d+)\/(\d+)/);
                 if (match) {
                     const [, z, x, y] = match;
                     console.log(`[Parcels MVT] 🌐 Fetch request: ${z}/${x}/${y}`);

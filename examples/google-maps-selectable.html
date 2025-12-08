@@ -190,7 +190,7 @@
         }
 
         // Your LandMapMagic API endpoint
-        const TILE_URL = `${BASE_URL}/clu/{z}/{x}/{y}?key=${landmapApiKey}`;
+        const TILE_URL = `${BASE_URL}/v1/tiles/clu/{z}/{x}/{y}.mvt?key=${landmapApiKey}`;
 
         // Helper to format acres with 2 decimal places (no "ac" suffix)
         const fmtAcres = (v) => (v == null ? '' : v.toFixed(2));

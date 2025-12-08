@@ -39,7 +39,7 @@ export default function MapboxSelectableExample() {
   }
   
   // LandMapMagic API endpoint
-  const TILE_URL = `${LAND_MAP_MAGIC_API_URL}/clu/{z}/{x}/{y}?key=${LAND_MAP_MAGIC_API_KEY}`;
+  const TILE_URL = `${LAND_MAP_MAGIC_API_URL}/v1/tiles/clu/{z}/{x}/{y}.mvt?key=${LAND_MAP_MAGIC_API_KEY}`;
 
 
   /**

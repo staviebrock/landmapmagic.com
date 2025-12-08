@@ -121,7 +121,7 @@
 
             const cluLayer = new MVTLayer({
                 id: 'clu-cache-test',
-                data: `${BASE_URL}/clu/{z}/{x}/{y}?key=${landmapApiKey}`,
+                data: `${BASE_URL}/v1/tiles/clu/{z}/{x}/{y}.mvt?key=${landmapApiKey}`,
                 minZoom: 11,
                 maxZoom: 15,
                 getFillColor: [0, 0, 0, 0],

@@ -55,7 +55,7 @@
         }
 
         // Your LandMapMagic API endpoint for states
-        const TILE_URL = `${BASE_URL}/states/{z}/{x}/{y}?key=${landmapApiKey}`;
+        const TILE_URL = `${BASE_URL}/v1/tiles/states/{z}/{x}/{y}.mvt?key=${landmapApiKey}`;
 
         // Load Google Maps dynamically
         function loadGoogleMaps() {

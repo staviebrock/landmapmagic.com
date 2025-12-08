@@ -58,7 +58,7 @@
             esriConfig.apiKey = arcgisApiKey;
 
             // Your LandMapMagic API endpoint for CLU tiles
-            const TILE_URL = `${BASE_URL}/clu/{z}/{x}/{y}?key=${landmapApiKey}`;
+            const TILE_URL = `${BASE_URL}/v1/tiles/clu/{z}/{x}/{y}.mvt?key=${landmapApiKey}`;
 
             // Create the CLU Vector Tile Layer with Mapbox GL style specification
             // ArcGIS VectorTileLayer supports Mapbox GL style format
