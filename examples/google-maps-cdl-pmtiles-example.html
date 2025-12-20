@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LandMapMagic - CDL PMTiles Test</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        /* Control panel */
+        .control-panel {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(12px);
+            border-radius: 12px;
+            padding: 16px 20px;
+            color: #f1f5f9;
+            z-index: 1000;
+            min-width: 240px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .control-panel h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+        
+        .env-badge {
+            display: inline-block;
+            background: #22c55e;
+            color: #fff;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .env-badge.staging {
+            background: #f59e0b;
+        }
+        
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        
+        .control-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .control-row label {
+            font-size: 13px;
+            color: #cbd5e1;
+        }
+        
+        .control-row select,
+        .control-row input[type="range"] {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 6px;
+            color: #f1f5f9;
+            padding: 6px 10px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        
+        .control-row select:hover,
+        .control-row input[type="range"]:hover {
+            border-color: rgba(148, 163, 184, 0.4);
+        }
+        
+        .control-row select {
+            min-width: 80px;
+        }
+        
+        .control-row input[type="range"] {
+            width: 100px;
+            padding: 0;
+        }
+        
+        .opacity-value {
+            font-size: 12px;
+            color: #64748b;
+            min-width: 32px;
+            text-align: right;
+        }
+        
+        .zoom-value {
+            font-size: 13px;
+            color: #f1f5f9;
+            font-weight: 500;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 6px;
+            padding: 4px 10px;
+            min-width: 40px;
+            text-align: center;
+        }
+        
+        .zoom-warning {
+            font-size: 11px;
+            color: #f59e0b;
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(245, 158, 11, 0.1);
+            border-radius: 6px;
+            display: none;
+        }
+        
+        .zoom-warning.visible {
+            display: block;
+        }
+        
+        /* Legend */
+        .legend {
+            position: absolute;
+            bottom: 24px;
+            right: 16px;
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(12px);
+            border-radius: 12px;
+            padding: 14px 18px;
+            color: #f1f5f9;
+            z-index: 1000;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.08);
+            max-height: 350px;
+            overflow-y: auto;
+        }
+        
+        .legend h4 {
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        
+        .legend-label {
+            color: #cbd5e1;
+        }
+        
+        /* Status indicator */
+        .status {
+            position: absolute;
+            bottom: 24px;
+            left: 16px;
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(12px);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #94a3b8;
+            font-size: 11px;
+            z-index: 1000;
+            max-width: 300px;
+        }
+        
+        .status .endpoint {
+            color: #60a5fa;
+            word-break: break-all;
+        }
+        
+        .status .colormap-status {
+            margin-top: 4px;
+            color: #22c55e;
+        }
+        
+        .status .colormap-status.error {
+            color: #ef4444;
+        }
+    </style>
+
+    <!-- deck.gl dependencies for Google Maps integration -->
+    <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+    <script src="https://unpkg.com/@deck.gl/google-maps@^9.0.0/dist.min.js"></script>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <!-- Control Panel -->
+    <div class="control-panel">
+        <h3>CDL PMTiles Test <span class="env-badge" id="env-badge">Production</span></h3>
+        <div class="control-row">
+            <label>Year</label>
+            <select id="year-select">
+                <option value="2024" selected>2024</option>
+                <option value="2023">2023</option>
+                <option value="2022">2022</option>
+            </select>
+        </div>
+        <div class="control-row">
+            <label>Opacity</label>
+            <input type="range" id="opacity-slider" min="0" max="100" value="80">
+            <span class="opacity-value" id="opacity-value">80%</span>
+        </div>
+        <div class="control-row">
+            <label>Zoom Level</label>
+            <span class="zoom-value" id="zoom-value">13</span>
+        </div>
+        <div class="zoom-warning" id="zoom-warning">
+            ⚠️ CDL tiles available at zoom 13-16. Zoom in to see crop data.
+        </div>
+    </div>
+    
+    <!-- Legend -->
+    <div class="legend" id="legend">
+        <h4>Crop Types</h4>
+        <div id="legend-items">
+            <!-- Populated dynamically from colormap -->
+            <div style="color: #94a3b8; font-size: 11px;">Loading colormap...</div>
+        </div>
+    </div>
+    
+    <!-- Status -->
+    <div class="status">
+        API: <span class="endpoint" id="api-endpoint">Loading...</span>
+        <div class="colormap-status" id="colormap-status">Loading colormap...</div>
+    </div>
+
+    <script>
+        /**
+         * LandMapMagic CDL PMTiles Test
+         * 
+         * Tests the CDL raster tile endpoint served from PMTiles
+         * via the tile-worker cdl-routes.ts
+         * 
+         * CDL tiles are grayscale PNG with raw crop code values.
+         * This example fetches the colormap and applies colors client-side.
+         * Available at zoom levels 13-16.
+         */
+
+        // Access deck.gl classes from global namespace
+        const { GoogleMapsOverlay } = deck;
+        const { TileLayer, BitmapLayer } = deck;
+
+        // Environment variables injected by Vite
+        const GOOGLE_MAPS_KEY = '%VITE_GOOGLE_MAPS_API_KEY%';
+        const LANDMAP_KEY = '%VITE_LAND_MAP_MAGIC_API_KEY%';
+        const BASE_URL_ENV = '%VITE_LAND_MAP_MAGIC_API_URL%';
+
+        // Resolve env vars (fallback if not set via Vite)
+        const googleApiKey = (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('VITE_')) ? GOOGLE_MAPS_KEY : '';
+        const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
+        // Default to production API for testing
+        const BASE_URL = (BASE_URL_ENV && !BASE_URL_ENV.includes('VITE_')) ? BASE_URL_ENV : 'https://api.landmapmagic.com';
+
+        // CDL configuration - must match cdl-routes.ts
+        const CDL_CONFIG = {
+            minZoom: 13,  // PMTiles starts at zoom 13
+            maxZoom: 16   // Full 30m resolution
+        };
+
+        if (!googleApiKey) {
+            document.body.innerHTML = '<div style="padding:20px;color:red;font-family:system-ui;">Missing VITE_GOOGLE_MAPS_API_KEY in .env.local</div>';
+            throw new Error('Missing Google Maps API key');
+        }
+
+        // Update UI with environment info
+        document.getElementById('api-endpoint').textContent = BASE_URL;
+        if (BASE_URL.includes('staging')) {
+            document.getElementById('env-badge').textContent = 'Staging';
+            document.getElementById('env-badge').classList.add('staging');
+        }
+
+        // State
+        let currentYear = 2024;
+        let currentOpacity = 0.80;
+        let overlay = null;
+        let map = null;
+        let colormap = null;  // Will hold the colormap lookup table [code] -> [r, g, b, a]
+        let colormapNames = {}; // code -> name mapping for legend
+
+        // CDL crop names for legend display
+        const CDL_CROP_NAMES = {
+            1: 'Corn', 2: 'Cotton', 3: 'Rice', 4: 'Sorghum', 5: 'Soybeans',
+            6: 'Sunflower', 10: 'Peanuts', 11: 'Tobacco', 12: 'Sweet Corn',
+            13: 'Pop Corn', 14: 'Mint', 21: 'Barley', 22: 'Durum Wheat',
+            23: 'Spring Wheat', 24: 'Winter Wheat', 25: 'Other Small Grains',
+            26: 'Dbl Crop WinWht/Soybeans', 27: 'Rye', 28: 'Oats', 29: 'Millet',
+            30: 'Speltz', 31: 'Canola', 32: 'Flaxseed', 33: 'Safflower',
+            34: 'Rape Seed', 35: 'Mustard', 36: 'Alfalfa', 37: 'Other Hay/Non Alfalfa',
+            38: 'Camelina', 39: 'Buckwheat', 41: 'Sugarbeets', 42: 'Dry Beans',
+            43: 'Potatoes', 44: 'Other Crops', 45: 'Sugarcane', 46: 'Sweet Potatoes',
+            47: 'Misc Vegs & Fruits', 48: 'Watermelons', 49: 'Onions', 50: 'Cucumbers',
+            51: 'Chick Peas', 52: 'Lentils', 53: 'Peas', 54: 'Tomatoes',
+            55: 'Caneberries', 56: 'Hops', 57: 'Herbs', 58: 'Clover/Wildflowers',
+            59: 'Sod/Grass Seed', 60: 'Switchgrass', 61: 'Fallow/Idle Cropland',
+            63: 'Forest', 64: 'Shrubland', 65: 'Barren', 66: 'Cherries',
+            67: 'Peaches', 68: 'Apples', 69: 'Grapes', 70: 'Christmas Trees',
+            71: 'Other Tree Crops', 72: 'Citrus', 74: 'Pecans', 75: 'Almonds',
+            76: 'Walnuts', 77: 'Pears', 81: 'Clouds/No Data', 82: 'Developed',
+            83: 'Water', 87: 'Wetlands', 88: 'Nonag/Undefined', 92: 'Aquaculture',
+            111: 'Open Water', 112: 'Perennial Ice/Snow', 121: 'Developed/Open Space',
+            122: 'Developed/Low Intensity', 123: 'Developed/Med Intensity',
+            124: 'Developed/High Intensity', 131: 'Barren', 141: 'Deciduous Forest',
+            142: 'Evergreen Forest', 143: 'Mixed Forest', 152: 'Shrubland',
+            176: 'Grassland/Pasture', 190: 'Woody Wetlands', 195: 'Herbaceous Wetlands'
+        };
+
+        // Fetch and parse colormap from API
+        async function fetchColormap(year) {
+            const url = `${BASE_URL}/v1/tiles/cdl/colormap.json?key=${landmapApiKey}&year=${year}`;
+            console.log('🎨 Fetching colormap:', url);
+            
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+                
+                // Build lookup table from API format: { "colormap": { "1": [R, G, B, A], ... } }
+                const colormapData = data.colormap || data;
+                const lookup = new Array(256).fill(null).map(() => [0, 0, 0, 0]); // Default transparent
+                const names = {};
+                
+                for (const [code, rgba] of Object.entries(colormapData)) {
+                    const cropCode = parseInt(code, 10);
+                    if (cropCode >= 0 && cropCode < 256 && Array.isArray(rgba) && rgba.length >= 4) {
+                        lookup[cropCode] = [rgba[0], rgba[1], rgba[2], rgba[3]];
+                        names[cropCode] = CDL_CROP_NAMES[cropCode] || `Code ${cropCode}`;
+                    }
+                }
+                
+                const cropCount = Object.keys(colormapData).length;
+                console.log(`✅ Colormap loaded: ${cropCount} crop types`);
+                document.getElementById('colormap-status').textContent = `✓ Colormap loaded (${cropCount} crops)`;
+                
+                // Update legend with colormap
+                updateLegend(colormapData);
+                
+                return { lookup, names };
+            } catch (error) {
+                console.error('❌ Failed to fetch colormap:', error);
+                document.getElementById('colormap-status').textContent = `✗ Colormap failed: ${error.message}`;
+                document.getElementById('colormap-status').classList.add('error');
+                return null;
+            }
+        }
+
+        // Update legend from colormap data
+        function updateLegend(colormapData) {
+            const container = document.getElementById('legend-items');
+            
+            // Common crops to show in legend (sorted by importance)
+            const commonCrops = [1, 5, 24, 36, 2, 3, 61, 176, 37, 141, 152, 121];
+            
+            let html = '';
+            for (const code of commonCrops) {
+                const rgba = colormapData[code];
+                if (rgba && Array.isArray(rgba)) {
+                    const color = `rgb(${rgba[0]}, ${rgba[1]}, ${rgba[2]})`;
+                    const name = CDL_CROP_NAMES[code] || `Code ${code}`;
+                    html += `
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: ${color};"></div>
+                            <span class="legend-label">${name}</span>
+                        </div>
+                    `;
+                }
+            }
+            
+            container.innerHTML = html || '<div style="color: #94a3b8;">No colormap data</div>';
+        }
+
+        // Apply colormap to a grayscale image
+        function applyColormap(imageData, colormapLookup) {
+            const data = imageData.data;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                // Grayscale tiles have R=G=B=cropCode
+                const cropCode = data[i];
+                const color = colormapLookup[cropCode];
+                
+                if (color && color[3] > 0) {
+                    data[i] = color[0];     // R
+                    data[i + 1] = color[1]; // G
+                    data[i + 2] = color[2]; // B
+                    data[i + 3] = color[3]; // A
+                } else {
+                    // Transparent for unknown codes or nodata (0)
+                    data[i + 3] = 0;
+                }
+            }
+            
+            return imageData;
+        }
+
+        // Build CDL tile URL for a given year
+        function getCdlTileUrl(year) {
+            return `${BASE_URL}/v1/tiles/cdl/{z}/{x}/{y}.png?key=${landmapApiKey}&year=${year}`;
+        }
+
+        // Create CDL TileLayer with colormap applied
+        function createCdlLayer(year, opacity, colormapLookup) {
+            return new TileLayer({
+                id: 'cdl-tiles',
+                // Custom data loader that fetches and colorizes tiles
+                getTileData: async (tile) => {
+                    const { x, y, z } = tile.index;
+                    const url = `${BASE_URL}/v1/tiles/cdl/${z}/${x}/${y}.png?key=${landmapApiKey}&year=${year}`;
+                    
+                    try {
+                        const response = await fetch(url);
+                        
+                        // Handle 204 No Content (empty tile)
+                        if (response.status === 204) {
+                            return null;
+                        }
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                        
+                        const blob = await response.blob();
+                        const imageBitmap = await createImageBitmap(blob);
+                        
+                        // If we have a colormap, apply it
+                        if (colormapLookup) {
+                            // Draw to canvas and get pixel data
+                            const canvas = document.createElement('canvas');
+                            canvas.width = imageBitmap.width;
+                            canvas.height = imageBitmap.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(imageBitmap, 0, 0);
+                            
+                            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                            applyColormap(imageData, colormapLookup);
+                            ctx.putImageData(imageData, 0, 0);
+                            
+                            // Return colorized image as blob URL
+                            return new Promise((resolve) => {
+                                canvas.toBlob((blob) => {
+                                    const url = URL.createObjectURL(blob);
+                                    const img = new Image();
+                                    img.onload = () => resolve(img);
+                                    img.src = url;
+                                }, 'image/png');
+                            });
+                        }
+                        
+                        // No colormap - return grayscale
+                        return imageBitmap;
+                        
+                    } catch (error) {
+                        console.warn(`Tile ${z}/${x}/${y} error:`, error.message);
+                        return null;
+                    }
+                },
+                minZoom: CDL_CONFIG.minZoom,
+                maxZoom: CDL_CONFIG.maxZoom,
+                tileSize: 256,
+                opacity: opacity,
+                
+                renderSubLayers: (props) => {
+                    const {
+                        bbox: { west, south, east, north }
+                    } = props.tile;
+
+                    return new BitmapLayer(props, {
+                        data: null,
+                        image: props.data,
+                        bounds: [west, south, east, north]
+                    });
+                },
+                
+                onTileLoad: (tile) => {
+                    // Quiet logging - only log occasionally
+                },
+                
+                onTileError: (error) => {
+                    // 204 responses (empty tiles) are normal
+                }
+            });
+        }
+
+        // Update the overlay with new layer
+        function updateLayer() {
+            if (!overlay || !colormap) return;
+            
+            const cdlLayer = createCdlLayer(currentYear, currentOpacity, colormap.lookup);
+            overlay.setProps({ layers: [cdlLayer] });
+            
+            console.log(`🌾 CDL layer updated: year=${currentYear}, opacity=${currentOpacity}`);
+        }
+
+        // Update zoom warning visibility
+        function updateZoomWarning(zoom) {
+            const warning = document.getElementById('zoom-warning');
+            if (zoom < CDL_CONFIG.minZoom) {
+                warning.classList.add('visible');
+            } else {
+                warning.classList.remove('visible');
+            }
+        }
+
+        // Load Google Maps dynamically
+        function loadGoogleMaps() {
+            return new Promise((resolve, reject) => {
+                if (typeof google !== 'undefined' && google.maps) {
+                    resolve();
+                    return;
+                }
+
+                window.initGoogleMapCallback = resolve;
+                
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&callback=initGoogleMapCallback`;
+                script.async = true;
+                script.defer = true;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // Initialize map
+        async function initMap() {
+            // Fetch colormap first
+            colormap = await fetchColormap(currentYear);
+            
+            await loadGoogleMaps();
+
+            // Create Google Map centered on Iowa (good CDL coverage)
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 41.878, lng: -93.097 },
+                zoom: 13,  // Start at CDL min zoom
+                mapId: 'CDL_PMTILES_TEST',
+                mapTypeId: 'satellite',
+                mapTypeControl: true,
+                mapTypeControlOptions: {
+                    position: google.maps.ControlPosition.TOP_RIGHT
+                }
+            });
+
+            // Create initial CDL layer with colormap
+            const cdlLayer = createCdlLayer(currentYear, currentOpacity, colormap?.lookup);
+
+            // Create deck.gl overlay
+            overlay = new GoogleMapsOverlay({
+                layers: [cdlLayer]
+            });
+            overlay.setMap(map);
+
+            // Wire up controls
+            setupControls();
+            
+            // Update zoom display on zoom change
+            const zoomValue = document.getElementById('zoom-value');
+            const currentZoom = map.getZoom();
+            zoomValue.textContent = currentZoom;
+            updateZoomWarning(currentZoom);
+            
+            map.addListener('zoom_changed', () => {
+                const zoom = map.getZoom();
+                zoomValue.textContent = zoom;
+                updateZoomWarning(zoom);
+            });
+
+            console.log('✅ Map initialized with CDL PMTiles + colormap');
+            console.log(`📍 CDL tile endpoint: ${getCdlTileUrl(currentYear)}`);
+        }
+
+        // Setup UI controls
+        function setupControls() {
+            // Year selector
+            const yearSelect = document.getElementById('year-select');
+            yearSelect.addEventListener('change', async (e) => {
+                currentYear = parseInt(e.target.value, 10);
+                // Fetch new colormap for the year
+                colormap = await fetchColormap(currentYear);
+                updateLayer();
+            });
+
+            // Opacity slider
+            const opacitySlider = document.getElementById('opacity-slider');
+            const opacityValue = document.getElementById('opacity-value');
+            
+            opacitySlider.addEventListener('input', (e) => {
+                currentOpacity = parseInt(e.target.value, 10) / 100;
+                opacityValue.textContent = `${e.target.value}%`;
+                updateLayer();
+            });
+        }
+
+        // Auto-initialize
+        initMap().catch((error) => {
+            console.error('Failed to initialize map:', error);
+            document.body.innerHTML = `<div style="padding:20px;color:red;font-family:system-ui;">Failed to load map: ${error.message}</div>`;
+        });
+    </script>
+</body>
+</html>

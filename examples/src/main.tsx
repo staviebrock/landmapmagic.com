@@ -14,7 +14,7 @@ interface Example {
   tags: {
     framework: 'react' | 'html';
     sdk: 'maplibre' | 'mapbox' | 'google-maps' | 'arcgis' | 'deck.gl';
-    data: ('clu' | 'states' | 'counties' | 'parcels' | 'townships' | 'sections')[];
+    data: ('clu' | 'states' | 'counties' | 'parcels' | 'townships' | 'sections' | 'cdl')[];
     features: ('selection' | 'hover' | 'labels' | 'aoi-query' | 'click-to-zoom')[];
   };
 }
@@ -183,6 +183,48 @@ const EXAMPLES: Example[] = [
       sdk: 'google-maps',
       data: ['states', 'counties', 'townships', 'sections', 'clu'],
       features: ['selection', 'hover', 'labels']
+    }
+  },
+  {
+    id: 'google-maps-cdl',
+    title: 'Google Maps CDL',
+    description: 'Cropland Data Layer raster tiles showing crop types with year selector',
+    category: 'html',
+    path: '/google-maps-cdl-example.html',
+    icon: '🌾',
+    tags: {
+      framework: 'html',
+      sdk: 'google-maps',
+      data: ['cdl'],
+      features: []
+    }
+  },
+  {
+    id: 'google-maps-cdl-pmtiles',
+    title: 'Google Maps CDL PMTiles',
+    description: 'CDL PMTiles test - grayscale crop codes served via tile-worker (zoom 13-16)',
+    category: 'html',
+    path: '/google-maps-cdl-pmtiles-example.html',
+    icon: '🧪',
+    tags: {
+      framework: 'html',
+      sdk: 'google-maps',
+      data: ['cdl'],
+      features: []
+    }
+  },
+  {
+    id: 'google-maps-cdl-aoi',
+    title: 'CDL AOI Query',
+    description: 'Draw a polygon to query crop statistics from CDL data (max 1000 acres)',
+    category: 'html',
+    path: '/google-maps-cdl-aoi-example.html',
+    icon: '🌾',
+    tags: {
+      framework: 'html',
+      sdk: 'google-maps',
+      data: ['cdl'],
+      features: ['aoi-query', 'selection']
     }
   }
 ];

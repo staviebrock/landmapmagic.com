@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LandMapMagic - Google Maps + CDL Raster</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        /* Control panel */
+        .control-panel {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(12px);
+            border-radius: 12px;
+            padding: 16px 20px;
+            color: #f1f5f9;
+            z-index: 1000;
+            min-width: 220px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .control-panel h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+        
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        
+        .control-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .control-row label {
+            font-size: 13px;
+            color: #cbd5e1;
+        }
+        
+        .control-row select,
+        .control-row input[type="range"] {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 6px;
+            color: #f1f5f9;
+            padding: 6px 10px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        
+        .control-row select:hover,
+        .control-row input[type="range"]:hover {
+            border-color: rgba(148, 163, 184, 0.4);
+        }
+        
+        .control-row select {
+            min-width: 80px;
+        }
+        
+        .control-row input[type="range"] {
+            width: 100px;
+            padding: 0;
+        }
+        
+        .opacity-value {
+            font-size: 12px;
+            color: #64748b;
+            min-width: 32px;
+            text-align: right;
+        }
+        
+        .zoom-value {
+            font-size: 13px;
+            color: #f1f5f9;
+            font-weight: 500;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 6px;
+            padding: 4px 10px;
+            min-width: 40px;
+            text-align: center;
+        }
+        
+        /* Legend */
+        .legend {
+            position: absolute;
+            bottom: 24px;
+            right: 16px;
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(12px);
+            border-radius: 12px;
+            padding: 14px 18px;
+            color: #f1f5f9;
+            z-index: 1000;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.08);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .legend h4 {
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        
+        .legend-label {
+            color: #cbd5e1;
+        }
+    </style>
+
+    <!-- deck.gl dependencies for Google Maps integration -->
+    <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+    <script src="https://unpkg.com/@deck.gl/google-maps@^9.0.0/dist.min.js"></script>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <!-- Control Panel -->
+    <div class="control-panel">
+        <h3>CDL Crop Data</h3>
+        <div class="control-row">
+            <label>Year</label>
+            <select id="year-select">
+                <option value="2024" selected>2024</option>
+                <option value="2023">2023</option>
+                <option value="2022">2022</option>
+                <option value="2021">2021</option>
+                <option value="2020">2020</option>
+            </select>
+        </div>
+        <div class="control-row">
+            <label>Opacity</label>
+            <input type="range" id="opacity-slider" min="0" max="100" value="75">
+            <span class="opacity-value" id="opacity-value">75%</span>
+        </div>
+        <div class="control-row">
+            <label>Zoom Level</label>
+            <span class="zoom-value" id="zoom-value">10</span>
+        </div>
+    </div>
+    
+    <!-- Legend -->
+    <div class="legend">
+        <h4>Crop Types</h4>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ffd300;"></div>
+            <span class="legend-label">Corn</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #267000;"></div>
+            <span class="legend-label">Soybeans</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #a57000;"></div>
+            <span class="legend-label">Winter Wheat</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #70a500;"></div>
+            <span class="legend-label">Alfalfa</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #00a8e5;"></div>
+            <span class="legend-label">Cotton</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #e2007c;"></div>
+            <span class="legend-label">Rice</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #896054;"></div>
+            <span class="legend-label">Fallow/Idle</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #d3ffbe;"></div>
+            <span class="legend-label">Grassland/Pasture</span>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * LandMapMagic Google Maps + CDL Raster Integration
+         * 
+         * Displays USDA Cropland Data Layer (CDL) raster tiles
+         * showing crop types across the United States.
+         * 
+         * Uses deck.gl TileLayer with BitmapLayer sublayers
+         * to render PNG raster tiles from the LandMapMagic API.
+         */
+
+        // Access deck.gl classes from global namespace
+        const { GoogleMapsOverlay } = deck;
+        const { TileLayer, BitmapLayer } = deck;
+
+        // Environment variables injected by Vite
+        const GOOGLE_MAPS_KEY = '%VITE_GOOGLE_MAPS_API_KEY%';
+        const LANDMAP_KEY = '%VITE_LAND_MAP_MAGIC_API_KEY%';
+        const BASE_URL_ENV = '%VITE_LAND_MAP_MAGIC_API_URL%';
+
+        // Resolve env vars (fallback if not set via Vite)
+        const googleApiKey = (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('VITE_')) ? GOOGLE_MAPS_KEY : '';
+        const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
+        const BASE_URL = (BASE_URL_ENV && !BASE_URL_ENV.includes('VITE_')) ? BASE_URL_ENV : 'https://api.landmapmagic.com';
+
+        if (!googleApiKey) {
+            document.body.innerHTML = '<div style="padding:20px;color:red;font-family:system-ui;">Missing VITE_GOOGLE_MAPS_API_KEY in .env.local</div>';
+            throw new Error('Missing Google Maps API key');
+        }
+
+        // State
+        let currentYear = 2024;
+        let currentOpacity = 0.75;
+        let overlay = null;
+        let map = null;
+
+        // Build CDL tile URL for a given year
+        function getCdlTileUrl(year) {
+            return `${BASE_URL}/v1/tiles/cdl/{z}/{x}/{y}.png?key=${landmapApiKey}&year=${year}`;
+        }
+
+        // Create CDL TileLayer
+        function createCdlLayer(year, opacity) {
+            return new TileLayer({
+                id: 'cdl-tiles',
+                data: getCdlTileUrl(year),
+                minZoom: 5,
+                maxZoom: 16,
+                tileSize: 256,
+                opacity: opacity,
+                
+                renderSubLayers: (props) => {
+                    const {
+                        bbox: { west, south, east, north }
+                    } = props.tile;
+
+                    return new BitmapLayer(props, {
+                        data: null,
+                        image: props.data,
+                        bounds: [west, south, east, north]
+                    });
+                }
+            });
+        }
+
+        // Update the overlay with new layer
+        function updateLayer() {
+            if (!overlay) return;
+            
+            const cdlLayer = createCdlLayer(currentYear, currentOpacity);
+            overlay.setProps({ layers: [cdlLayer] });
+            
+            console.log(`🌾 CDL layer updated: year=${currentYear}, opacity=${currentOpacity}`);
+        }
+
+        // Load Google Maps dynamically
+        function loadGoogleMaps() {
+            return new Promise((resolve, reject) => {
+                if (typeof google !== 'undefined' && google.maps) {
+                    resolve();
+                    return;
+                }
+
+                window.initGoogleMapCallback = resolve;
+                
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&callback=initGoogleMapCallback`;
+                script.async = true;
+                script.defer = true;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // Initialize map
+        async function initMap() {
+            await loadGoogleMaps();
+
+            // Create Google Map centered on Iowa (good CDL coverage)
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 41.878, lng: -93.097 },
+                zoom: 10,
+                mapId: 'CDL_MAP_ID',
+                mapTypeId: 'satellite',
+                mapTypeControl: true,
+                mapTypeControlOptions: {
+                    position: google.maps.ControlPosition.TOP_RIGHT
+                }
+            });
+
+            // Create initial CDL layer
+            const cdlLayer = createCdlLayer(currentYear, currentOpacity);
+
+            // Create deck.gl overlay
+            overlay = new GoogleMapsOverlay({
+                layers: [cdlLayer]
+            });
+            overlay.setMap(map);
+
+            // Wire up controls
+            setupControls();
+            
+            // Update zoom display on zoom change
+            const zoomValue = document.getElementById('zoom-value');
+            zoomValue.textContent = map.getZoom();
+            
+            map.addListener('zoom_changed', () => {
+                zoomValue.textContent = map.getZoom();
+            });
+
+            console.log('✅ Map initialized with CDL raster tiles');
+        }
+
+        // Setup UI controls
+        function setupControls() {
+            // Year selector
+            const yearSelect = document.getElementById('year-select');
+            yearSelect.addEventListener('change', (e) => {
+                currentYear = parseInt(e.target.value, 10);
+                updateLayer();
+            });
+
+            // Opacity slider
+            const opacitySlider = document.getElementById('opacity-slider');
+            const opacityValue = document.getElementById('opacity-value');
+            
+            opacitySlider.addEventListener('input', (e) => {
+                currentOpacity = parseInt(e.target.value, 10) / 100;
+                opacityValue.textContent = `${e.target.value}%`;
+                updateLayer();
+            });
+        }
+
+        // Auto-initialize
+        initMap().catch((error) => {
+            console.error('Failed to initialize map:', error);
+            document.body.innerHTML = `<div style="padding:20px;color:red;font-family:system-ui;">Failed to load map: ${error.message}</div>`;
+        });
+    </script>
+</body>
+</html>
+
+

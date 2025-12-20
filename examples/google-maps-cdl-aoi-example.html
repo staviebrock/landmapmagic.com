@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LandMapMagic - CDL AOI Query</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0f172a;
+        }
+
+        #map {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .control-panel {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            color: #e2e8f0;
+            z-index: 1000;
+            min-width: 280px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .control-panel h2 {
+            font-size: 18px;
+            margin-bottom: 4px;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .badge {
+            background: #059669;
+            color: white;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .control-group {
+            margin-top: 16px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+
+        select, button {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            background: rgba(30, 41, 59, 0.8);
+            color: #e2e8f0;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        select:hover, button:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            border-color: #2563eb;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-primary:disabled {
+            background: #475569;
+            border-color: #475569;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border-color: #475569;
+            margin-top: 8px;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            border-color: #dc2626;
+            margin-top: 8px;
+        }
+
+        .drawing-status {
+            margin-top: 12px;
+            padding: 10px;
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .drawing-status.active {
+            background: rgba(37, 99, 235, 0.2);
+            border: 1px solid rgba(37, 99, 235, 0.4);
+        }
+
+        .zoom-value {
+            display: inline-block;
+            background: rgba(30, 41, 59, 0.9);
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .api-info {
+            position: absolute;
+            bottom: 30px;
+            left: 16px;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: #94a3b8;
+            font-size: 12px;
+            z-index: 1000;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .api-info a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+
+        .status-text {
+            margin-top: 4px;
+        }
+
+        .status-text.success {
+            color: #4ade80;
+        }
+
+        .status-text.error {
+            color: #f87171;
+        }
+
+        /* Results Panel */
+        .results-panel {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            color: #e2e8f0;
+            z-index: 1000;
+            min-width: 320px;
+            max-width: 400px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: none;
+        }
+
+        .results-panel.visible {
+            display: block;
+        }
+
+        .results-panel h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .results-panel .close-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 18px;
+            width: auto;
+            padding: 4px 8px;
+        }
+
+        .results-panel .close-btn:hover {
+            color: #e2e8f0;
+        }
+
+        .result-section {
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .result-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .result-section h4 {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 14px;
+        }
+
+        .stat-row .label {
+            color: #94a3b8;
+        }
+
+        .stat-row .value {
+            color: #f8fafc;
+            font-weight: 500;
+        }
+
+        .crop-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .crop-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .crop-item:last-child {
+            border-bottom: none;
+        }
+
+        .crop-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .crop-name {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .crop-stats {
+            text-align: right;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .crop-stats .acres {
+            color: #f8fafc;
+            font-weight: 500;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            display: none;
+        }
+
+        .loading-overlay.visible {
+            display: flex;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            color: #e2e8f0;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .instructions {
+            background: rgba(37, 99, 235, 0.1);
+            border: 1px solid rgba(37, 99, 235, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 16px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .instructions strong {
+            color: #60a5fa;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <!-- Control Panel -->
+    <div class="control-panel">
+        <h2>CDL AOI Query <span class="badge">STAGING</span></h2>
+        
+        <div class="control-group">
+            <label>Year</label>
+            <select id="year-select">
+                <option value="2024">2024</option>
+                <option value="2023">2023</option>
+                <option value="2022">2022</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <button id="draw-btn" class="btn-primary">Draw AOI Polygon</button>
+            <button id="clear-btn" class="btn-secondary">Clear Drawing</button>
+        </div>
+
+        <div id="drawing-status" class="drawing-status">
+            Click "Draw AOI Polygon" to start drawing
+        </div>
+
+        <button id="query-btn" class="btn-primary" disabled>Query Crops in AOI</button>
+
+        <div class="control-group">
+            <label>Zoom Level</label>
+            <div class="zoom-value" id="zoom-value">13</div>
+        </div>
+
+        <div class="instructions">
+            <strong>Instructions:</strong><br>
+            1. Click "Draw AOI Polygon" to start<br>
+            2. Click on map to add points<br>
+            3. Click first point to close polygon<br>
+            4. Click "Query Crops in AOI"<br>
+            <br>
+            <strong>Limit:</strong> Max 1,000 acres
+        </div>
+    </div>
+
+    <!-- Results Panel -->
+    <div id="results-panel" class="results-panel">
+        <h3>
+            Query Results
+            <button class="close-btn" onclick="closeResults()">×</button>
+        </h3>
+        
+        <div class="result-section">
+            <h4>AOI Area</h4>
+            <div class="stat-row">
+                <span class="label">Acres</span>
+                <span class="value" id="result-acres">-</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Hectares</span>
+                <span class="value" id="result-hectares">-</span>
+            </div>
+        </div>
+
+        <div class="result-section">
+            <h4>Query Info</h4>
+            <div class="stat-row">
+                <span class="label">Year</span>
+                <span class="value" id="result-year">-</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Processing Time</span>
+                <span class="value" id="result-time">-</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Tiles Queried</span>
+                <span class="value" id="result-tiles">-</span>
+            </div>
+        </div>
+
+        <div class="result-section">
+            <h4>Crop Summary</h4>
+            <div class="stat-row">
+                <span class="label">Total Samples</span>
+                <span class="value" id="result-samples">-</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Coverage</span>
+                <span class="value" id="result-coverage">-</span>
+            </div>
+        </div>
+
+        <div class="result-section">
+            <h4>Crops Found</h4>
+            <div id="crop-list" class="crop-list">
+                <!-- Crop items will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <div>Querying CDL data...</div>
+        </div>
+    </div>
+
+    <!-- API Info -->
+    <div class="api-info">
+        <div>API: <a href="https://staging-api.landmapmagic.com" target="_blank">https://staging-api.landmapmagic.com</a></div>
+        <div id="query-status" class="status-text"></div>
+    </div>
+
+    <!-- Load deck.gl and Google Maps -->
+    <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+    <script src="https://unpkg.com/@deck.gl/google-maps@^9.0.0/dist.min.js"></script>
+
+    <script>
+        // Configuration
+        const BASE_URL = 'https://staging-api.landmapmagic.com/v1';
+        const landmapApiKey = 'pk_live_Kbh08RkSijtXYK1_wxSMCm_GasW7_J_8HzTunuP-mV4';
+        const googleApiKey = 'AIzaSyDncVOFf_wEsyseYj2yg_uMX3QwppoUJw4';
+
+        // CDL Configuration
+        const CDL_CONFIG = {
+            minZoom: 13,
+            maxZoom: 16,
+            maxAcres: 1000
+        };
+
+        // Colormap data (loaded from API)
+        let colormap = null;
+
+        // State
+        let map = null;
+        let overlay = null;
+        let currentYear = '2024';
+        let isDrawing = false;
+        let drawingPoints = [];
+        let aoiPolygon = null; // Google Maps Polygon
+        let drawingMarkers = [];
+        let drawingManager = null;
+
+        // DOM elements
+        const drawBtn = document.getElementById('draw-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const queryBtn = document.getElementById('query-btn');
+        const yearSelect = document.getElementById('year-select');
+        const drawingStatus = document.getElementById('drawing-status');
+        const resultsPanel = document.getElementById('results-panel');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const queryStatus = document.getElementById('query-status');
+
+        // CDL crop names for legend display
+        const CDL_CROP_NAMES = {
+            1: 'Corn', 2: 'Cotton', 3: 'Rice', 4: 'Sorghum', 5: 'Soybeans',
+            6: 'Sunflower', 10: 'Peanuts', 11: 'Tobacco', 12: 'Sweet Corn',
+            21: 'Barley', 22: 'Durum Wheat', 23: 'Spring Wheat', 24: 'Winter Wheat',
+            26: 'Dbl Crop WinWht/Soybeans', 27: 'Rye', 28: 'Oats',
+            31: 'Canola', 36: 'Alfalfa', 37: 'Other Hay/Non Alfalfa',
+            41: 'Sugarbeets', 42: 'Dry Beans', 43: 'Potatoes', 44: 'Other Crops',
+            61: 'Fallow/Idle Cropland', 63: 'Forest', 64: 'Shrubland',
+            111: 'Open Water', 121: 'Developed/Open Space', 122: 'Developed/Low Intensity',
+            141: 'Deciduous Forest', 142: 'Evergreen Forest', 143: 'Mixed Forest',
+            152: 'Shrubland', 176: 'Grassland/Pasture', 190: 'Woody Wetlands',
+            195: 'Herbaceous Wetlands'
+        };
+
+        // Fetch colormap from API
+        async function fetchColormap(year) {
+            const url = `${BASE_URL}/tiles/cdl/colormap.json?key=${landmapApiKey}&year=${year}`;
+            
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                return data.colormap || data;
+            } catch (error) {
+                console.error('Failed to fetch colormap:', error);
+                return null;
+            }
+        }
+
+        // Start drawing mode using Google Maps Drawing Manager
+        function startDrawing() {
+            // Clear any existing polygon
+            clearDrawing();
+            
+            // Create drawing manager if it doesn't exist
+            if (!drawingManager) {
+                drawingManager = new google.maps.drawing.DrawingManager({
+                    drawingMode: google.maps.drawing.OverlayType.POLYGON,
+                    drawingControl: false,
+                    polygonOptions: {
+                        fillColor: '#ffff00',
+                        fillOpacity: 0.3,
+                        strokeWeight: 3,
+                        strokeColor: '#ffff00',
+                        clickable: false,
+                        editable: false,
+                        zIndex: 1000
+                    }
+                });
+
+                google.maps.event.addListener(drawingManager, 'polygoncomplete', function(polygon) {
+                    aoiPolygon = polygon;
+                    isDrawing = false;
+                    drawingManager.setDrawingMode(null);
+                    
+                    // Store drawing points from polygon path
+                    const path = polygon.getPath();
+                    drawingPoints = [];
+                    for (let i = 0; i < path.getLength(); i++) {
+                        drawingPoints.push(path.getAt(i));
+                    }
+                    
+                    // Calculate area
+                    const areaAcres = calculatePolygonArea(drawingPoints);
+                    
+                    // Update UI
+                    drawBtn.textContent = 'Draw AOI Polygon';
+                    drawBtn.disabled = false;
+                    
+                    if (areaAcres > CLIENT_MAX_ACRES) {
+                        drawingStatus.textContent = `⚠️ AOI too large: ${areaAcres.toFixed(1)} acres (max ${CDL_CONFIG.maxAcres})`;
+                        queryBtn.disabled = true;
+                    } else {
+                        drawingStatus.textContent = `✓ AOI ready: ${areaAcres.toFixed(1)} acres`;
+                        queryBtn.disabled = false;
+                    }
+
+                    console.log('✅ Polygon drawn successfully');
+                });
+            }
+
+            drawingManager.setMap(map);
+            drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+            isDrawing = true;
+
+            // Update UI
+            drawBtn.textContent = 'Drawing... (click to add points)';
+            drawBtn.disabled = true;
+            drawingStatus.textContent = 'Click on map to add points. Click first point to close.';
+            drawingStatus.classList.add('active');
+        }
+
+        // Add point to drawing
+        function addDrawingPoint(latLng) {
+            if (!isDrawing) return;
+            
+            drawingPoints.push(latLng);
+            
+            // Add marker
+            const marker = new google.maps.Marker({
+                position: latLng,
+                map: map,
+                zIndex: 1001,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 10,
+                    fillColor: '#ffff00',
+                    fillOpacity: 1,
+                    strokeColor: '#000000',
+                    strokeWeight: 3
+                }
+            });
+            drawingMarkers.push(marker);
+            
+            // Update polyline preview
+            updateDrawingPreview();
+            
+            drawingStatus.textContent = `${drawingPoints.length} points added. Double-click to finish.`;
+        }
+
+        // Update drawing preview
+        function updateDrawingPreview() {
+            if (aoiPolygon) {
+                aoiPolygon.setMap(null);
+            }
+            
+            if (drawingPoints.length >= 2) {
+                aoiPolygon = new google.maps.Polygon({
+                    paths: drawingPoints,
+                    strokeColor: '#ffff00',
+                    strokeOpacity: 1,
+                    strokeWeight: 3,
+                    fillColor: '#ffff00',
+                    fillOpacity: 0.3,
+                    map: map,
+                    zIndex: 1000
+                });
+            }
+        }
+
+        // Finish drawing
+        function finishDrawing() {
+            if (!isDrawing || drawingPoints.length < 3) {
+                if (drawingPoints.length < 3) {
+                    alert('Please add at least 3 points to create a polygon');
+                }
+                return;
+            }
+            
+            isDrawing = false;
+            
+            // Close the polygon
+            drawingPoints.push(drawingPoints[0]);
+            updateDrawingPreview();
+            
+            // Calculate area
+            const areaAcres = calculatePolygonArea(drawingPoints);
+            
+            drawBtn.textContent = 'Draw AOI Polygon';
+            drawBtn.disabled = false;
+            map.setOptions({ draggableCursor: null });
+            
+            // Re-enable deck.gl canvas pointer events
+            const deckCanvas = document.querySelector('.deck-canvas');
+            if (deckCanvas) {
+                deckCanvas.style.pointerEvents = 'auto';
+            }
+            
+            if (areaAcres > CLIENT_MAX_ACRES) {
+                drawingStatus.textContent = `⚠️ AOI too large: ${areaAcres.toFixed(1)} acres (max ${CDL_CONFIG.maxAcres})`;
+                queryBtn.disabled = true;
+            } else {
+                drawingStatus.textContent = `✓ AOI ready: ${areaAcres.toFixed(1)} acres`;
+                queryBtn.disabled = false;
+            }
+        }
+
+        // Calculate polygon area in acres using Google Maps Geometry library
+        function calculatePolygonArea(points) {
+            if (points.length < 3) return 0;
+            
+            // Use Google's spherical geometry for accurate area calculation
+            const areaSqMeters = google.maps.geometry.spherical.computeArea(points);
+            const acres = areaSqMeters / 4046.86;  // 1 acre = 4046.86 sq meters
+            
+            return acres;
+        }
+        
+        // Client-side max with 10% buffer (API has authoritative check)
+        const CLIENT_MAX_ACRES = CDL_CONFIG.maxAcres * 1.1;
+
+        // Clear drawing
+        function clearDrawing() {
+            isDrawing = false;
+            drawingPoints = [];
+            
+            // Remove markers
+            drawingMarkers.forEach(m => m.setMap(null));
+            drawingMarkers = [];
+            
+            // Remove polygon
+            if (aoiPolygon) {
+                aoiPolygon.setMap(null);
+                aoiPolygon = null;
+            }
+            
+            // Disable drawing manager
+            if (drawingManager) {
+                drawingManager.setMap(null);
+            }
+            
+            drawBtn.textContent = 'Draw AOI Polygon';
+            drawBtn.disabled = false;
+            queryBtn.disabled = true;
+            drawingStatus.textContent = 'Click "Draw AOI Polygon" to start drawing';
+            drawingStatus.classList.remove('active');
+            
+            closeResults();
+        }
+
+        // Convert drawing to GeoJSON
+        function getAOIGeoJSON() {
+            if (drawingPoints.length < 3) return null;
+            
+            const coordinates = drawingPoints.map(p => [p.lng(), p.lat()]);
+            
+            // Ensure closed ring
+            if (coordinates[0][0] !== coordinates[coordinates.length - 1][0] ||
+                coordinates[0][1] !== coordinates[coordinates.length - 1][1]) {
+                coordinates.push(coordinates[0]);
+            }
+            
+            return {
+                type: 'Feature',
+                properties: {},
+                geometry: {
+                    type: 'Polygon',
+                    coordinates: [coordinates]
+                }
+            };
+        }
+
+        // Query CDL for AOI
+        async function queryCDL() {
+            const aoi = getAOIGeoJSON();
+            if (!aoi) {
+                alert('Please draw a valid AOI polygon first');
+                return;
+            }
+            
+            loadingOverlay.classList.add('visible');
+            queryStatus.textContent = 'Querying...';
+            queryStatus.className = 'status-text';
+            
+            try {
+                const response = await fetch(`${BASE_URL}/data/cdl/aoi?key=${landmapApiKey}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        aoi: aoi,
+                        year: currentYear
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || `HTTP ${response.status}`);
+                }
+                
+                const result = await response.json();
+                displayResults(result);
+                
+                // Update drawing status with API's accurate area
+                drawingStatus.textContent = `✓ AOI: ${result.aoi_area.acres.toFixed(1)} acres (verified)`;
+                
+                queryStatus.textContent = `✓ Query completed in ${result.query_info.processing_time_ms}ms`;
+                queryStatus.className = 'status-text success';
+                
+            } catch (error) {
+                console.error('Query failed:', error);
+                queryStatus.textContent = `✗ ${error.message}`;
+                queryStatus.className = 'status-text error';
+                alert(`Query failed: ${error.message}`);
+            } finally {
+                loadingOverlay.classList.remove('visible');
+            }
+        }
+
+        // Display query results
+        function displayResults(result) {
+            // Use API's accurate area (turf.js calculation)
+            document.getElementById('result-acres').textContent = `${result.aoi_area.acres.toFixed(1)} acres`;
+            document.getElementById('result-hectares').textContent = `${result.aoi_area.hectares.toFixed(2)} ha`;
+            document.getElementById('result-year').textContent = result.year;
+            document.getElementById('result-time').textContent = `${result.query_info.processing_time_ms}ms`;
+            document.getElementById('result-tiles').textContent = result.query_info.tiles_queried;
+            document.getElementById('result-samples').textContent = result.crop_summary.total_pixels.toLocaleString();
+            document.getElementById('result-coverage').textContent = `${result.crop_summary.total_acres.toFixed(1)} acres`;
+            
+            // Display crops
+            const cropList = document.getElementById('crop-list');
+            
+            if (result.crop_summary.crops.length === 0) {
+                cropList.innerHTML = '<div style="color: #94a3b8; padding: 8px 0;">No crop data found in AOI</div>';
+            } else {
+                cropList.innerHTML = result.crop_summary.crops.map(crop => {
+                    const color = getColorForCrop(crop.code);
+                    return `
+                        <div class="crop-item">
+                            <div class="crop-color" style="background: ${color}"></div>
+                            <div class="crop-name">${crop.name}</div>
+                            <div class="crop-stats">
+                                <div class="acres">${crop.acres.toFixed(1)} acres</div>
+                                <div>${crop.percent.toFixed(1)}%</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            resultsPanel.classList.add('visible');
+        }
+
+        // Get color for crop code from colormap
+        function getColorForCrop(code) {
+            if (colormap && colormap[code]) {
+                const rgba = colormap[code];
+                return `rgb(${rgba[0]}, ${rgba[1]}, ${rgba[2]})`;
+            }
+            return '#888888';
+        }
+
+        // Close results panel
+        function closeResults() {
+            resultsPanel.classList.remove('visible');
+        }
+
+        // Load Google Maps
+        function loadGoogleMaps() {
+            return new Promise((resolve, reject) => {
+                if (typeof google !== 'undefined' && google.maps) {
+                    resolve();
+                    return;
+                }
+
+                window.initGoogleMapCallback = resolve;
+                
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&libraries=drawing,geometry&callback=initGoogleMapCallback`;
+                script.async = true;
+                script.defer = true;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // Initialize map
+        async function initMap() {
+            // Load colormap
+            colormap = await fetchColormap(currentYear);
+            
+            await loadGoogleMaps();
+
+            // Create Google Map centered on Iowa
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 41.878, lng: -93.097 },
+                zoom: 13,
+                mapId: 'CDL_AOI_QUERY',
+                mapTypeId: 'satellite',
+                mapTypeControl: true,
+                mapTypeControlOptions: {
+                    position: google.maps.ControlPosition.TOP_RIGHT
+                }
+            });
+
+            // Track zoom level
+            map.addListener('zoom_changed', () => {
+                const zoom = map.getZoom();
+                document.getElementById('zoom-value').textContent = zoom;
+            });
+
+            // Set up button handlers
+            drawBtn.addEventListener('click', startDrawing);
+            clearBtn.addEventListener('click', clearDrawing);
+            queryBtn.addEventListener('click', queryCDL);
+            
+            yearSelect.addEventListener('change', async (e) => {
+                currentYear = e.target.value;
+                colormap = await fetchColormap(currentYear);
+            });
+
+            // Create CDL tile layer for visualization
+            const { TileLayer, BitmapLayer } = deck;
+            
+            overlay = new deck.GoogleMapsOverlay({
+                layers: [createCdlLayer()]
+            });
+            overlay.setMap(map);
+
+            console.log('✅ CDL AOI Query map initialized');
+        }
+
+        // Create CDL visualization layer
+        function createCdlLayer() {
+            const { TileLayer, BitmapLayer } = deck;
+            
+            return new TileLayer({
+                id: 'cdl-tiles',
+                getTileData: async (tile) => {
+                    const { x, y, z } = tile.index;
+                    const url = `${BASE_URL}/tiles/cdl/${z}/${x}/${y}.png?key=${landmapApiKey}&year=${currentYear}`;
+                    
+                    try {
+                        const response = await fetch(url);
+                        if (response.status === 204) return null;
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        
+                        const blob = await response.blob();
+                        const imageBitmap = await createImageBitmap(blob);
+                        
+                        // Apply colormap if available
+                        if (colormap) {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = imageBitmap.width;
+                            canvas.height = imageBitmap.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(imageBitmap, 0, 0);
+                            
+                            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                            const data = imageData.data;
+                            
+                            for (let i = 0; i < data.length; i += 4) {
+                                const cropCode = data[i];
+                                const color = colormap[cropCode];
+                                
+                                if (color && color[3] > 0) {
+                                    data[i] = color[0];
+                                    data[i + 1] = color[1];
+                                    data[i + 2] = color[2];
+                                    data[i + 3] = color[3];
+                                } else {
+                                    data[i + 3] = 0;
+                                }
+                            }
+                            
+                            ctx.putImageData(imageData, 0, 0);
+                            
+                            return new Promise((resolve) => {
+                                canvas.toBlob((blob) => {
+                                    const url = URL.createObjectURL(blob);
+                                    const img = new Image();
+                                    img.onload = () => resolve(img);
+                                    img.src = url;
+                                }, 'image/png');
+                            });
+                        }
+                        
+                        return imageBitmap;
+                    } catch (error) {
+                        return null;
+                    }
+                },
+                minZoom: CDL_CONFIG.minZoom,
+                maxZoom: CDL_CONFIG.maxZoom,
+                tileSize: 256,
+                opacity: 0.7,
+                
+                renderSubLayers: (props) => {
+                    const { bbox: { west, south, east, north } } = props.tile;
+                    return new BitmapLayer(props, {
+                        data: null,
+                        image: props.data,
+                        bounds: [west, south, east, north]
+                    });
+                }
+            });
+        }
+
+        // Initialize on load
+        initMap().catch(console.error);
+    </script>
+</body>
+</html>
+
