@@ -4,12 +4,6 @@ export * from './react/index.js';
 // Re-export core utilities
 export * from './core/index.js';
 
-// MapLibre-specific exports
-export { 
-  MapLibrePmtilesProtocol as InstallPmtilesProtocol,
-  installPmtilesProtocolMapLibre as installPmtilesProtocol,
-} from './core/pmtilesProtocol.js';
-
 // Create a MapLibre-specific LandMap component that ensures MapLibre is used
 import React from 'react';
 import { LandMap as BaseLandMap } from './react/LandMap.js';

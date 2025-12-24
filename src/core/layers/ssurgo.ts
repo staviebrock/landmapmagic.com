@@ -4,18 +4,19 @@ import { DEFAULT_WORKER_ENDPOINT } from '../utils.js';
 
 /**
  * Create SSURGO soil dataset
- * SSURGO data is always sharded across multiple files for better performance with range queries
- * The worker API handles shard resolution and range request routing automatically
- * @param apiKey - API key for accessing the PMTiles endpoint (defaults to 'dev')
+ * Note: SSURGO MVT tiles are not yet available - this is a placeholder
+ * @param apiKey - API key for accessing the tile endpoint (defaults to 'dev')
  * @param apiUrl - Base API URL for queries (optional, defaults to staging endpoint)
  */
 export function makeSsurgoDataset(apiKey: string = 'dev', apiUrl?: string): SsurgoDataset {
   const workerEndpoint = apiUrl || DEFAULT_WORKER_ENDPOINT;
+  // TODO: SSURGO MVT tiles endpoint not yet implemented
+  // Using a placeholder that will 404 until SSURGO MVT routes are added
   const dataset = makeVectorDataset({
     id: 'ssurgo',
     name: 'SSURGO Soil Data',
-    description: 'Soil Survey Geographic Database - detailed soil information',
-    url: `pmtiles://${workerEndpoint}/ssurgo.pmtiles?key=${apiKey}`,
+    description: 'Soil Survey Geographic Database - detailed soil information (coming soon)',
+    tiles: [`${workerEndpoint}/v1/tiles/ssurgo/{z}/{x}/{y}.mvt?key=${apiKey}`],
     sourceLayer: 'ssurgo',
     attribution: 'USDA NRCS SSURGO',
     minzoom: 0,

@@ -10,9 +10,9 @@ export default function BasicExample() {
       <LandMap
         baseApiUrl={apiUrl}
         apiKey={apiKey}
-        showLegend={false}
-        initialVisibleLayers={['clu']}
-        availableLayers={['clu']}
+        showLegend={true}
+        initialVisibleLayers={['states', 'counties',  'sections', 'townships', 'clu']}
+        availableLayers={['states', 'counties', 'sections', 'townships', 'clu']}
         height="100%"
         width="100%"
       />

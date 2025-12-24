@@ -14,7 +14,6 @@
  * </script>
  */
 
-import { installPmtilesProtocolMapLibre } from '../core/pmtilesProtocol.js';
 import { makeCluDataset } from '../core/makeVectorDataset.js';
 // import { makeSsurgoDataset, makeCdlDataset, makePlssDataset, makeStatesDataset } from '../core/makeVectorDataset.js';
 import { getDefaultMapStyle, loadMapLibre } from '../react/utils.js';
@@ -457,9 +456,7 @@ const LandMapMagic: LandMapMagicGlobal = {
       // Load MapLibre and initialize
       console.log('📦 Loading MapLibre GL JS...');
       const maplibregl = await loadMapLibre();
-      installPmtilesProtocolMapLibre(maplibregl);
       
-      // Create map
       console.log('🗺️ Creating map instance...');
       const map = new maplibregl.Map({
         container: containerId,

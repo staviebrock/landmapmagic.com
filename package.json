@@ -56,7 +56,6 @@
   },
   "dependencies": {
     "@turf/turf": "^6.5.0",
-    "pmtiles": "^3.0.6",
     "react-map-gl": "^8.1.0"
   },
   "devDependencies": {

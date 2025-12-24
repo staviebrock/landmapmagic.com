@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import GreenFieldExample from './GreenFieldExample';
 import MapboxSelectableExample from './MapboxSelectableExample';
 import MapLibreStatesExample from './MapLibreStatesExample';
+import MapLibreStatesPMTilesExample from './MapLibreStatesPMTilesExample';
 
 interface Example {
   id: string;
@@ -48,8 +49,8 @@ const EXAMPLES: Example[] = [
   },
   {
     id: 'maplibre-states',
-    title: 'MapLibre States',
-    description: 'Simple MapLibre example using our /v1/styles/states/style.json endpoint',
+    title: 'MapLibre States (MVT)',
+    description: 'Simple MapLibre example using MVT tiles endpoint',
     category: 'react',
     icon: '🇺🇸',
     tags: {
@@ -57,6 +58,19 @@ const EXAMPLES: Example[] = [
       sdk: 'maplibre',
       data: ['states'],
       features: ['labels']
+    }
+  },
+  {
+    id: 'maplibre-states-pmtiles',
+    title: 'MapLibre States (PMTiles)',
+    description: 'Direct PMTiles loading via pmtiles:// protocol - no MVT endpoint needed',
+    category: 'react',
+    icon: '📦',
+    tags: {
+      framework: 'react',
+      sdk: 'maplibre',
+      data: ['states'],
+      features: ['labels', 'hover']
     }
   },
   {
@@ -658,6 +672,8 @@ function App() {
         return <MapboxSelectableExample />;
       case 'maplibre-states':
         return <MapLibreStatesExample />;
+      case 'maplibre-states-pmtiles':
+        return <MapLibreStatesPMTilesExample />;
       default:
         return <GreenFieldExample />;
     }

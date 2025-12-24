@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useLandMaps } from './useLandMaps.js';
-import { installPmtilesProtocolMapLibre } from '../core/pmtilesProtocol.js';
-import type { LandMapProps, ClickInfoConfig } from '../core/types.js';
+import type { LandMapProps, ClickInfoConfig, SearchResult } from '../core/types.js';
 import { getDefaultMapStyle, loadMapLibre } from './utils.js';
 import { ClickInfo } from './ClickInfo.js';
+import { DEFAULT_WORKER_ENDPOINT } from '../core/utils.js';
 // import { AOIDrawer } from './AOIDrawer.js';
 // import { AOIQuery, type AOIQueryResult } from './AOIQuery.js';
 // import { AOIResults } from './AOIResults.js';
@@ -15,10 +15,11 @@ export function LandMap({
   initialCenter = [-98.5795, 39.8283], // Geographic center of US
   initialZoom = 4,
   style =  getDefaultMapStyle(),
-  availableLayers = ['clu'],
+  availableLayers = ['states', 'counties', 'townships', 'sections', 'clu'],
   initialVisibleLayers = [],
   showLegend = true,
   showClickInfo = true,
+  showSearch = true,
   className = '',
   height = '500px',
   width = '100%',
@@ -36,6 +37,13 @@ export function LandMap({
     config: ClickInfoConfig;
   } | null>(null);
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
   // AOI state
   const [showAOITool] = useState(false);
   // const [currentAOI, setCurrentAOI] = useState<Feature<Polygon> | null>(null);
@@ -46,26 +54,7 @@ export function LandMap({
   const mapRef = useRef<any>(null);
   const sourcesAddedRef = useRef<Set<string>>(new Set());
 
-  // Check for debug PMTiles URL override
-  const debugPMTilesPath = typeof window !== 'undefined' && (window as any).__DEBUG_PMTILES_URL__ 
-    ? (window as any).__DEBUG_PMTILES_URL__.split('?')[0].split('pmtiles://')[1].split('/').slice(1).join('/')
-    : undefined;
-
-  // Extract source layer from PMTiles path (use directory name or filename without extension)
-  const debugSourceLayer = debugPMTilesPath 
-    ? (() => {
-        const pathParts = debugPMTilesPath.split('/');
-        if (pathParts.length > 1) {
-          // Use directory name as source layer
-          return pathParts[pathParts.length - 2];
-        } else {
-          // Use filename without extension as source layer
-          return pathParts[pathParts.length - 1].replace('.pmtiles', '');
-        }
-      })()
-    : undefined;
-
-  const { ssurgo, cdl, plss, clu, states } = useLandMaps(apiKey, apiUrl, debugPMTilesPath, debugSourceLayer, borderColor);
+  const { ssurgo, cdl, plss, clu, states, counties, townships, sections } = useLandMaps(apiKey, apiUrl, borderColor);
 
   // AOI handlers
   // const handleAOIComplete = (aoi: Feature<Polygon>) => {
@@ -108,7 +97,7 @@ export function LandMap({
 
     const map = mapRef.current;
     const isCurrentlyVisible = dataLayers.includes(datasetKey);
-    const datasets = { ssurgo, cdl, plss, clu, states };
+    const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections };
     const dataset = datasets[datasetKey as keyof typeof datasets];
 
     if (dataset) {
@@ -139,8 +128,77 @@ export function LandMap({
 
     console.log(`${dataset?.name} ${!isCurrentlyVisible ? 'shown' : 'hidden'}`);
   };
-  
 
+  // Search functions
+  const baseUrl = apiUrl || DEFAULT_WORKER_ENDPOINT;
+
+  const performSearch = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const res = await fetch(`${baseUrl}/v1/data/search?q=${encodeURIComponent(query)}&limit=5&key=${apiKey}`);
+      const data = await res.json();
+      setSearchResults(data.results || []);
+      setShowResults(true);
+    } catch (err) {
+      console.error('Search failed:', err);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [baseUrl, apiKey]);
+
+  const handleSearchInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+
+    // Clear previous debounce
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+
+    if (query.length < 2) {
+      setSearchResults([]);
+      setShowResults(false);
+      setIsSearching(false);
+      return;
+    }
+
+    // Debounce search
+    searchDebounceRef.current = setTimeout(() => {
+      performSearch(query);
+    }, 300);
+  }, [performSearch]);
+
+  const selectSearchResult = useCallback((result: SearchResult) => {
+    setSearchQuery(result.simpleName);
+    setShowResults(false);
+
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+
+    // Fly to result
+    if (result.bbox) {
+      // Use fitBounds for bbox
+      const [minLng, minLat, maxLng, maxLat] = result.bbox;
+      map.fitBounds(
+        [[minLng, minLat], [maxLng, maxLat]],
+        { padding: 50, duration: 1500 }
+      );
+    } else if (result.centroid) {
+      // Use flyTo for centroid
+      map.flyTo({
+        center: result.centroid,
+        zoom: result.suggestedZoom || 12,
+        duration: 1500
+      });
+    }
+  }, []);
 
   // Initialize map
   useEffect(() => {
@@ -151,9 +209,6 @@ export function LandMap({
       try {
         const maplibregl = await loadMapLibre();
         
-        // Install PMTiles protocol with the loaded MapLibre instance
-        installPmtilesProtocolMapLibre(maplibregl);
-        // Create map instance
         const map = new maplibregl.Map({
           container: mapContainerRef.current!,
           style: style as any,
@@ -250,7 +305,7 @@ export function LandMap({
           // setCurrentZoom(Math.round(map.getZoom() * 10) / 10);
           
           // Add only available land datasets (we'll control visibility via props and legend)
-          const datasets = { ssurgo, cdl, plss, clu, states };
+          const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections };
           
           console.log('Adding available datasets:', availableLayers);
           
@@ -330,7 +385,7 @@ export function LandMap({
     if (!mapRef.current || !showClickInfo) return;
 
     const map = mapRef.current;
-    const datasets = { ssurgo, cdl, plss, clu, states };
+    const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections };
 
     const handleMapClick = (e: any) => {
       // Don't show click info when AOI tool is active
@@ -406,6 +461,24 @@ export function LandMap({
     };
   }, [showClickInfo, clickInfo]);
 
+  // Handle click outside to close search results
+  useEffect(() => {
+    if (!showResults) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      const searchContainer = target.closest('[data-search-container]');
+      if (!searchContainer) {
+        setShowResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showResults]);
+
   // No conflicting useEffect - layer management is handled only by toggle function
 
 
@@ -424,7 +497,107 @@ export function LandMap({
           height: '100%',
         }}
       />
-      
+
+      {/* Search Box */}
+      {showSearch && (
+        <div
+          data-search-container
+          style={{
+            position: 'absolute',
+            top: '10px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            background: 'rgba(255, 255, 255, 0.95)',
+            padding: '8px',
+            borderRadius: '4px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            display: 'flex',
+            gap: '8px',
+            width: '320px',
+            alignItems: 'center',
+          }}
+        >
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={handleSearchInput}
+            onFocus={() => searchResults.length > 0 && setShowResults(true)}
+            placeholder="Search states, counties, townships..."
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              fontSize: '14px',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              outline: 'none',
+            }}
+          />
+          {/* Spinner */}
+          {isSearching && (
+            <div
+              style={{
+                width: '20px',
+                height: '20px',
+                border: '3px solid #f3f3f3',
+                borderTop: '3px solid #3498db',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+              }}
+            />
+          )}
+          {/* Results dropdown */}
+          {showResults && searchResults.length > 0 && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: '8px',
+                right: '8px',
+                marginTop: '4px',
+                background: 'white',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                maxHeight: '300px',
+                overflowY: 'auto',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              }}
+            >
+              {searchResults.map((result, index) => (
+                <div
+                  key={result.id || index}
+                  onClick={() => selectSearchResult(result)}
+                  style={{
+                    padding: '10px 12px',
+                    cursor: 'pointer',
+                    borderBottom: index < searchResults.length - 1 ? '1px solid #eee' : 'none',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f0f0f0';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'white';
+                  }}
+                >
+                  <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#333' }}>
+                    {result.simpleName}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                    {result.type} • {result.name}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {/* Spinner keyframes style */}
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
 
       {/* Legend */}
       {showLegend && (
@@ -488,7 +661,7 @@ export function LandMap({
           </button> */}
           
           {availableLayers.map(datasetKey => {
-            const datasets = { ssurgo, cdl, plss, clu, states };
+            const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections };
             const dataset = datasets[datasetKey as keyof typeof datasets];
             
             if (!dataset) return null;
@@ -502,7 +675,10 @@ export function LandMap({
                 case 'cdl': return '#FFD700'; // Gold for crop data
                 case 'plss': return '#4A90E2'; // Blue for survey data
                 case 'clu': return '#FF6B35'; // Orange for field boundaries
-                case 'states': return '#8B4513'; // SaddleBrown for state boundaries
+                case 'states': return '#4A90E2'; // Blue for state boundaries
+                case 'counties': return '#8B7355'; // Brown for county boundaries
+                case 'townships': return '#228B22'; // Forest green for townships
+                case 'sections': return '#DC143C'; // Crimson red for sections
                 default: return '#95A5A6'; // Gray fallback
               }
             };

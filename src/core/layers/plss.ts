@@ -5,7 +5,8 @@ import { DEFAULT_WORKER_ENDPOINT } from '../utils.js';
 /**
  * Create PLSS (Public Land Survey System) dataset
  * Matches the hierarchical structure from the working frontend prototype
- * @param apiKey - API key for accessing the PMTiles endpoint (defaults to 'dev')
+ * Note: PLSS uses townships MVT tiles as the primary source for now
+ * @param apiKey - API key for accessing the tile endpoint (defaults to 'dev')
  * @param apiUrl - Base API URL for queries (optional, defaults to staging endpoint)
  */
 export function makePlssDataset(apiKey: string = 'dev', apiUrl?: string): PlssDataset {
@@ -14,9 +15,9 @@ export function makePlssDataset(apiKey: string = 'dev', apiUrl?: string): PlssDa
     id: 'plss',
     name: 'Public Land Survey System',
     description: 'Hierarchical PLSS data with states, counties, townships, and sections',
-    url: `pmtiles://${workerEndpoint}/plss.pmtiles?key=${apiKey}`,
-
-    sourceLayer: 'plss',
+    // Note: Using townships endpoint as PLSS endpoint doesn't exist - townships have PLSS data
+    tiles: [`${workerEndpoint}/v1/tiles/townships/{z}/{x}/{y}.mvt?key=${apiKey}`],
+    sourceLayer: 'townships',
     attribution: 'LandMapMagic.com',
     minzoom: 0,
     maxzoom: 16,

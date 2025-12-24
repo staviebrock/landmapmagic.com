@@ -88,18 +88,33 @@ export interface StatesDataset extends VectorDataset {
   id: 'states';
 }
 
+export interface CountiesDataset extends VectorDataset {
+  id: 'counties';
+}
+
+export interface TownshipsDataset extends VectorDataset {
+  id: 'townships';
+}
+
+export interface SectionsDataset extends VectorDataset {
+  id: 'sections';
+}
+
 export interface LandDatasets {
-  // ssurgo: SsurgoDataset;
-  // cdl: CdlDataset;
-  // plss: PlssDataset;
+  ssurgo: SsurgoDataset;
+  cdl: CdlDataset;
+  plss: PlssDataset;
   clu: CluDataset;
-  // states: StatesDataset;
+  states: StatesDataset;
+  counties: CountiesDataset;
+  townships: TownshipsDataset;
+  sections: SectionsDataset;
 }
 
 
 // Component prop types
 export interface LandMapProps {
-  apiKey?: string; // API key for PMTiles and API calls - defaults to 'dev'
+  apiKey?: string; // API key for tile endpoints and API calls - defaults to 'dev'
   baseApiUrl?: string; // Base API URL for all queries - defaults to staging endpoint
   initialCenter?: [number, number];
   initialZoom?: number;
@@ -108,10 +123,22 @@ export interface LandMapProps {
   initialVisibleLayers?: Array<keyof LandDatasets>; // Which layers should be visible on load - default: []
   showLegend?: boolean; // Show/hide the legend - default true
   showClickInfo?: boolean; // Show/hide click info popup - default true
+  showSearch?: boolean; // Show/hide the search box - default true
   className?: string;
   height?: string | number;
   width?: string | number;
   borderColor?: string; // Border/outline color for layers - defaults vary by layer
+}
+
+// Search result type from API
+export interface SearchResult {
+  id: string;
+  name: string;
+  simpleName: string;
+  type: string;
+  bbox?: [number, number, number, number]; // [minLng, minLat, maxLng, maxLat]
+  centroid?: [number, number]; // [lng, lat]
+  suggestedZoom?: number;
 }
 
 // Hook return types
@@ -121,12 +148,7 @@ export interface UseLandMapsReturn {
   plss: PlssDataset;
   clu: CluDataset;
   states: StatesDataset | VectorDataset;
-}
-
-
-// Protocol types
-export interface ProtocolHandler {
-  install: (mapInstance?: any) => void;
-  uninstall: () => void;
-  isInstalled: () => boolean;
+  counties: CountiesDataset;
+  townships: TownshipsDataset;
+  sections: SectionsDataset;
 }

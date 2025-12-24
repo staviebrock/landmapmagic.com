@@ -5,7 +5,7 @@ import { DEFAULT_WORKER_ENDPOINT } from '../utils.js';
 /**
  * Create CLU (Common Land Unit) dataset
  * Provides field boundary data for agricultural analysis
- * @param apiKey - API key for accessing the PMTiles endpoint (defaults to 'dev')
+ * @param apiKey - API key for accessing the tile endpoint (defaults to 'dev')
  * @param apiUrl - Base API URL for queries (optional, defaults to staging endpoint)
  * @param borderColor - Border/outline color for CLU polygons (defaults to '#fde047' - yellow)
  */
@@ -15,18 +15,18 @@ export function makeCluDataset(
   borderColor: string = '#fde047'
 ): CluDataset {
   const workerEndpoint = apiUrl || DEFAULT_WORKER_ENDPOINT;
-  const pmtilesUrl = `pmtiles://${workerEndpoint}/clu.pmtiles?key=${apiKey}`;
-  console.log('🌾 Creating CLU dataset with:', { apiKey, apiUrl, workerEndpoint, pmtilesUrl });
+  const tilesUrl = `${workerEndpoint}/v1/tiles/clu/{z}/{x}/{y}.mvt?key=${apiKey}`;
+  console.log('🌾 Creating CLU dataset with:', { apiKey, apiUrl, workerEndpoint, tilesUrl });
   const dataset = makeVectorDataset({
     id: 'clu',
     name: 'Common Land Units',
     description: 'USDA FSA Common Land Unit field boundaries for agricultural analysis',
-    url: pmtilesUrl,
+    tiles: [tilesUrl],
     sourceLayer: 'clu',
     attribution: 'LandMapMagic.com',
     minzoom: 12,    // Allow viewing at all zoom levels
     promoteId: 'id',
-    // Don't set maxzoom on source - let PMTiles metadata control it, layers will overzoom
+    // Don't set maxzoom on source - let tiles serve overzoom
     layers: {
       // Simple field boundary fill layer with hover state
       // fill: {

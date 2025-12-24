@@ -6,7 +6,8 @@ export default defineConfig([
     format: ["esm", "cjs"],
     dts: true,
     sourcemap: true,
-    external: ["react", "react-dom", "maplibre-gl", "mapbox-gl", "pmtiles", "@turf/turf"],
+    external: ["react", "react-dom", "maplibre-gl", "mapbox-gl", "@turf/turf"],
+    // Note: pmtiles is NOT external - it must be bundled to avoid __publicField errors in web workers
     clean: true,
   },
   { 
@@ -14,7 +15,8 @@ export default defineConfig([
     format: ["esm", "cjs"],
     dts: true,
     sourcemap: true,
-    external: ["react", "react-dom", "maplibre-gl", "pmtiles", "@turf/turf"],
+    external: ["react", "react-dom", "maplibre-gl", "@turf/turf"],
+    // Note: pmtiles is NOT external - it must be bundled to avoid __publicField errors in web workers
     clean: false,
   },
   {
@@ -22,7 +24,8 @@ export default defineConfig([
     format: ["esm", "cjs"],
     dts: true,
     sourcemap: true,
-    external: ["react", "react-dom", "mapbox-gl", "pmtiles", "@turf/turf"],
+    external: ["react", "react-dom", "mapbox-gl", "@turf/turf"],
+    // Note: pmtiles is NOT external - it must be bundled to avoid __publicField errors in web workers
     clean: false,
   },
   // Vanilla JS build for non-React applications (Flask, Django, PHP, plain HTML, etc.)

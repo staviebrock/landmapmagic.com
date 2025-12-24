@@ -5,16 +5,9 @@ export * from './react/index.js';
 export * from './core/types.js';
 export * from './core/makeVectorDataset.js';
 
-// Mapbox-specific exports
-export { 
-  MapboxPmtilesProtocol as InstallPmtilesProtocol,
-  installPmtilesProtocolMapbox as installPmtilesProtocol,
-} from './core/pmtilesProtocol.js';
-
 // Create a Mapbox-specific LandMap component
 import React, { useEffect, useRef, useState } from 'react';
 import { useLandMaps } from './react/useLandMaps.js';
-import { installPmtilesProtocolMapbox } from './core/pmtilesProtocol.js';
 import type { LandMapProps, ClickInfoConfig } from './core/types.js';
 import { ClickInfo } from './react/ClickInfo.js';
 
@@ -82,7 +75,7 @@ export function LandMap({
   const mapRef = useRef<any>(null);
   const sourcesAddedRef = useRef<Set<string>>(new Set());
 
-  const { ssurgo, cdl, plss, clu, states } = useLandMaps(apiKey, apiUrl, undefined, undefined, borderColor);
+  const { ssurgo, cdl, plss, clu, states, counties, townships, sections } = useLandMaps(apiKey, apiUrl, borderColor);
 
   // Track which layers are currently visible
   const [dataLayers, setDataLayers] = useState<string[]>(initialVisibleLayers);
@@ -101,7 +94,7 @@ export function LandMap({
 
     const map = mapRef.current;
     const isCurrentlyVisible = dataLayers.includes(datasetKey);
-    const datasets = { ssurgo, cdl, plss, clu };
+    const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections };
     const dataset = datasets[datasetKey as keyof typeof datasets];
 
     if (dataset) {
@@ -140,11 +133,7 @@ export function LandMap({
     const initMap = async () => {
       try {
         const mapboxgl = await loadMapbox();
-        
-        // Install PMTiles protocol for Mapbox
-        installPmtilesProtocolMapbox(mapboxgl);
 
-        // Create map instance
         const map = new mapboxgl.Map({
           container: mapContainerRef.current!,
           style: style as any,
@@ -211,7 +200,7 @@ export function LandMap({
         // Wait for map to load
         map.on('load', () => {
           // Add only available land datasets (we'll control visibility via props and legend)
-          const datasets = { ssurgo, cdl, plss, clu, states };
+          const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections };
           
           console.log('Adding available datasets:', availableLayers);
           
@@ -287,7 +276,7 @@ export function LandMap({
     if (!mapRef.current || !showClickInfo) return;
 
     const map = mapRef.current;
-    const datasets = { ssurgo, cdl, plss, clu };
+    const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections };
 
     const handleMapClick = (e: any) => {
       // Query all visible layers for features at the click point
@@ -393,7 +382,7 @@ export function LandMap({
           </h4>
           
           {availableLayers.map(datasetKey => {
-            const datasets = { ssurgo, cdl, plss, clu };
+            const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections };
             const dataset = datasets[datasetKey as keyof typeof datasets];
             
             if (!dataset) return null;
