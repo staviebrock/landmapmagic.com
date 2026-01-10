@@ -15,6 +15,8 @@ export function getCountiesTilesUrl(apiKey: string = 'dev', apiUrl?: string): st
 /**
  * Create Counties dataset
  * US county boundaries with clean styling
+ * No fill by default, hover to see fill, outline only
+ * Line becomes thicker when this is the "parent" layer (at higher zoom levels)
  * @param apiKey - API key for accessing the tile endpoint (defaults to 'dev')
  * @param apiUrl - Base API URL for queries (optional, defaults to staging endpoint)
  */
@@ -28,46 +30,49 @@ export function makeCountiesDataset(apiKey: string = 'dev', apiUrl?: string): Co
     sourceLayer: 'counties',
     attribution: 'LandMapMagic.com',
     minzoom: 0,
-    maxzoom: 12,
+    maxzoom: 14, // Extended to allow showing as parent layer at higher zooms
+    promoteId: 'GEOID', // For feature-state hover
     layers: {
-      // Fill layer for county polygons - source-layer: 'counties'
+      // Fill layer - transparent by default, shows on hover
       fill: {
         type: 'fill',
         'source-layer': 'counties',
         paint: {
-          'fill-color': '#8B7355',
+          'fill-color': '#fde047', // Yellow fill on hover
           'fill-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            2, 0.05,
-            4, 0.1,
-            6, 0.12,
-            8, 0.15,
-            10, 0.18,
-            12, 0.2
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            0.25, // Show fill on hover
+            0     // No fill by default
           ],
         },
         layout: {
           visibility: 'visible',
         },
       },
-      // Outline layer for county boundaries - source-layer: 'counties'
+      // Outline layer for county boundaries
+      // Line gets thicker at higher zoom levels (when counties is parent layer)
       outline: {
         type: 'line',
         'source-layer': 'counties',
         paint: {
-          'line-color': '#fde047', // Yellow like Google Maps example
+          'line-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            '#facc15', // Brighter yellow on hover
+            '#fde047'  // Yellow
+          ],
           'line-width': [
             'interpolate',
             ['linear'],
             ['zoom'],
-            2, 0.5,
-            4, 1,
-            6, 1.5,
-            8, 2,
-            10, 2.5,
-            12, 3
+            0, 0.5,
+            4, 0.75,
+            6, 1,      // Thin at states zoom (counties barely visible)
+            8, 1.5,    // Normal width at counties zoom
+            10, 2.5,   // Thicker when townships visible
+            12, 3.5,   // Even thicker when sections visible
+            14, 4.5    // Very thick when CLU visible
           ],
           'line-opacity': 0.9,
         },
@@ -75,12 +80,12 @@ export function makeCountiesDataset(apiKey: string = 'dev', apiUrl?: string): Co
           visibility: 'visible',
         },
       },
-      // Label layer for county names - source-layer: 'counties_labels' (representative points)
+      // Label layer for county names
       labels: {
         type: 'symbol',
         'source-layer': 'counties_labels',
         paint: {
-          'text-color': '#5D4E37',
+          'text-color': '#1f2937',
           'text-halo-color': '#FFFFFF',
           'text-halo-width': 1.5,
           'text-opacity': [
@@ -128,4 +133,3 @@ export function makeCountiesDataset(apiKey: string = 'dev', apiUrl?: string): Co
 
   return dataset as CountiesDataset;
 }
-

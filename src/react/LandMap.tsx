@@ -1,13 +1,66 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useLandMaps } from './useLandMaps.js';
-import type { LandMapProps, ClickInfoConfig, SearchResult } from '../core/types.js';
+import type { LandMapProps, ClickInfoConfig, SearchResult, QueryToolType } from '../core/types.js';
 import { getDefaultMapStyle, loadMapLibre } from './utils.js';
 import { ClickInfo } from './ClickInfo.js';
 import { DEFAULT_WORKER_ENDPOINT } from '../core/utils.js';
-// import { AOIDrawer } from './AOIDrawer.js';
-// import { AOIQuery, type AOIQueryResult } from './AOIQuery.js';
-// import { AOIResults } from './AOIResults.js';
-// import type { Feature, Polygon } from 'geojson';
+import { PointLookup } from './PointLookup.js';
+import { AOIQueryWidget } from './AOIQueryWidget.js';
+import { QueryToolsPanel } from './QueryToolsPanel.js';
+
+// Layer hierarchy for zoom-based visibility
+// Each layer becomes the "main" layer at certain zoom levels
+// The previous layer becomes the "parent" layer with thicker lines
+const LAYER_HIERARCHY = ['states', 'counties', 'townships', 'sections', 'clu'] as const;
+
+// Zoom thresholds for each layer transition
+// At these zoom levels, the layer becomes the "main" layer
+const ZOOM_THRESHOLDS: Record<string, number> = {
+  states: 0,      // States are main from zoom 0-5
+  counties: 6,    // Counties become main at zoom 6
+  townships: 10,  // Townships become main at zoom 10
+  sections: 12,   // Sections become main at zoom 12
+  clu: 14,        // CLU becomes main at zoom 14
+};
+
+/**
+ * Determine which layers should be visible based on current zoom level
+ * Returns { main: string | null, parent: string | null }
+ */
+function getVisibleLayers(zoom: number, enabledLayers: string[]): { main: string | null; parent: string | null } {
+  // Find the "main" layer for current zoom (highest threshold that zoom meets)
+  let mainLayer: string | null = null;
+  let parentLayer: string | null = null;
+  
+  // Work through hierarchy to find main layer
+  for (let i = LAYER_HIERARCHY.length - 1; i >= 0; i--) {
+    const layer = LAYER_HIERARCHY[i];
+    if (enabledLayers.includes(layer) && zoom >= ZOOM_THRESHOLDS[layer]) {
+      mainLayer = layer;
+      
+      // Find parent layer (previous enabled layer in hierarchy)
+      for (let j = i - 1; j >= 0; j--) {
+        if (enabledLayers.includes(LAYER_HIERARCHY[j])) {
+          parentLayer = LAYER_HIERARCHY[j];
+          break;
+        }
+      }
+      break;
+    }
+  }
+  
+  // If no main layer found but there are enabled layers, use the first one
+  if (!mainLayer && enabledLayers.length > 0) {
+    for (const layer of LAYER_HIERARCHY) {
+      if (enabledLayers.includes(layer)) {
+        mainLayer = layer;
+        break;
+      }
+    }
+  }
+  
+  return { main: mainLayer, parent: parentLayer };
+}
 
 export function LandMap({
   apiKey = 'dev',
@@ -20,6 +73,8 @@ export function LandMap({
   showLegend = true,
   showClickInfo = true,
   showSearch = true,
+  showQueryTools = false,
+  availableQueryTools = ['point', 'aoi'],
   className = '',
   height = '500px',
   width = '100%',
@@ -27,7 +82,7 @@ export function LandMap({
 }: LandMapProps) {
 
   const [dataLayers, setDataLayers] = useState<string[]>(initialVisibleLayers);
-  // const [currentZoom, setCurrentZoom] = useState<number>(initialZoom);
+  const [currentZoom, setCurrentZoom] = useState<number>(initialZoom);
   
   // Click info state
   const [clickInfo, setClickInfo] = useState<{
@@ -44,90 +99,93 @@ export function LandMap({
   const [showResults, setShowResults] = useState(false);
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // AOI state
+  // Query tools state
+  const [activeQueryTool, setActiveQueryTool] = useState<QueryToolType | null>(null);
+
+  // AOI state (legacy - keeping for backwards compatibility)
   const [showAOITool] = useState(false);
-  // const [currentAOI, setCurrentAOI] = useState<Feature<Polygon> | null>(null);
-  // const [aoiResults, setAOIResults] = useState<AOIQueryResult[]>([]);
-  // const [showAOIResults, setShowAOIResults] = useState(false);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const sourcesAddedRef = useRef<Set<string>>(new Set());
+  const hoverStateRef = useRef<{ source: string; sourceLayer: string; id: string | number } | null>(null);
 
   const { ssurgo, cdl, plss, clu, states, counties, townships, sections } = useLandMaps(apiKey, apiUrl, borderColor);
 
-  // AOI handlers
-  // const handleAOIComplete = (aoi: Feature<Polygon>) => {
-  //   setCurrentAOI(aoi);
-  //   setShowAOIResults(true);
-  // };
-
-  // const handleAOIChange = (aoi: Feature<Polygon> | null) => {
-  //   setCurrentAOI(aoi);
-  //   if (!aoi) {
-  //     setAOIResults([]);
-  //     setShowAOIResults(false);
-  //   }
-  // };
-
-  // const handleAOIResults = (results: AOIQueryResult[]) => {
-  //   setAOIResults(results);
-  // };
-
-  // const toggleAOITool = () => {
-  //   const newState = !showAOITool;
-  //   setShowAOITool(newState);
-    
-  //   if (newState) {
-  //     // Close click info when opening AOI tool
-  //     setClickInfo(null);
-  //   }
-    
-  //   if (showAOITool) {
-  //     // Clean up when closing
-  //     setCurrentAOI(null);
-  //     // setAOIResults([]);
-  //     setShowAOIResults(false);
-  //   }
-  // };
-
-  // Toggle function - ONLY use setLayoutProperty to avoid map flickering
+  // Toggle function for legend checkboxes
   const toggleLayerVisibility = (datasetKey: string) => {
-    if (!mapRef.current) return;
+    setDataLayers(prev => {
+      if (prev.includes(datasetKey)) {
+        return prev.filter(layer => layer !== datasetKey);
+      } else {
+        return [...prev, datasetKey];
+      }
+    });
+  };
 
-    const map = mapRef.current;
-    const isCurrentlyVisible = dataLayers.includes(datasetKey);
+  // Update map layer visibility based on zoom and enabled layers
+  const updateLayerVisibility = useCallback((map: any, zoom: number, enabledLayers: string[]) => {
+    const { main, parent } = getVisibleLayers(zoom, enabledLayers);
     const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections };
-    const dataset = datasets[datasetKey as keyof typeof datasets];
-
-    if (dataset) {
-      // Update visibility for all layers in this dataset
-      Object.keys(dataset.layers).forEach(layerKey => {
-        const layerId = `${dataset.id}-${layerKey}`;
+    
+    // Update visibility for each layer
+    LAYER_HIERARCHY.forEach(layerKey => {
+      const dataset = datasets[layerKey as keyof typeof datasets];
+      if (!dataset) return;
+      
+      // Determine if this layer should be visible
+      const shouldBeVisible = layerKey === main || layerKey === parent;
+      
+      // Update all sublayers for this dataset
+      Object.keys(dataset.layers).forEach(sublayerKey => {
+        const layerId = `${dataset.id}-${sublayerKey}`;
         
         if (map.getLayer(layerId)) {
           try {
-            const newVisibility = !isCurrentlyVisible ? 'visible' : 'none';
-            map.setLayoutProperty(layerId, 'visibility', newVisibility);
-            console.log(`Layer visibility changed: ${layerId} -> ${newVisibility}`);
+            const currentVisibility = map.getLayoutProperty(layerId, 'visibility');
+            const newVisibility = shouldBeVisible ? 'visible' : 'none';
+            
+            if (currentVisibility !== newVisibility) {
+              map.setLayoutProperty(layerId, 'visibility', newVisibility);
+            }
           } catch (error) {
-            console.error(`Error changing visibility for layer ${layerId}:`, error);
+            // Layer might not exist yet, ignore
+          }
+        }
+      });
+    });
+    
+    // Also handle CDL (raster layer) - keep it visible if in enabledLayers
+    if (cdl && enabledLayers.includes('cdl')) {
+      Object.keys(cdl.layers).forEach(sublayerKey => {
+        const layerId = `${cdl.id}-${sublayerKey}`;
+        if (map.getLayer(layerId)) {
+          try {
+            map.setLayoutProperty(layerId, 'visibility', 'visible');
+          } catch (error) {
+            // Ignore
+          }
+        }
+      });
+    } else if (cdl) {
+      Object.keys(cdl.layers).forEach(sublayerKey => {
+        const layerId = `${cdl.id}-${sublayerKey}`;
+        if (map.getLayer(layerId)) {
+          try {
+            map.setLayoutProperty(layerId, 'visibility', 'none');
+          } catch (error) {
+            // Ignore
           }
         }
       });
     }
+  }, [ssurgo, cdl, plss, clu, states, counties, townships, sections]);
 
-    // Update dataLayers state
-    if (isCurrentlyVisible) {
-      // Remove from array
-      setDataLayers(prev => prev.filter(layer => layer !== datasetKey));
-    } else {
-      // Add to array
-      setDataLayers(prev => [...prev, datasetKey]);
-    }
-
-    console.log(`${dataset?.name} ${!isCurrentlyVisible ? 'shown' : 'hidden'}`);
-  };
+  // Effect to update layer visibility when zoom or enabled layers change
+  useEffect(() => {
+    if (!mapRef.current) return;
+    updateLayerVisibility(mapRef.current, currentZoom, dataLayers);
+  }, [currentZoom, dataLayers, updateLayerVisibility]);
 
   // Search functions
   const baseUrl = apiUrl || DEFAULT_WORKER_ENDPOINT;
@@ -216,25 +274,29 @@ export function LandMap({
           zoom: initialZoom,
         });
 
-
         mapRef.current = map;
 
-        let hoveredFeatureId: string | number | null = null;
+        // Clear any existing hover state
         const clearHoverState = () => {
-          if (hoveredFeatureId !== null) {
+          if (hoverStateRef.current) {
             try {
               map.setFeatureState(
-                { source: 'clu', sourceLayer: 'clu', id: hoveredFeatureId },
+                { 
+                  source: hoverStateRef.current.source, 
+                  sourceLayer: hoverStateRef.current.sourceLayer, 
+                  id: hoverStateRef.current.id 
+                },
                 { hover: false }
               );
             } catch (err) {
-              console.warn('Failed to clear CLU hover state:', err);
+              // Ignore errors when clearing hover state
             }
-            hoveredFeatureId = null;
+            hoverStateRef.current = null;
           }
           map.getCanvas().style.cursor = '';
         };
 
+        // Generic hover handler for any layer
         const handleHoverMove = (e: any) => {
           if (!e.features?.length) {
             clearHoverState();
@@ -249,20 +311,25 @@ export function LandMap({
             return;
           }
 
-          if (hoveredFeatureId !== featureId) {
+          const source = feature.source;
+          const sourceLayer = feature.sourceLayer;
+
+          // Check if we're hovering a new feature
+          if (
+            !hoverStateRef.current ||
+            hoverStateRef.current.id !== featureId ||
+            hoverStateRef.current.source !== source ||
+            hoverStateRef.current.sourceLayer !== sourceLayer
+          ) {
             clearHoverState();
             try {
               map.setFeatureState(
-                {
-                  source: feature.source || 'clu',
-                  sourceLayer: feature.sourceLayer || 'clu',
-                  id: featureId,
-                },
+                { source, sourceLayer, id: featureId },
                 { hover: true }
               );
-              hoveredFeatureId = featureId;
+              hoverStateRef.current = { source, sourceLayer, id: featureId };
             } catch (err) {
-              console.warn('Failed to set CLU hover state:', err);
+              console.warn('Failed to set hover state:', err);
             }
           }
 
@@ -278,33 +345,23 @@ export function LandMap({
           console.error('Map error:', e);
         });
 
-        map.on('styleimagemissing', (e: any) => {
-          console.warn('Style image missing:', e);
-        });
-
-        map.on('sourcedata', (e: any) => {
-          if (e.isSourceLoaded) {
-            console.log(`Source loaded: ${e.sourceId}`);
-          }
-        });
-
         map.on('sourcedataloading', (e: any) => {
           console.log(`Source loading: ${e.sourceId}`);
         });
 
         // Track zoom changes
-        // map.on('zoom', () => {
-        //   const zoom = map.getZoom();
-        //   setCurrentZoom(Math.round(zoom * 10) / 10); // Round to 1 decimal place
-        // });
+        map.on('zoom', () => {
+          const zoom = map.getZoom();
+          setCurrentZoom(Math.round(zoom * 10) / 10); // Round to 1 decimal place
+        });
 
         // Wait for map to load
         map.on('load', () => {
           console.log('Map load event fired!');
           // Set initial zoom level
-          // setCurrentZoom(Math.round(map.getZoom() * 10) / 10);
+          setCurrentZoom(Math.round(map.getZoom() * 10) / 10);
           
-          // Add only available land datasets (we'll control visibility via props and legend)
+          // Add all available datasets as sources
           const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections };
           
           console.log('Adding available datasets:', availableLayers);
@@ -327,42 +384,42 @@ export function LandMap({
                 console.log(`✅ Source added: ${dataset.id}`);
               } catch (error) {
                 console.error(`❌ Error adding source ${dataset.id}:`, error);
-                console.error('Source config was:', dataset.sourceProps);
               }
             }
             
-            // Add ALL layers but set visibility based on dataLayers array
+            // Add all layers with initial visibility set to none (we'll update via zoom handler)
             Object.entries(dataset.layers).forEach(([layerKey, layerConfig]) => {
               const layerId = `${dataset.id}-${layerKey}`;
               if (!map.getLayer(layerId)) {
                 try {
-                  const isVisible = dataLayers.includes(datasetKey as any);
                   const layerSpec = {
                     ...layerConfig,
                     id: layerId,
                     source: dataset.id,
                     layout: {
                       ...layerConfig.layout,
-                      visibility: isVisible ? 'visible' : 'none',
+                      visibility: 'none', // Start hidden, zoom handler will show appropriate layers
                     },
                   };
-                  console.log(`Adding layer ${layerId} with config:`, layerSpec);
+                  console.log(`Adding layer ${layerId}`);
                   map.addLayer(layerSpec as any);
-                  console.log(`✅ Layer added: ${layerId} (visibility: ${isVisible ? 'visible' : 'none'})`);
+                  console.log(`✅ Layer added: ${layerId}`);
+                  
+                  // Add hover handlers for fill and outline layers
+                  if (layerKey === 'fill' || layerKey === 'outline') {
+                    map.on('mousemove', layerId, handleHoverMove);
+                    map.on('mouseleave', layerId, handleHoverLeave);
+                  }
                 } catch (error) {
                   console.error(`❌ Error adding layer ${layerId}:`, error);
-                  console.error('Layer config was:', layerConfig);
-                  console.error('Dataset source:', dataset.sourceProps);
                 }
               }
             });
           });
 
-          map.on('mousemove', 'clu-outline', handleHoverMove);
-          map.on('mouseleave', 'clu-outline', handleHoverLeave);
-          clearHoverState();
+          // Initial layer visibility update
+          updateLayerVisibility(map, map.getZoom(), dataLayers);
         });
-
 
       } catch (error) {
         console.error('Failed to initialize map:', error);
@@ -388,8 +445,8 @@ export function LandMap({
     const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections };
 
     const handleMapClick = (e: any) => {
-      // Don't show click info when AOI tool is active
-      if (showAOITool) {
+      // Don't show click info when query tools or AOI tool is active
+      if (showAOITool || activeQueryTool) {
         setClickInfo(null);
         return;
       }
@@ -411,8 +468,9 @@ export function LandMap({
                 dataset.clickInfoConfig.layerIds && 
                 dataset.clickInfoConfig.layerIds.includes(layerId)) {
               
-              // Check if this layer is currently visible
-              if (dataLayers.includes(datasetKey)) {
+              // Check if this layer is currently visible based on zoom
+              const { main, parent } = getVisibleLayers(currentZoom, dataLayers);
+              if (datasetKey === main || datasetKey === parent) {
                 setClickInfo({
                   x: e.point.x,
                   y: e.point.y,
@@ -436,7 +494,7 @@ export function LandMap({
     return () => {
       map.off('click', handleMapClick);
     };
-  }, [showClickInfo, dataLayers, showAOITool, availableLayers]); // Re-attach handler when these change
+  }, [showClickInfo, dataLayers, showAOITool, activeQueryTool, availableLayers, currentZoom]); // Re-attach handler when these change
 
   // Handle click outside to close popup
   useEffect(() => {
@@ -479,14 +537,14 @@ export function LandMap({
     };
   }, [showResults]);
 
-  // No conflicting useEffect - layer management is handled only by toggle function
-
-
   const containerStyle: React.CSSProperties = {
     width,
     height,
     position: 'relative',
   };
+
+  // Get current visible layers for display
+  const { main: mainLayer, parent: parentLayer } = getVisibleLayers(currentZoom, dataLayers);
 
   return (
     <div className={className} style={containerStyle}>
@@ -509,13 +567,15 @@ export function LandMap({
             transform: 'translateX(-50%)',
             zIndex: 1000,
             background: 'rgba(255, 255, 255, 0.95)',
-            padding: '8px',
-            borderRadius: '4px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            backdropFilter: 'blur(8px)',
+            padding: '6px',
+            borderRadius: '6px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
             display: 'flex',
             gap: '8px',
             width: '320px',
             alignItems: 'center',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
           }}
         >
           <input
@@ -527,10 +587,13 @@ export function LandMap({
             style={{
               flex: 1,
               padding: '8px 12px',
-              fontSize: '14px',
-              border: '1px solid #ccc',
+              fontSize: '13px',
+              fontWeight: 500,
+              border: '1px solid #e4e4e7',
               borderRadius: '4px',
               outline: 'none',
+              fontFamily: 'inherit',
+              color: '#18181b',
             }}
           />
           {/* Spinner */}
@@ -607,58 +670,32 @@ export function LandMap({
             top: '10px',
             left: '10px',
             background: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: '4px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            fontSize: '12px',
-            // minWidth: '180px',
+            backdropFilter: 'blur(8px)',
+            borderRadius: '6px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            padding: '6px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
           }}
         >
-          {/* <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}> */}
-            {/* <h4 style={{ margin: '0', fontSize: '14px', fontWeight: 'bold', color: '#333' }}>
-              Map Layers
-            </h4> */}
-            {/* <div style={{ 
-              fontSize: '12px', 
-              color: '#666', 
-              backgroundColor: '#f8f9fa',
-              padding: '4px 8px',
-              borderRadius: '12px',
-              border: '1px solid #e9ecef',
-              fontWeight: '500'
-            }}>
-              Zoom: {currentZoom}
-            </div> */}
-          {/* </div> */}
-          
-          {/* AOI Tool Button */}
-          {/* <button
-            onClick={toggleAOITool}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              marginBottom: '12px',
-              backgroundColor: showAOITool ? '#28a745' : '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              fontWeight: '500',
-              transition: 'background-color 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              if (!showAOITool) {
-                e.currentTarget.style.backgroundColor = '#0056b3';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!showAOITool) {
-                e.currentTarget.style.backgroundColor = '#007bff';
-              }
-            }}
-          >
-            {showAOITool ? '✓ AOI Tool Active' : '📐 AOI Query Tool'}
-          </button> */}
+          {/* Zoom indicator */}
+          <div style={{
+            padding: '4px 10px 8px',
+            fontSize: '10px',
+            fontWeight: 600,
+            color: '#71717a',
+            borderBottom: '1px solid #e4e4e7',
+            marginBottom: '4px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+          }}>
+            Zoom: {currentZoom.toFixed(1)}
+            {mainLayer && (
+              <span style={{ marginLeft: '8px', color: '#18181b', fontWeight: 500 }}>
+                • {mainLayer}
+                {parentLayer && <span style={{ color: '#a1a1aa' }}> + {parentLayer}</span>}
+              </span>
+            )}
+          </div>
           
           {availableLayers.map(datasetKey => {
             const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections };
@@ -666,22 +703,9 @@ export function LandMap({
             
             if (!dataset) return null;
             
-            const isVisible = dataLayers.includes(datasetKey);
-            
-            // Dataset color mapping
-            const getDatasetColor = (id: string) => {
-              switch (id) {
-                case 'ssurgo': return '#2E8B57'; // SeaGreen for soil data
-                case 'cdl': return '#FFD700'; // Gold for crop data
-                case 'plss': return '#4A90E2'; // Blue for survey data
-                case 'clu': return '#FF6B35'; // Orange for field boundaries
-                case 'states': return '#4A90E2'; // Blue for state boundaries
-                case 'counties': return '#8B7355'; // Brown for county boundaries
-                case 'townships': return '#228B22'; // Forest green for townships
-                case 'sections': return '#DC143C'; // Crimson red for sections
-                default: return '#95A5A6'; // Gray fallback
-              }
-            };
+            const isEnabled = dataLayers.includes(datasetKey);
+            const isCurrentlyVisible = datasetKey === mainLayer || datasetKey === parentLayer;
+            const isParent = datasetKey === parentLayer;
             
             return (
               <div
@@ -690,42 +714,82 @@ export function LandMap({
                   display: 'flex',
                   alignItems: 'center',
                   cursor: 'pointer',
-                  padding: '4px',
+                  padding: '6px 10px',
                   borderRadius: '4px',
-                  transition: 'background-color 0.2s',
-                  border: '1px solid transparent',
+                  transition: 'all 0.15s ease',
+                  background: isEnabled ? 'rgba(0, 0, 0, 0.04)' : 'transparent',
+                  opacity: isEnabled ? 1 : 0.5,
                 }}
                 onClick={() => toggleLayerVisibility(datasetKey)}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)';
-                  e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)';
+                  e.currentTarget.style.background = 'rgba(0, 0, 0, 0.06)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.borderColor = 'transparent';
+                  e.currentTarget.style.background = isEnabled ? 'rgba(0, 0, 0, 0.04)' : 'transparent';
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={isVisible}
-                  onChange={() => toggleLayerVisibility(datasetKey)}
+                {/* Custom checkbox */}
+                <div
                   style={{
-                    marginRight: '8px',
-                    cursor: 'pointer',
-                    accentColor: getDatasetColor(dataset.id), // Use dataset color for checkbox
-                    transform: 'scale(1.2)', // Make it slightly larger
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '4px',
+                    border: isEnabled ? '1.5px solid #18181b' : '1.5px solid #a1a1aa',
+                    background: isEnabled ? '#18181b' : 'white',
+                    marginRight: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    transition: 'all 0.15s ease',
                   }}
-                  onClick={(e) => e.stopPropagation()}
-                />
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleLayerVisibility(datasetKey);
+                  }}
+                >
+                  {isEnabled && (
+                    <svg
+                      width="10"
+                      height="10"
+                      viewBox="0 0 10 10"
+                      fill="none"
+                      stroke="white"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M1.5 5L4 7.5L8.5 2.5" />
+                    </svg>
+                  )}
+                </div>
                 
                 <span style={{ 
-                  // color: isVisible ? '#333' : '#999',
+                  color: isEnabled ? '#18181b' : '#71717a',
                   fontSize: '13px',
-                  fontWeight: '500',
+                  fontWeight: isCurrentlyVisible ? 600 : 500,
                   userSelect: 'none',
+                  letterSpacing: '-0.01em',
                 }}>
                   {dataset.name}
                 </span>
+                
+                {/* Visibility indicator */}
+                {isEnabled && isCurrentlyVisible && (
+                  <span style={{
+                    marginLeft: 'auto',
+                    fontSize: '9px',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    background: isParent ? '#fef3c7' : '#dcfce7',
+                    color: isParent ? '#92400e' : '#166534',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.03em',
+                  }}>
+                    {isParent ? 'parent' : 'main'}
+                  </span>
+                )}
               </div>
             );
           })}
@@ -733,7 +797,7 @@ export function LandMap({
       )}
 
       {/* Click Info Popup */}
-      {showClickInfo && clickInfo && (
+      {showClickInfo && clickInfo && !activeQueryTool && (
         <ClickInfo
           x={clickInfo.x}
           y={clickInfo.y}
@@ -744,38 +808,42 @@ export function LandMap({
         />
       )}
 
-      {/* AOI Drawing Tool */}
-      {/* <AOIDrawer
-        map={mapRef.current}
-        onAOIComplete={handleAOIComplete}
-        onAOIChange={handleAOIChange}
-        isActive={showAOITool}
-        onToggle={toggleAOITool}
-      /> */}
-
-      {/* AOI Query Logic */}
-      {/* <AOIQuery
-        map={mapRef.current}
-        aoi={currentAOI}
-        datasets={Object.fromEntries(
-          availableLayers.map(key => [key, { ssurgo, cdl, plss, clu, states }[key]])
-        )}
-        enabled={showAOITool && currentAOI !== null}
-        maxFeatures={500}
-        maxAcres={1000}
-        minZoom={14}
-        onResults={handleAOIResults}
-        onError={(error) => console.warn('AOI Query Error:', error)}
-      /> */}
-
-      {/* AOI Results Display */}
-      {/* {showAOIResults && (
-        <AOIResults
-          results={aoiResults}
-          aoi={currentAOI}
-          onClose={() => setShowAOIResults(false)}
+      {/* Query Tools Panel */}
+      {showQueryTools && (
+        <QueryToolsPanel
+          activeTool={activeQueryTool}
+          onToolSelect={(tool) => {
+            setActiveQueryTool(tool);
+            // Close click info when activating a tool
+            if (tool) setClickInfo(null);
+          }}
+          availableTools={availableQueryTools}
         />
-      )} */}
+      )}
+
+      {/* Point Lookup Widget */}
+      {showQueryTools && (
+        <PointLookup
+          map={mapRef.current}
+          apiKey={apiKey}
+          baseApiUrl={apiUrl}
+          isActive={activeQueryTool === 'point'}
+          onToggle={() => setActiveQueryTool(activeQueryTool === 'point' ? null : 'point')}
+          availableLayers={['states', 'counties', 'townships', 'sections', 'clu', 'cdl']}
+          defaultLayers={['states', 'counties', 'townships']}
+        />
+      )}
+
+      {/* AOI Query Widget */}
+      {showQueryTools && (
+        <AOIQueryWidget
+          map={mapRef.current}
+          apiKey={apiKey}
+          baseApiUrl={apiUrl}
+          isActive={activeQueryTool === 'aoi'}
+          onToggle={() => setActiveQueryTool(activeQueryTool === 'aoi' ? null : 'aoi')}
+        />
+      )}
     </div>
   );
 }

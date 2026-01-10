@@ -15,6 +15,8 @@ export function getTownshipsTilesUrl(apiKey: string = 'dev', apiUrl?: string): s
 /**
  * Create Townships dataset
  * PLSS township boundaries
+ * No fill by default, hover to see fill, outline only
+ * Line becomes thicker when this is the "parent" layer (at higher zoom levels)
  * @param apiKey - API key for accessing the tile endpoint (defaults to 'dev')
  * @param apiUrl - Base API URL for queries (optional, defaults to staging endpoint)
  */
@@ -28,22 +30,20 @@ export function makeTownshipsDataset(apiKey: string = 'dev', apiUrl?: string): T
     sourceLayer: 'townships',
     attribution: 'LandMapMagic.com',
     minzoom: 0,
-    maxzoom: 14,
+    maxzoom: 16, // Extended to allow showing as parent layer at higher zooms
+    promoteId: 'PLSSID', // For feature-state hover
     layers: {
-      // Fill layer for township polygons
+      // Fill layer - transparent by default, shows on hover
       fill: {
         type: 'fill',
         'source-layer': 'townships',
         paint: {
-          'fill-color': '#228B22', // Forest green
+          'fill-color': '#fde047', // Yellow fill on hover
           'fill-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            4, 0.05,
-            6, 0.1,
-            8, 0.15,
-            10, 0.2
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            0.25, // Show fill on hover
+            0     // No fill by default
           ],
         },
         layout: {
@@ -51,20 +51,27 @@ export function makeTownshipsDataset(apiKey: string = 'dev', apiUrl?: string): T
         },
       },
       // Outline layer for township boundaries
+      // Line gets thicker at higher zoom levels (when townships is parent layer)
       outline: {
         type: 'line',
         'source-layer': 'townships',
         paint: {
-          'line-color': '#fde047', // Yellow
+          'line-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            '#facc15', // Brighter yellow on hover
+            '#fde047'  // Yellow
+          ],
           'line-width': [
             'interpolate',
             ['linear'],
             ['zoom'],
-            4, 0.5,
-            6, 1,
-            8, 1.5,
-            10, 2,
-            12, 2.5
+            6, 0.5,
+            8, 0.75,
+            10, 1,     // Normal width at townships zoom
+            12, 2,     // Thicker when sections visible
+            14, 3,     // Even thicker when CLU visible
+            16, 4      // Very thick at max zoom
           ],
           'line-opacity': 0.8,
         },
@@ -77,7 +84,7 @@ export function makeTownshipsDataset(apiKey: string = 'dev', apiUrl?: string): T
         type: 'symbol',
         'source-layer': 'townships_labels',
         paint: {
-          'text-color': '#1A5F1A',
+          'text-color': '#1f2937',
           'text-halo-color': '#FFFFFF',
           'text-halo-width': 1.5,
           'text-opacity': [
@@ -121,4 +128,3 @@ export function makeTownshipsDataset(apiKey: string = 'dev', apiUrl?: string): T
 
   return dataset as TownshipsDataset;
 }
-

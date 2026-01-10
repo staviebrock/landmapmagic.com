@@ -2,18 +2,20 @@ import type { CdlDataset, DatasetSource, DatasetLayer } from '../types.js';
 import { DEFAULT_WORKER_ENDPOINT } from '../utils.js';
 
 /**
- * Create CDL cropland dataset using raster tiles from TiTiler
+ * Create CDL cropland dataset using raster tiles
+ * Uses pre-rendered PNG tiles with USDA crop colors
  * @param apiKey - API key for accessing the tile endpoint (defaults to 'dev')
  * @param apiUrl - Base API URL for queries (optional, defaults to staging endpoint)
+ * @param year - CDL year to display (defaults to 2024)
  */
-export function makeCdlDataset(apiKey: string = 'dev', apiUrl?: string): CdlDataset {
+export function makeCdlDataset(apiKey: string = 'dev', apiUrl?: string, year: string = '2024'): CdlDataset {
   const workerEndpoint = apiUrl || DEFAULT_WORKER_ENDPOINT;
-  // Create raster source for CDL data
+  // Create raster source for CDL PNG tiles
   const sourceProps: DatasetSource = {
     type: 'raster',
-    tiles: [`${workerEndpoint}/cdl/tiles/{z}/{x}/{y}?key=${apiKey}&year=2024`],
+    tiles: [`${workerEndpoint}/v1/tiles/cdl/{z}/{x}/{y}.png?key=${apiKey}&year=${year}`],
     tileSize: 256,
-    minzoom: 0,  // Support zoom level 0 as requested
+    minzoom: 5,  // CDL tiles start at zoom 5
     maxzoom: 16,
     attribution: 'LandMapMagic.com'
   };

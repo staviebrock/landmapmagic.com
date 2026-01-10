@@ -268,9 +268,11 @@
                 id: 'cdl-tiles',
                 data: getCdlTileUrl(year),
                 minZoom: 5,
-                maxZoom: 16,
+                maxZoom: 14,  // Max zoom where tiles exist - deck.gl will scale up beyond this
                 tileSize: 256,
                 opacity: opacity,
+                zoomOffset: 0,
+                extent: null,  // No extent limit - allows overzooming
                 
                 renderSubLayers: (props) => {
                     const {
@@ -280,7 +282,12 @@
                     return new BitmapLayer(props, {
                         data: null,
                         image: props.data,
-                        bounds: [west, south, east, north]
+                        bounds: [west, south, east, north],
+                        textureParameters: {
+                            // Nearest neighbor for crisp pixels when overzooming categorical data
+                            minFilter: 'nearest',
+                            magFilter: 'nearest'
+                        }
                     });
                 }
             });

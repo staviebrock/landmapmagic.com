@@ -43,7 +43,7 @@ type ResolvedVanillaLandMapOptions = Required<Omit<VanillaLandMapOptions, 'borde
 // Main vanilla implementation class
 class VanillaLandMap {
   private map: any;
-  private datasets: LandDatasets;
+  private datasets: Partial<LandDatasets>;
   private options: ResolvedVanillaLandMapOptions;
   private visibleLayers: Set<keyof LandDatasets>;
   private legendElement: HTMLElement | null = null;
@@ -53,7 +53,7 @@ class VanillaLandMap {
   constructor(
     container: HTMLElement,
     map: any,
-    datasets: LandDatasets,
+    datasets: Partial<LandDatasets>,
     options: ResolvedVanillaLandMapOptions
   ) {
     this.container = container;
@@ -384,7 +384,7 @@ class VanillaLandMap {
 }
 
 // Helper function to create land datasets (extracted from React hook)
-function createLandDatasets(apiKey: string, borderColor?: string): LandDatasets {
+function createLandDatasets(apiKey: string, borderColor?: string): Partial<LandDatasets> {
   return {
     // ssurgo: makeSsurgoDataset(apiKey),
     // cdl: makeCdlDataset(apiKey),

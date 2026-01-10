@@ -240,7 +240,7 @@
             <span class="zoom-value" id="zoom-value">13</span>
         </div>
         <div class="zoom-warning" id="zoom-warning">
-            ⚠️ CDL tiles available at zoom 13-16. Zoom in to see crop data.
+            ⚠️ CDL tiles available at zoom 5-14. Overzooming to 17+ will scale tiles.
         </div>
     </div>
     
@@ -268,7 +268,7 @@
          * 
          * CDL tiles are grayscale PNG with raw crop code values.
          * This example fetches the colormap and applies colors client-side.
-         * Available at zoom levels 13-16.
+         * Available at zoom levels 5-14, with overzooming support up to zoom 17.
          */
 
         // Access deck.gl classes from global namespace
@@ -288,8 +288,9 @@
 
         // CDL configuration - must match cdl-routes.ts
         const CDL_CONFIG = {
-            minZoom: 13,  // PMTiles starts at zoom 13
-            maxZoom: 16   // Full 30m resolution
+            minZoom: 5,   // CDL tiles start at zoom 5
+            maxZoom: 14,  // Max zoom where tiles exist (deck.gl will scale up beyond this)
+            viewMaxZoom: 17  // Max zoom for the view (overzoom)
         };
 
         if (!googleApiKey) {
@@ -490,9 +491,11 @@
                     }
                 },
                 minZoom: CDL_CONFIG.minZoom,
-                maxZoom: CDL_CONFIG.maxZoom,
+                maxZoom: CDL_CONFIG.maxZoom,  // Tiles exist up to this zoom - deck.gl will scale beyond
                 tileSize: 256,
                 opacity: opacity,
+                zoomOffset: 0,
+                extent: null,  // No extent limit - allows overzooming
                 
                 renderSubLayers: (props) => {
                     const {
@@ -502,7 +505,12 @@
                     return new BitmapLayer(props, {
                         data: null,
                         image: props.data,
-                        bounds: [west, south, east, north]
+                        bounds: [west, south, east, north],
+                        textureParameters: {
+                            // Nearest neighbor for crisp pixels when overzooming categorical data
+                            minFilter: 'nearest',
+                            magFilter: 'nearest'
+                        }
                     });
                 },
                 
@@ -531,6 +539,10 @@
             const warning = document.getElementById('zoom-warning');
             if (zoom < CDL_CONFIG.minZoom) {
                 warning.classList.add('visible');
+                warning.textContent = `⚠️ CDL tiles available at zoom ${CDL_CONFIG.minZoom}-${CDL_CONFIG.maxZoom}. Zoom in to see crop data.`;
+            } else if (zoom > CDL_CONFIG.maxZoom) {
+                warning.classList.add('visible');
+                warning.textContent = `⚠️ Overzooming at zoom ${zoom} (tiles scaled from zoom ${CDL_CONFIG.maxZoom})`;
             } else {
                 warning.classList.remove('visible');
             }
@@ -565,7 +577,7 @@
             // Create Google Map centered on Iowa (good CDL coverage)
             map = new google.maps.Map(document.getElementById('map'), {
                 center: { lat: 41.878, lng: -93.097 },
-                zoom: 13,  // Start at CDL min zoom
+                zoom: 10,  // Start at a good viewing zoom
                 mapId: 'CDL_PMTILES_TEST',
                 mapTypeId: 'satellite',
                 mapTypeControl: true,

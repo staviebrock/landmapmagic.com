@@ -240,6 +240,20 @@ const EXAMPLES: Example[] = [
       data: ['cdl'],
       features: ['aoi-query', 'selection']
     }
+  },
+  {
+    id: 'google-maps-point-lookup',
+    title: 'Point Lookup (Reverse Geocoding)',
+    description: 'Click map or enter coordinates to discover what features exist at any location',
+    category: 'html',
+    path: '/google-maps-point-lookup-example.html',
+    icon: '🎯',
+    tags: {
+      framework: 'html',
+      sdk: 'google-maps',
+      data: ['states', 'counties', 'townships', 'sections', 'clu'],
+      features: ['click-to-zoom']
+    }
   }
 ];
 

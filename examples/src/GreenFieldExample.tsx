@@ -11,12 +11,17 @@ export default function BasicExample() {
         baseApiUrl={apiUrl}
         apiKey={apiKey}
         showLegend={true}
-        initialVisibleLayers={['states', 'counties',  'sections', 'townships', 'clu']}
-        availableLayers={['states', 'counties', 'sections', 'townships', 'clu']}
+        showSearch={true}
+        showClickInfo={true}
+        showQueryTools={true}
+        availableQueryTools={['point', 'aoi']}
+        initialVisibleLayers={['states', 'counties', 'townships', 'sections', 'clu', 'cdl']}
+        availableLayers={['states', 'counties', 'townships', 'sections', 'clu', 'cdl', 'ssurgo']}
+        initialCenter={[-93.6250, 41.5868]} // Des Moines, Iowa
+        initialZoom={6}
         height="100%"
         width="100%"
       />
     </div>
   );
 }
-

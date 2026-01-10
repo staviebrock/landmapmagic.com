@@ -112,6 +112,9 @@ export interface LandDatasets {
 }
 
 
+// Query tool types
+export type QueryToolType = 'point' | 'aoi';
+
 // Component prop types
 export interface LandMapProps {
   apiKey?: string; // API key for tile endpoints and API calls - defaults to 'dev'
@@ -124,6 +127,8 @@ export interface LandMapProps {
   showLegend?: boolean; // Show/hide the legend - default true
   showClickInfo?: boolean; // Show/hide click info popup - default true
   showSearch?: boolean; // Show/hide the search box - default true
+  showQueryTools?: boolean; // Show/hide query tools panel - default false
+  availableQueryTools?: QueryToolType[]; // Which query tools to show - default: ['point', 'aoi']
   className?: string;
   height?: string | number;
   width?: string | number;

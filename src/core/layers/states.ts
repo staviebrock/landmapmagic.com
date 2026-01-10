@@ -16,6 +16,8 @@ export function getStatesTilesUrl(apiKey: string = 'dev', apiUrl?: string): stri
 /**
  * Create States dataset
  * US state boundaries with clean styling
+ * No fill by default, hover to see fill, outline only
+ * Line becomes thicker when this is the "parent" layer (at higher zoom levels)
  * @param apiKey - API key for accessing the tile endpoint (defaults to 'dev')
  * @param apiUrl - Base API URL for queries (optional, defaults to staging endpoint)
  */
@@ -29,42 +31,49 @@ export function makeStatesDataset(apiKey: string = 'dev', apiUrl?: string): Stat
     sourceLayer: 'states',
     attribution: 'LandMapMagic.com',
     minzoom: 0,
-    maxzoom: 6,
+    maxzoom: 14, // Extended to allow showing as parent layer at higher zooms
+    promoteId: 'STATEFP', // For feature-state hover
     layers: {
-      // Fill layer for state polygons - source-layer: 'states'
+      // Fill layer - transparent by default, shows on hover
       fill: {
         type: 'fill',
         'source-layer': 'states',
         paint: {
-          'fill-color': '#4A90E2',
+          'fill-color': '#fde047', // Yellow fill on hover
           'fill-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            0, 0.3,
-            4, 0.35,
-            6, 0.4
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            0.25, // Show fill on hover
+            0     // No fill by default
           ],
         },
         layout: {
           visibility: 'visible',
         },
       },
-      // Outline layer for state boundaries - source-layer: 'states'
+      // Outline layer for state boundaries
+      // Line gets thicker at higher zoom levels (when states is parent layer)
       outline: {
         type: 'line',
         'source-layer': 'states',
         paint: {
-          'line-color': '#fde047', // Yellow like Google Maps example
+          'line-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            '#facc15', // Brighter yellow on hover
+            '#fde047'  // Yellow
+          ],
           'line-width': [
             'interpolate',
             ['linear'],
             ['zoom'],
             0, 1,
-            4, 2,
-            6, 2.5,
-            8, 3,
-            10, 3.5
+            4, 1.5,
+            6, 2,      // Normal width at states zoom
+            8, 3,      // Thicker when counties visible
+            10, 4,     // Even thicker when townships visible
+            12, 5,     // Thick when sections visible
+            14, 6      // Very thick when CLU visible
           ],
           'line-opacity': 0.9,
         },
@@ -72,12 +81,12 @@ export function makeStatesDataset(apiKey: string = 'dev', apiUrl?: string): Stat
           visibility: 'visible',
         },
       },
-      // Label layer for state names - source-layer: 'states_labels' (representative points)
+      // Label layer for state names
       labels: {
         type: 'symbol',
         'source-layer': 'states_labels',
         paint: {
-          'text-color': '#2E5BBA',
+          'text-color': '#1f2937',
           'text-halo-color': '#FFFFFF',
           'text-halo-width': 2,
           'text-opacity': 1,

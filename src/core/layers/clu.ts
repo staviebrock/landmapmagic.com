@@ -5,6 +5,7 @@ import { DEFAULT_WORKER_ENDPOINT } from '../utils.js';
 /**
  * Create CLU (Common Land Unit) dataset
  * Provides field boundary data for agricultural analysis
+ * No fill by default, hover to see fill, outline only
  * @param apiKey - API key for accessing the tile endpoint (defaults to 'dev')
  * @param apiUrl - Base API URL for queries (optional, defaults to staging endpoint)
  * @param borderColor - Border/outline color for CLU polygons (defaults to '#fde047' - yellow)
@@ -24,47 +25,43 @@ export function makeCluDataset(
     tiles: [tilesUrl],
     sourceLayer: 'clu',
     attribution: 'LandMapMagic.com',
-    minzoom: 12,    // Allow viewing at all zoom levels
+    minzoom: 12,
     promoteId: 'id',
-    // Don't set maxzoom on source - let tiles serve overzoom
     layers: {
-      // Simple field boundary fill layer with hover state
-      // fill: {
-      //   type: 'fill',
-      //   'source-layer': 'clu',  // Polygon layer
-      //   paint: {
-      //     'fill-color': [
-      //       'case',
-      //       ['boolean', ['feature-state', 'hover'], false],
-      //       '#FFD700',  // Bright gold on hover
-      //       fillColor   // Customizable fill color (default transparent)
-      //     ],
-      //     'fill-opacity': [
-      //       'case',
-      //       ['boolean', ['feature-state', 'hover'], false],
-      //       0.7,  // More opaque on hover
-      //       1.0   // Full opacity for fill color (transparency controlled by color itself)
-      //     ]
-      //   },
-      //   layout: {},
-      //   minzoom: 11   // Show at all zoom levels, no maxzoom to allow overzooming
-      // },
-      // Simple field boundary outline layer with hover effect expressions
+      // Fill layer - transparent by default, shows on hover
+      fill: {
+        type: 'fill',
+        'source-layer': 'clu',
+        paint: {
+          'fill-color': '#fde047', // Yellow fill on hover
+          'fill-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            0.35, // Slightly higher opacity for CLU hover since it's the deepest layer
+            0     // No fill by default
+          ],
+        },
+        layout: {
+          visibility: 'visible',
+        },
+        minzoom: 11
+      },
+      // Simple field boundary outline layer with hover effect
       outline: {
         type: 'line',
-        'source-layer': 'clu',  // Polygon layer
+        'source-layer': 'clu',
         paint: {
           'line-color': [
             'case',
             ['boolean', ['feature-state', 'hover'], false],
-            '#FFD700',  // Bright gold on hover
+            '#facc15',  // Brighter yellow on hover
             borderColor
           ],
           'line-width': [
             'case',
             ['boolean', ['feature-state', 'hover'], false],
-            4,
-            2
+            3,  // Thicker on hover
+            1.5 // Normal width
           ],
           'line-opacity': 0.9
         },
@@ -72,12 +69,12 @@ export function makeCluDataset(
           'line-cap': 'round',
           'line-join': 'round'
         },
-        minzoom: 11   // Show at all zoom levels, no maxzoom to allow overzooming
+        minzoom: 11
       },
       // Label points layer - representative points with acreage
       labels: {
         type: 'symbol',
-        'source-layer': 'clu_labels',  // Point layer
+        'source-layer': 'clu_labels',
         paint: {
           'text-color': '#000000',
           'text-halo-color': '#ffffff',
@@ -95,7 +92,7 @@ export function makeCluDataset(
           'text-padding': 2,
           'text-optional': false
         },
-        minzoom: 13   // Show labels earlier at zoom 13+
+        minzoom: 13
       }
     }
   });
@@ -103,12 +100,11 @@ export function makeCluDataset(
   // Add click info configuration for CLU fields
   const clickInfoConfig = {
     title: (properties: Record<string, any>) => {
-      // Check both lowercase and uppercase property names (tippecanoe lowercases properties)
       const acresValue = properties.calcacres || properties.CALCACRES;
       const acres = acresValue ? `${acresValue.toFixed(1)} acres` : 'Unknown size';
       return `CLU Field (${acres})`;
     },
-    layerIds: [`${dataset.id}-outline`],
+    layerIds: [`${dataset.id}-fill`, `${dataset.id}-outline`],
     fields: [
       { key: 'id', label: 'Field ID' },
       { 
