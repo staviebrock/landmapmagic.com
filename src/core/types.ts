@@ -133,6 +133,11 @@ export interface LandMapProps {
   height?: string | number;
   width?: string | number;
   borderColor?: string; // Border/outline color for layers - defaults vary by layer
+  cdlYears?: string[]; // Available CDL years to choose from - default: ['2024', '2023', '2022', '2021', '2020']
+  initialCdlYear?: string; // Initial CDL year to display - default: '2024'
+  searchLimit?: number; // Maximum number of search results to show - default: 15
+  persistSettings?: boolean; // Persist layer selection and CDL year to localStorage - default: false
+  persistenceKey?: string; // Key prefix for localStorage - default: 'landmap'
 }
 
 // Search result type from API

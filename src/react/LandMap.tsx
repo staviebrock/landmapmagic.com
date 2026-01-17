@@ -62,6 +62,49 @@ function getVisibleLayers(zoom: number, enabledLayers: string[]): { main: string
   return { main: mainLayer, parent: parentLayer };
 }
 
+// localStorage persistence helpers
+const STORAGE_KEYS = {
+  layers: (prefix: string) => `${prefix}_visible_layers`,
+  cdlYear: (prefix: string) => `${prefix}_cdl_year`,
+};
+
+function loadPersistedSettings(persistenceKey: string, availableLayers: string[]) {
+  try {
+    const layersJson = localStorage.getItem(STORAGE_KEYS.layers(persistenceKey));
+    const cdlYear = localStorage.getItem(STORAGE_KEYS.cdlYear(persistenceKey));
+    
+    let layers: string[] | null = null;
+    if (layersJson) {
+      const parsed = JSON.parse(layersJson);
+      // Filter to only include layers that are still available
+      layers = Array.isArray(parsed) 
+        ? parsed.filter((l: string) => availableLayers.includes(l))
+        : null;
+    }
+    
+    return { layers, cdlYear };
+  } catch (e) {
+    console.warn('[LandMap] Failed to load persisted settings:', e);
+    return { layers: null, cdlYear: null };
+  }
+}
+
+function savePersistedLayers(persistenceKey: string, layers: string[]) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.layers(persistenceKey), JSON.stringify(layers));
+  } catch (e) {
+    console.warn('[LandMap] Failed to save layer settings:', e);
+  }
+}
+
+function savePersistedCdlYear(persistenceKey: string, year: string) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.cdlYear(persistenceKey), year);
+  } catch (e) {
+    console.warn('[LandMap] Failed to save CDL year:', e);
+  }
+}
+
 export function LandMap({
   apiKey = 'dev',
   baseApiUrl: apiUrl,
@@ -79,10 +122,51 @@ export function LandMap({
   height = '500px',
   width = '100%',
   borderColor,
+  cdlYears = ['2024', '2023', '2022', '2021', '2020'],
+  initialCdlYear = '2024',
+  searchLimit = 15,
+  persistSettings = false,
+  persistenceKey = 'landmap',
 }: LandMapProps) {
 
-  const [dataLayers, setDataLayers] = useState<string[]>(initialVisibleLayers);
+  // Load persisted settings on initial render
+  const getInitialLayers = () => {
+    if (persistSettings) {
+      const { layers } = loadPersistedSettings(persistenceKey, availableLayers as string[]);
+      if (layers && layers.length > 0) {
+        return layers;
+      }
+    }
+    return initialVisibleLayers as string[];
+  };
+
+  const getInitialCdlYear = () => {
+    if (persistSettings) {
+      const { cdlYear } = loadPersistedSettings(persistenceKey, availableLayers as string[]);
+      if (cdlYear && cdlYears.includes(cdlYear)) {
+        return cdlYear;
+      }
+    }
+    return initialCdlYear;
+  };
+
+  const [dataLayers, setDataLayers] = useState<string[]>(getInitialLayers);
   const [currentZoom, setCurrentZoom] = useState<number>(initialZoom);
+  const [selectedCdlYear, setSelectedCdlYear] = useState<string>(getInitialCdlYear);
+
+  // Persist layer changes
+  useEffect(() => {
+    if (persistSettings) {
+      savePersistedLayers(persistenceKey, dataLayers);
+    }
+  }, [dataLayers, persistSettings, persistenceKey]);
+
+  // Persist CDL year changes
+  useEffect(() => {
+    if (persistSettings) {
+      savePersistedCdlYear(persistenceKey, selectedCdlYear);
+    }
+  }, [selectedCdlYear, persistSettings, persistenceKey]);
   
   // Click info state
   const [clickInfo, setClickInfo] = useState<{
@@ -110,7 +194,7 @@ export function LandMap({
   const sourcesAddedRef = useRef<Set<string>>(new Set());
   const hoverStateRef = useRef<{ source: string; sourceLayer: string; id: string | number } | null>(null);
 
-  const { ssurgo, cdl, plss, clu, states, counties, townships, sections } = useLandMaps(apiKey, apiUrl, borderColor);
+  const { ssurgo, cdl, plss, clu, states, counties, townships, sections } = useLandMaps(apiKey, apiUrl, borderColor, selectedCdlYear);
 
   // Toggle function for legend checkboxes
   const toggleLayerVisibility = (datasetKey: string) => {
@@ -187,6 +271,61 @@ export function LandMap({
     updateLayerVisibility(mapRef.current, currentZoom, dataLayers);
   }, [currentZoom, dataLayers, updateLayerVisibility]);
 
+  // Effect to update CDL source when year changes
+  useEffect(() => {
+    if (!mapRef.current || !cdl) return;
+    const map = mapRef.current;
+    
+    // Only update if the CDL source exists (map is loaded)
+    if (!map.getSource('cdl')) return;
+    
+    // Check if CDL is enabled
+    const cdlEnabled = dataLayers.includes('cdl');
+    
+    // Remove existing CDL layers
+    Object.keys(cdl.layers).forEach(sublayerKey => {
+      const layerId = `cdl-${sublayerKey}`;
+      if (map.getLayer(layerId)) {
+        try {
+          map.removeLayer(layerId);
+        } catch (error) {
+          // Ignore errors
+        }
+      }
+    });
+    
+    // Remove existing CDL source
+    if (map.getSource('cdl')) {
+      try {
+        map.removeSource('cdl');
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+    
+    // Add new CDL source with updated year
+    try {
+      map.addSource('cdl', cdl.sourceProps as any);
+      
+      // Re-add CDL layers
+      Object.entries(cdl.layers).forEach(([layerKey, layerConfig]) => {
+        const layerId = `cdl-${layerKey}`;
+        const layerSpec = {
+          ...layerConfig,
+          id: layerId,
+          source: 'cdl',
+          layout: {
+            ...layerConfig.layout,
+            visibility: cdlEnabled ? 'visible' : 'none',
+          },
+        };
+        map.addLayer(layerSpec as any);
+      });
+    } catch (error) {
+      console.error('Error updating CDL source:', error);
+    }
+  }, [selectedCdlYear, cdl, dataLayers]);
+
   // Search functions
   const baseUrl = apiUrl || DEFAULT_WORKER_ENDPOINT;
 
@@ -199,7 +338,7 @@ export function LandMap({
 
     setIsSearching(true);
     try {
-      const res = await fetch(`${baseUrl}/v1/data/search?q=${encodeURIComponent(query)}&limit=5&key=${apiKey}`);
+      const res = await fetch(`${baseUrl}/v1/data/search?q=${encodeURIComponent(query)}&limit=${searchLimit}&key=${apiKey}`);
       const data = await res.json();
       setSearchResults(data.results || []);
       setShowResults(true);
@@ -209,7 +348,7 @@ export function LandMap({
     } finally {
       setIsSearching(false);
     }
-  }, [baseUrl, apiKey]);
+  }, [baseUrl, apiKey, searchLimit]);
 
   const handleSearchInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
@@ -583,7 +722,7 @@ export function LandMap({
             value={searchQuery}
             onChange={handleSearchInput}
             onFocus={() => searchResults.length > 0 && setShowResults(true)}
-            placeholder="Search states, counties, townships..."
+            placeholder="Search places or addresses..."
             style={{
               flex: 1,
               padding: '8px 12px',
@@ -626,30 +765,160 @@ export function LandMap({
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
               }}
             >
-              {searchResults.map((result, index) => (
-                <div
-                  key={result.id || index}
-                  onClick={() => selectSearchResult(result)}
-                  style={{
-                    padding: '10px 12px',
-                    cursor: 'pointer',
-                    borderBottom: index < searchResults.length - 1 ? '1px solid #eee' : 'none',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f0f0f0';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'white';
-                  }}
-                >
-                  <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#333' }}>
-                    {result.simpleName}
+              {searchResults.map((result, index) => {
+                // Icon and color based on result type
+                const getTypeIcon = (type: string) => {
+                  switch (type.toLowerCase()) {
+                    case 'address':
+                      return (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                          <circle cx="12" cy="10" r="3"/>
+                        </svg>
+                      );
+                    case 'state':
+                      return (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 6l9-4 9 4v14l-9-4-9 4V6z"/>
+                          <path d="M12 2v18"/>
+                        </svg>
+                      );
+                    case 'county':
+                      return (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="2"/>
+                          <path d="M3 9h18"/>
+                          <path d="M9 21V9"/>
+                        </svg>
+                      );
+                    case 'township':
+                      return (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="7" height="7"/>
+                          <rect x="14" y="3" width="7" height="7"/>
+                          <rect x="14" y="14" width="7" height="7"/>
+                          <rect x="3" y="14" width="7" height="7"/>
+                        </svg>
+                      );
+                    case 'section':
+                      return (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18"/>
+                          <line x1="3" y1="12" x2="21" y2="12"/>
+                          <line x1="12" y1="3" x2="12" y2="21"/>
+                        </svg>
+                      );
+                    default:
+                      return (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"/>
+                          <line x1="12" y1="8" x2="12" y2="12"/>
+                          <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                      );
+                  }
+                };
+
+                const getTypeColor = (type: string) => {
+                  switch (type.toLowerCase()) {
+                    case 'address': return '#dc2626';
+                    case 'state': return '#7c3aed';
+                    case 'county': return '#2563eb';
+                    case 'township': return '#059669';
+                    case 'section': return '#d97706';
+                    default: return '#6b7280';
+                  }
+                };
+
+                const getTypeBgColor = (type: string) => {
+                  switch (type.toLowerCase()) {
+                    case 'address': return '#fef2f2';
+                    case 'state': return '#f5f3ff';
+                    case 'county': return '#eff6ff';
+                    case 'township': return '#ecfdf5';
+                    case 'section': return '#fffbeb';
+                    default: return '#f9fafb';
+                  }
+                };
+
+                return (
+                  <div
+                    key={result.id || index}
+                    onClick={() => selectSearchResult(result)}
+                    style={{
+                      padding: '10px 12px',
+                      cursor: 'pointer',
+                      borderBottom: index < searchResults.length - 1 ? '1px solid #eee' : 'none',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '10px',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f0f0f0';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'white';
+                    }}
+                  >
+                    {/* Icon */}
+                    <div style={{
+                      flexShrink: 0,
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '6px',
+                      background: getTypeBgColor(result.type),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginTop: '2px',
+                    }}>
+                      {getTypeIcon(result.type)}
+                    </div>
+                    
+                    {/* Content */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ 
+                        fontWeight: 600, 
+                        fontSize: '14px', 
+                        color: '#18181b',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}>
+                        {result.simpleName}
+                      </div>
+                      <div style={{ 
+                        fontSize: '12px', 
+                        color: '#71717a', 
+                        marginTop: '2px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}>
+                        <span style={{
+                          padding: '1px 6px',
+                          borderRadius: '3px',
+                          background: getTypeBgColor(result.type),
+                          color: getTypeColor(result.type),
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.02em',
+                        }}>
+                          {result.type}
+                        </span>
+                        <span style={{
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}>
+                          {result.type === 'address' ? result.name : result.name}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
-                    {result.type} • {result.name}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -706,89 +975,137 @@ export function LandMap({
             const isEnabled = dataLayers.includes(datasetKey);
             const isCurrentlyVisible = datasetKey === mainLayer || datasetKey === parentLayer;
             const isParent = datasetKey === parentLayer;
+            const isCdl = datasetKey === 'cdl';
             
             return (
-              <div
-                key={dataset.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                  padding: '6px 10px',
-                  borderRadius: '4px',
-                  transition: 'all 0.15s ease',
-                  background: isEnabled ? 'rgba(0, 0, 0, 0.04)' : 'transparent',
-                  opacity: isEnabled ? 1 : 0.5,
-                }}
-                onClick={() => toggleLayerVisibility(datasetKey)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(0, 0, 0, 0.06)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = isEnabled ? 'rgba(0, 0, 0, 0.04)' : 'transparent';
-                }}
-              >
-                {/* Custom checkbox */}
+              <div key={dataset.id}>
                 <div
                   style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '4px',
-                    border: isEnabled ? '1.5px solid #18181b' : '1.5px solid #a1a1aa',
-                    background: isEnabled ? '#18181b' : 'white',
-                    marginRight: '10px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
+                    cursor: 'pointer',
+                    padding: '6px 10px',
+                    borderRadius: '4px',
                     transition: 'all 0.15s ease',
+                    background: isEnabled ? 'rgba(0, 0, 0, 0.04)' : 'transparent',
+                    opacity: isEnabled ? 1 : 0.5,
                   }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleLayerVisibility(datasetKey);
+                  onClick={() => toggleLayerVisibility(datasetKey)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(0, 0, 0, 0.06)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = isEnabled ? 'rgba(0, 0, 0, 0.04)' : 'transparent';
                   }}
                 >
-                  {isEnabled && (
-                    <svg
-                      width="10"
-                      height="10"
-                      viewBox="0 0 10 10"
-                      fill="none"
-                      stroke="white"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M1.5 5L4 7.5L8.5 2.5" />
-                    </svg>
+                  {/* Custom checkbox */}
+                  <div
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '4px',
+                      border: isEnabled ? '1.5px solid #18181b' : '1.5px solid #a1a1aa',
+                      background: isEnabled ? '#18181b' : 'white',
+                      marginRight: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      transition: 'all 0.15s ease',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleLayerVisibility(datasetKey);
+                    }}
+                  >
+                    {isEnabled && (
+                      <svg
+                        width="10"
+                        height="10"
+                        viewBox="0 0 10 10"
+                        fill="none"
+                        stroke="white"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M1.5 5L4 7.5L8.5 2.5" />
+                      </svg>
+                    )}
+                  </div>
+                  
+                  <span style={{ 
+                    color: isEnabled ? '#18181b' : '#71717a',
+                    fontSize: '13px',
+                    fontWeight: isCurrentlyVisible ? 600 : 500,
+                    userSelect: 'none',
+                    letterSpacing: '-0.01em',
+                  }}>
+                    {dataset.name}
+                  </span>
+                  
+                  {/* Visibility indicator */}
+                  {isEnabled && isCurrentlyVisible && (
+                    <span style={{
+                      marginLeft: 'auto',
+                      fontSize: '9px',
+                      padding: '2px 6px',
+                      borderRadius: '3px',
+                      background: isParent ? '#fef3c7' : '#dcfce7',
+                      color: isParent ? '#92400e' : '#166534',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.03em',
+                    }}>
+                      {isParent ? 'parent' : 'main'}
+                    </span>
                   )}
                 </div>
                 
-                <span style={{ 
-                  color: isEnabled ? '#18181b' : '#71717a',
-                  fontSize: '13px',
-                  fontWeight: isCurrentlyVisible ? 600 : 500,
-                  userSelect: 'none',
-                  letterSpacing: '-0.01em',
-                }}>
-                  {dataset.name}
-                </span>
-                
-                {/* Visibility indicator */}
-                {isEnabled && isCurrentlyVisible && (
-                  <span style={{
-                    marginLeft: 'auto',
-                    fontSize: '9px',
-                    padding: '2px 6px',
-                    borderRadius: '3px',
-                    background: isParent ? '#fef3c7' : '#dcfce7',
-                    color: isParent ? '#92400e' : '#166534',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.03em',
-                  }}>
-                    {isParent ? 'parent' : 'main'}
-                  </span>
+                {/* CDL Year Selector - shown when CDL is enabled */}
+                {isCdl && isEnabled && (
+                  <div
+                    style={{
+                      marginLeft: '36px',
+                      marginTop: '4px',
+                      marginBottom: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <span style={{
+                      fontSize: '11px',
+                      color: '#71717a',
+                      fontWeight: 500,
+                    }}>
+                      Year:
+                    </span>
+                    <select
+                      value={selectedCdlYear}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        setSelectedCdlYear(e.target.value);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        padding: '4px 8px',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        border: '1px solid #e4e4e7',
+                        borderRadius: '4px',
+                        background: 'white',
+                        color: '#18181b',
+                        cursor: 'pointer',
+                        outline: 'none',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      {cdlYears.map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
                 )}
               </div>
             );
