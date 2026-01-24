@@ -4,6 +4,48 @@ import GreenFieldExample from './GreenFieldExample';
 import MapboxSelectableExample from './MapboxSelectableExample';
 import MapLibreStatesExample from './MapLibreStatesExample';
 import MapLibreStatesPMTilesExample from './MapLibreStatesPMTilesExample';
+import ExampleWrapper from './components/ExampleWrapper';
+import HtmlExampleViewer from './components/HtmlExampleViewer';
+
+// Import source code as raw strings for the code viewer
+import GreenFieldExampleSource from './GreenFieldExample.tsx?raw';
+import MapboxSelectableExampleSource from './MapboxSelectableExample.tsx?raw';
+import MapLibreStatesExampleSource from './MapLibreStatesExample.tsx?raw';
+import MapLibreStatesPMTilesExampleSource from './MapLibreStatesPMTilesExample.tsx?raw';
+
+// Import HTML example sources as raw strings (avoids Vite HMR injection)
+import GoogleMapsExampleSource from '../google-maps-example.html?raw';
+import GoogleMapsStatesSource from '../google-maps-states-example.html?raw';
+import GoogleMapsCountiesSource from '../google-maps-counties-example.html?raw';
+import GoogleMapsTownshipsSource from '../google-maps-townships-example.html?raw';
+import GoogleMapsParcelsSource from '../google-maps-parcels-example.html?raw';
+import GoogleMapsSelectableSource from '../google-maps-selectable.html?raw';
+import GoogleMapsAoiSource from '../google-maps-aoi-example.html?raw';
+import ArcgisSource from '../arcgis-example.html?raw';
+import GoogleMapsSearchSource from '../google-maps-search-example.html?raw';
+import GoogleMapsCdlSource from '../google-maps-cdl-example.html?raw';
+import GoogleMapsCdlPmtilesSource from '../google-maps-cdl-pmtiles-example.html?raw';
+import GoogleMapsCdlAoiSource from '../google-maps-cdl-aoi-example.html?raw';
+import GoogleMapsPointLookupSource from '../google-maps-point-lookup-example.html?raw';
+import GoogleMapsSectionsSource from '../google-maps-sections-example.html?raw';
+
+// Map HTML example IDs to their raw source
+const htmlExampleSources: Record<string, string> = {
+  'google-maps': GoogleMapsExampleSource,
+  'google-maps-states': GoogleMapsStatesSource,
+  'google-maps-counties': GoogleMapsCountiesSource,
+  'google-maps-townships': GoogleMapsTownshipsSource,
+  'google-maps-parcels': GoogleMapsParcelsSource,
+  'google-maps-selectable': GoogleMapsSelectableSource,
+  'google-maps-aoi': GoogleMapsAoiSource,
+  'arcgis': ArcgisSource,
+  'google-maps-search': GoogleMapsSearchSource,
+  'google-maps-cdl': GoogleMapsCdlSource,
+  'google-maps-cdl-pmtiles': GoogleMapsCdlPmtilesSource,
+  'google-maps-cdl-aoi': GoogleMapsCdlAoiSource,
+  'google-maps-point-lookup': GoogleMapsPointLookupSource,
+  'google-maps-sections': GoogleMapsSectionsSource,
+};
 
 interface Example {
   id: string;
@@ -352,13 +394,9 @@ function App() {
   }, []);
 
   const handleExampleClick = (example: Example) => {
-    if (example.category === 'html' && example.path) {
-      window.location.href = example.path;
-    } else {
-      // Use pushState to create a proper history entry
-      window.history.pushState({}, '', `#${example.id}`);
-      setCurrentView(example.id);
-    }
+    // All examples now use the viewer - no more direct navigation
+    window.history.pushState({}, '', `#${example.id}`);
+    setCurrentView(example.id);
   };
 
   const toggleFilter = (category: keyof typeof selectedFilters, value: string) => {
@@ -677,26 +715,76 @@ function App() {
     );
   }
 
-  // Show React example with back button
-  const renderExample = () => {
-    switch (currentView) {
-      case 'greenfield':
-        return <GreenFieldExample />;
-      case 'mapbox-selectable':
-        return <MapboxSelectableExample />;
-      case 'maplibre-states':
-        return <MapLibreStatesExample />;
-      case 'maplibre-states-pmtiles':
-        return <MapLibreStatesPMTilesExample />;
-      default:
-        return <GreenFieldExample />;
+  // Get the current example config
+  const currentExample = EXAMPLES.find(e => e.id === currentView);
+  
+  // Map React example IDs to their components and source code
+  const reactExampleComponents: Record<string, { component: React.ReactNode; source: string; title: string }> = {
+    'greenfield': {
+      component: <GreenFieldExample />,
+      source: GreenFieldExampleSource,
+      title: 'LandMap Component'
+    },
+    'mapbox-selectable': {
+      component: <MapboxSelectableExample />,
+      source: MapboxSelectableExampleSource,
+      title: 'MapBox Selectable'
+    },
+    'maplibre-states': {
+      component: <MapLibreStatesExample />,
+      source: MapLibreStatesExampleSource,
+      title: 'MapLibre States (MVT)'
+    },
+    'maplibre-states-pmtiles': {
+      component: <MapLibreStatesPMTilesExample />,
+      source: MapLibreStatesPMTilesExampleSource,
+      title: 'MapLibre States (PMTiles)'
     }
   };
 
+  const handleBack = () => {
+    window.history.pushState({}, '', '#home');
+    setCurrentView('home');
+  };
+
+  // Check if this is a React example
+  const reactConfig = reactExampleComponents[currentView];
+  if (reactConfig) {
+    return (
+      <ExampleWrapper
+        title={reactConfig.title}
+        sourceCode={reactConfig.source}
+        language="tsx"
+        onBack={handleBack}
+      >
+        {reactConfig.component}
+      </ExampleWrapper>
+    );
+  }
+
+  // Check if this is an HTML example
+  if (currentExample && currentExample.category === 'html' && currentExample.path) {
+    const htmlSource = htmlExampleSources[currentExample.id] || '// Source not available';
+    return (
+      <HtmlExampleViewer
+        title={currentExample.title}
+        htmlPath={currentExample.path}
+        sourceCode={htmlSource}
+        onBack={handleBack}
+      />
+    );
+  }
+
+  // Fallback to greenfield if unknown view
   return (
-    <div style={{ height: '100vh', width: '100vw', overflow: 'hidden' }}>
-      {renderExample()}
-    </div>
+    <ExampleWrapper
+      title={reactExampleComponents['greenfield'].title}
+      sourceCode={reactExampleComponents['greenfield'].source}
+      language="tsx"
+      onBack={handleBack}
+    >
+      {reactExampleComponents['greenfield'].component}
+    </ExampleWrapper>
   );
 }
 

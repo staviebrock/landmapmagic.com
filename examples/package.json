@@ -15,9 +15,10 @@
     "@deck.gl/geo-layers": "^9.0.0",
     "@deck.gl/layers": "^9.0.0",
     "@deck.gl/mapbox": "^9.0.0",
-    "landmapmagic": "file:..",
+    "landmapmagic": "^0.0.4",
     "mapbox-gl": "^2.15.0",
     "maplibre-gl": "^3.6.0",
+    "prism-react-renderer": "^2.4.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-map-gl": "^7.1.9"

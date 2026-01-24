@@ -6,6 +6,10 @@ export default defineConfig(({ mode }) => {
   // Load env file from root directory
   const env = loadEnv(mode, path.resolve(__dirname, '..'), '');
   
+  // In development mode, use local build from parent directory
+  // In production (build), use the npm-published package
+  const useLocalPackage = mode === 'development';
+  
   return {
     plugins: [
       react(),
@@ -21,6 +25,15 @@ export default defineConfig(({ mode }) => {
         }
       }
     ],
+    // In development, alias landmapmagic imports to local build
+    // This lets you work on the package locally while using npm version in production
+    resolve: useLocalPackage ? {
+      alias: {
+        'landmapmagic/maplibre': path.resolve(__dirname, '../dist/maplibre.js'),
+        'landmapmagic/mapbox': path.resolve(__dirname, '../dist/mapbox.js'),
+        'landmapmagic': path.resolve(__dirname, '../dist/root.js'),
+      }
+    } : {},
     server: {
       port: 3000,
       open: true
