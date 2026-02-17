@@ -338,7 +338,15 @@ export function LandMap({
 
     setIsSearching(true);
     try {
-      const res = await fetch(`${baseUrl}/v1/data/search?q=${encodeURIComponent(query)}&limit=${searchLimit}&key=${apiKey}`);
+      let url = `${baseUrl}/v1/data/search?q=${encodeURIComponent(query)}&limit=${searchLimit}&key=${apiKey}`;
+      // Pass current viewport bbox so the API can infer region(s) for parcel ID lookups
+      if (mapRef.current) {
+        const bounds = mapRef.current.getBounds();
+        const sw = bounds.getSouthWest();
+        const ne = bounds.getNorthEast();
+        url += `&bbox=${sw.lng.toFixed(6)},${sw.lat.toFixed(6)},${ne.lng.toFixed(6)},${ne.lat.toFixed(6)}`;
+      }
+      const res = await fetch(url);
       const data = await res.json();
       setSearchResults(data.results || []);
       setShowResults(true);
@@ -373,22 +381,36 @@ export function LandMap({
   }, [performSearch]);
 
   const selectSearchResult = useCallback((result: SearchResult) => {
-    setSearchQuery(result.simpleName);
+    // Show descriptive text for parcels, simple name for others
+    if (result.type === 'parcel' && (result as any).parcel) {
+      const county = (result as any).county;
+      setSearchQuery(`Parcel ${result.simpleName}${county ? `, ${county.name}` : ''}`);
+    } else {
+      setSearchQuery(result.simpleName);
+    }
     setShowResults(false);
 
     if (!mapRef.current) return;
     const map = mapRef.current;
 
-    // Fly to result
+    // For parcels, use centroid + suggestedZoom (their bbox is computed, not from geometry)
+    if (result.type === 'parcel' && result.centroid) {
+      map.flyTo({
+        center: result.centroid,
+        zoom: result.suggestedZoom || 17,
+        duration: 1500
+      });
+      return;
+    }
+
+    // For everything else, prefer bbox (states, counties, etc.)
     if (result.bbox) {
-      // Use fitBounds for bbox
       const [minLng, minLat, maxLng, maxLat] = result.bbox;
       map.fitBounds(
         [[minLng, minLat], [maxLng, maxLat]],
         { padding: 50, duration: 1500 }
       );
     } else if (result.centroid) {
-      // Use flyTo for centroid
       map.flyTo({
         center: result.centroid,
         zoom: result.suggestedZoom || 12,
@@ -722,7 +744,7 @@ export function LandMap({
             value={searchQuery}
             onChange={handleSearchInput}
             onFocus={() => searchResults.length > 0 && setShowResults(true)}
-            placeholder="Search places or addresses..."
+            placeholder="Search places, addresses, or parcel IDs..."
             style={{
               flex: 1,
               padding: '8px 12px',
@@ -808,6 +830,13 @@ export function LandMap({
                           <line x1="12" y1="3" x2="12" y2="21"/>
                         </svg>
                       );
+                    case 'parcel':
+                      return (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                          <polyline points="9 22 9 12 15 12 15 22"/>
+                        </svg>
+                      );
                     default:
                       return (
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -826,6 +855,7 @@ export function LandMap({
                     case 'county': return '#2563eb';
                     case 'township': return '#059669';
                     case 'section': return '#d97706';
+                    case 'parcel': return '#b45309';
                     default: return '#6b7280';
                   }
                 };
@@ -837,6 +867,7 @@ export function LandMap({
                     case 'county': return '#eff6ff';
                     case 'township': return '#ecfdf5';
                     case 'section': return '#fffbeb';
+                    case 'parcel': return '#fffbeb';
                     default: return '#f9fafb';
                   }
                 };
@@ -912,9 +943,30 @@ export function LandMap({
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                         }}>
-                          {result.type === 'address' ? result.name : result.name}
+                          {result.name}
                         </span>
                       </div>
+                      {/* Parcel details row */}
+                      {result.type === 'parcel' && (result as any).parcel && (() => {
+                        const p = (result as any).parcel;
+                        const details: string[] = [];
+                        if (p.owner) details.push(p.owner);
+                        if (p.address) details.push(p.address);
+                        if (p.acreage) details.push(`${p.acreage} ac`);
+                        if (details.length === 0) return null;
+                        return (
+                          <div style={{
+                            fontSize: '11px',
+                            color: '#a1a1aa',
+                            marginTop: '2px',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}>
+                            {details.join(' · ')}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 );

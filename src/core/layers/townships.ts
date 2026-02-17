@@ -79,7 +79,7 @@ export function makeTownshipsDataset(apiKey: string = 'dev', apiUrl?: string): T
           visibility: 'visible',
         },
       },
-      // Label layer for township names
+      // Label layer for township names (friendly name like "Bloomfield")
       labels: {
         type: 'symbol',
         'source-layer': 'townships_labels',
@@ -97,7 +97,13 @@ export function makeTownshipsDataset(apiKey: string = 'dev', apiUrl?: string): T
           ],
         },
         layout: {
-          'text-field': ['get', 'TWNSHPLAB'],
+          // Use display_name (friendly name if available, falls back to PLSS label)
+          'text-field': [
+            'coalesce',
+            ['get', 'display_name'],
+            ['get', 'township_name'],
+            ['get', 'TWNSHPLAB']
+          ],
           'text-size': [
             'interpolate',
             ['linear'],
@@ -113,15 +119,53 @@ export function makeTownshipsDataset(apiKey: string = 'dev', apiUrl?: string): T
           visibility: 'visible',
         },
       },
+      // Secondary label layer for numerical format (e.g., "88N 17W")
+      numericalLabels: {
+        type: 'symbol',
+        'source-layer': 'townships_labels',
+        paint: {
+          'text-color': '#6b7280', // Gray color to differentiate from primary label
+          'text-halo-color': '#FFFFFF',
+          'text-halo-width': 1.5,
+          'text-opacity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            8, 0,
+            9, 0.6,
+            10, 0.8
+          ],
+        },
+        layout: {
+          // Numerical label format: "88N 17W"
+          'text-field': ['get', 'numerical_label'],
+          'text-size': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            8, 8,
+            10, 10,
+            12, 11
+          ],
+          'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
+          'text-anchor': 'top', // Position below the main label
+          'text-offset': [0, 1.2], // Offset downward from center
+          'text-allow-overlap': false,
+          visibility: 'none', // Hidden by default, can be enabled programmatically
+        },
+      },
     },
   });
 
   // Add click info config
   dataset.clickInfoConfig = {
     fields: [
-      { key: 'TWNSHPLAB', label: 'Township' },
-      { key: 'PLSSID', label: 'PLSS ID' },
-      { key: 'STATEABBR', label: 'State' }
+      { key: 'display_name', label: 'Township' },
+      { key: 'numerical_label', label: 'T/R' },
+      { key: 'township_id', label: 'PLSS ID' },
+      { key: 'state_name', label: 'State' },
+      // Fallback to raw fields for backwards compatibility
+      { key: 'TWNSHPLAB', label: 'Township Label' },
     ],
     layerIds: ['townships-fill', 'townships-outline'],
   };

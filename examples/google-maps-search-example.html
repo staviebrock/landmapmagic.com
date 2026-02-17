@@ -74,6 +74,48 @@
             color: #666;
         }
 
+        .result-type {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 1px 6px;
+            border-radius: 3px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        .type-parcel {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .type-address {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .type-state, .type-county {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .type-plss_township, .type-plss_section {
+            background: #ede9fe;
+            color: #5b21b6;
+        }
+
+        .result-parcel-details {
+            font-size: 11px;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        .result-parcel-details span {
+            margin-right: 10px;
+        }
+
         #legend {
             position: absolute;
             bottom: 20px;
@@ -139,7 +181,7 @@
 
 <body>
     <div id="search-container">
-        <input type="text" id="search-input" placeholder="Search states, counties, townships..." />
+        <input type="text" id="search-input" placeholder="Search places, addresses, parcel IDs..." />
         <div class="spinner" id="search-spinner"></div>
         <div id="search-results"></div>
     </div>
@@ -490,7 +532,18 @@
                 resultsDiv.style.display = 'none'; // Hide results while loading
 
                 try {
-                    const res = await fetch(`${BASE_URL}/v1/data/search?q=${encodeURIComponent(query)}&limit=5&key=${landmapApiKey}`);
+                    let url = `${BASE_URL}/v1/data/search?q=${encodeURIComponent(query)}&limit=10&key=${landmapApiKey}`;
+
+                    // Pass the current map viewport as a bbox so the API can
+                    // infer which state(s) to search for parcel IDs
+                    const bounds = map.getBounds();
+                    if (bounds) {
+                        const sw = bounds.getSouthWest();
+                        const ne = bounds.getNorthEast();
+                        url += `&bbox=${sw.lng().toFixed(6)},${sw.lat().toFixed(6)},${ne.lng().toFixed(6)},${ne.lat().toFixed(6)}`;
+                    }
+
+                    const res = await fetch(url);
                     const data = await res.json();
 
                     displayResults(data.results);
@@ -499,6 +552,18 @@
                 } finally {
                     spinner.style.display = 'none'; // Hide spinner
                 }
+            }
+
+            function formatType(type) {
+                const labels = {
+                    parcel: 'Parcel',
+                    address: 'Address',
+                    state: 'State',
+                    county: 'County',
+                    plss_township: 'Township',
+                    plss_section: 'Section'
+                };
+                return labels[type] || type;
             }
 
             function displayResults(results) {
@@ -511,10 +576,31 @@
                 results.forEach(result => {
                     const div = document.createElement('div');
                     div.className = 'result-item';
-                    div.innerHTML = `
-            <div class="result-name">${result.simpleName}</div>
-            <div class="result-meta">${result.type} • ${result.name}</div>
-          `;
+
+                    const typeCss = `type-${result.type}`;
+                    let html = `
+                        <div class="result-name">
+                            ${result.simpleName}
+                            <span class="result-type ${typeCss}">${formatType(result.type)}</span>
+                        </div>
+                        <div class="result-meta">${result.name}</div>
+                    `;
+
+                    // Show extra details for parcel results
+                    if (result.type === 'parcel' && result.parcel) {
+                        const p = result.parcel;
+                        let details = [];
+                        if (p.owner) details.push(`<span>Owner: ${p.owner}</span>`);
+                        if (p.address) details.push(`<span>Addr: ${p.address}</span>`);
+                        if (p.acreage) details.push(`<span>${p.acreage} ac</span>`);
+                        if (p.marketValue) details.push(`<span>$${p.marketValue}</span>`);
+                        if (result.region) details.push(`<span>Region: ${result.region}</span>`);
+                        if (details.length > 0) {
+                            html += `<div class="result-parcel-details">${details.join('')}</div>`;
+                        }
+                    }
+
+                    div.innerHTML = html;
                     div.onclick = () => selectResult(result);
                     resultsDiv.appendChild(div);
                 });
@@ -523,10 +609,23 @@
             }
 
             function selectResult(result) {
-                searchInput.value = result.simpleName;
+                // Show a descriptive value in the search box
+                if (result.type === 'parcel' && result.parcel) {
+                    searchInput.value = `Parcel ${result.simpleName}` + (result.county ? `, ${result.county.name}` : '');
+                } else {
+                    searchInput.value = result.simpleName;
+                }
                 resultsDiv.style.display = 'none';
 
-                // Fly to result
+                // For parcels, prefer centroid + suggestedZoom since the bbox is
+                // computed and fitBounds can overshoot on very small areas.
+                if (result.type === 'parcel' && result.centroid) {
+                    map.setCenter({ lat: result.centroid[1], lng: result.centroid[0] });
+                    map.setZoom(result.suggestedZoom || 17);
+                    return;
+                }
+
+                // For everything else, prefer bbox (states, counties, etc.)
                 if (result.bbox) {
                     const bounds = new google.maps.LatLngBounds(
                         { lat: result.bbox[1], lng: result.bbox[0] }, // SW

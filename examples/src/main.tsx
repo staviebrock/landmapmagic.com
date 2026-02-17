@@ -28,6 +28,7 @@ import GoogleMapsCdlPmtilesSource from '../google-maps-cdl-pmtiles-example.html?
 import GoogleMapsCdlAoiSource from '../google-maps-cdl-aoi-example.html?raw';
 import GoogleMapsPointLookupSource from '../google-maps-point-lookup-example.html?raw';
 import GoogleMapsSectionsSource from '../google-maps-sections-example.html?raw';
+import GoogleMapsSSURGOSource from '../google-maps-ssurgo-example.html?raw';
 
 // Map HTML example IDs to their raw source
 const htmlExampleSources: Record<string, string> = {
@@ -45,6 +46,7 @@ const htmlExampleSources: Record<string, string> = {
   'google-maps-cdl-aoi': GoogleMapsCdlAoiSource,
   'google-maps-point-lookup': GoogleMapsPointLookupSource,
   'google-maps-sections': GoogleMapsSectionsSource,
+  'google-maps-ssurgo': GoogleMapsSSURGOSource,
 };
 
 interface Example {
@@ -57,7 +59,7 @@ interface Example {
   tags: {
     framework: 'react' | 'html';
     sdk: 'maplibre' | 'mapbox' | 'google-maps' | 'arcgis' | 'deck.gl';
-    data: ('clu' | 'states' | 'counties' | 'parcels' | 'townships' | 'sections' | 'cdl')[];
+    data: ('clu' | 'states' | 'counties' | 'parcels' | 'townships' | 'sections' | 'cdl' | 'ssurgo')[];
     features: ('selection' | 'hover' | 'labels' | 'aoi-query' | 'click-to-zoom')[];
   };
 }
@@ -295,6 +297,20 @@ const EXAMPLES: Example[] = [
       sdk: 'google-maps',
       data: ['states', 'counties', 'townships', 'sections', 'clu'],
       features: ['click-to-zoom']
+    }
+  },
+  {
+    id: 'google-maps-ssurgo',
+    title: 'Google Maps SSURGO Soils',
+    description: 'USDA SSURGO soil survey data showing hydrologic soil groups with hover tooltips',
+    category: 'html',
+    path: '/google-maps-ssurgo-example.html',
+    icon: '🌱',
+    tags: {
+      framework: 'html',
+      sdk: 'google-maps',
+      data: ['ssurgo'],
+      features: ['hover']
     }
   }
 ];

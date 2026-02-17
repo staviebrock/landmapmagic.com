@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LandMapMagic - Google Maps + SSURGO Soils</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        /* Control panel */
+        .control-panel {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(12px);
+            border-radius: 12px;
+            padding: 16px 20px;
+            color: #f1f5f9;
+            z-index: 1000;
+            min-width: 220px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .control-panel h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+        
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        
+        .control-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .control-row label {
+            font-size: 13px;
+            color: #cbd5e1;
+        }
+        
+        .control-row input[type="range"] {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 6px;
+            color: #f1f5f9;
+            padding: 6px 10px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        
+        .control-row input[type="range"]:hover {
+            border-color: rgba(148, 163, 184, 0.4);
+        }
+        
+        .control-row input[type="range"] {
+            width: 100px;
+            padding: 0;
+        }
+        
+        .opacity-value {
+            font-size: 12px;
+            color: #64748b;
+            min-width: 32px;
+            text-align: right;
+        }
+        
+        .zoom-value {
+            font-size: 13px;
+            color: #f1f5f9;
+            font-weight: 500;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 6px;
+            padding: 4px 10px;
+            min-width: 40px;
+            text-align: center;
+        }
+        
+        /* Legend */
+        .legend {
+            position: absolute;
+            bottom: 24px;
+            right: 16px;
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(12px);
+            border-radius: 12px;
+            padding: 14px 18px;
+            color: #f1f5f9;
+            z-index: 1000;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.08);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .legend h4 {
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        
+        .legend-label {
+            color: #cbd5e1;
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(8px);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #f1f5f9;
+            font-size: 13px;
+            pointer-events: none;
+            z-index: 2000;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+            max-width: 280px;
+            display: none;
+        }
+        
+        .tooltip-title {
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #facc15;
+        }
+        
+        .tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        
+        .tooltip-label {
+            color: #94a3b8;
+        }
+        
+        .tooltip-value {
+            color: #f1f5f9;
+            font-weight: 500;
+        }
+    </style>
+
+    <!-- deck.gl dependencies for Google Maps integration -->
+    <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+    <script src="https://unpkg.com/@deck.gl/google-maps@^9.0.0/dist.min.js"></script>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <!-- Control Panel -->
+    <div class="control-panel">
+        <h3>SSURGO Soil Data</h3>
+        <div class="control-row">
+            <label>Opacity</label>
+            <input type="range" id="opacity-slider" min="0" max="100" value="70">
+            <span class="opacity-value" id="opacity-value">70%</span>
+        </div>
+        <div class="control-row">
+            <label>Zoom Level</label>
+            <span class="zoom-value" id="zoom-value">12</span>
+        </div>
+    </div>
+    
+    <!-- Legend -->
+    <div class="legend">
+        <h4>Hydrologic Soil Group</h4>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #2E7D32;"></div>
+            <span class="legend-label">A - Well Drained (Sandy)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #66BB6A;"></div>
+            <span class="legend-label">B - Moderately Drained</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #FFA726;"></div>
+            <span class="legend-label">C - Slow Infiltration</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #EF5350;"></div>
+            <span class="legend-label">D - Poorly Drained (Clay)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #9E9E9E;"></div>
+            <span class="legend-label">Unknown</span>
+        </div>
+    </div>
+    
+    <!-- Tooltip -->
+    <div id="tooltip" class="tooltip"></div>
+
+    <script>
+        /**
+         * LandMapMagic Google Maps + SSURGO Soils Integration
+         * 
+         * Displays USDA SSURGO soil survey data as vector tiles
+         * showing hydrologic soil groups (drainage characteristics).
+         * 
+         * Uses deck.gl MVTLayer to render vector tiles from the
+         * LandMapMagic API with interactive hover tooltips.
+         */
+
+        // Access deck.gl classes from global namespace
+        const { GoogleMapsOverlay } = deck;
+        const { MVTLayer } = deck;
+
+        // Environment variables injected by Vite
+        const GOOGLE_MAPS_KEY = '%VITE_GOOGLE_MAPS_API_KEY%';
+        const LANDMAP_KEY = '%VITE_LAND_MAP_MAGIC_API_KEY%';
+        const BASE_URL_ENV = '%VITE_LAND_MAP_MAGIC_API_URL%';
+
+        // Resolve env vars (fallback if not set via Vite)
+        const googleApiKey = (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('VITE_')) ? GOOGLE_MAPS_KEY : '';
+        const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
+        const BASE_URL = (BASE_URL_ENV && !BASE_URL_ENV.includes('VITE_')) ? BASE_URL_ENV : 'https://api.landmapmagic.com';
+
+        if (!googleApiKey) {
+            document.body.innerHTML = '<div style="padding:20px;color:red;font-family:system-ui;">Missing VITE_GOOGLE_MAPS_API_KEY in .env.local</div>';
+            throw new Error('Missing Google Maps API key');
+        }
+
+        // SSURGO tile URL
+        const TILE_URL = `${BASE_URL}/v1/tiles/ssurgo/{z}/{x}/{y}.mvt?key=${landmapApiKey}`;
+
+        // State
+        let currentOpacity = 0.70;
+        let overlay = null;
+        let map = null;
+
+        // Hydrologic group colors (matches ssurgo-styles.ts)
+        const HYDGRP_COLORS = {
+            'A': [46, 125, 50, 255],    // #2E7D32 - Well drained
+            'B': [102, 187, 106, 255],  // #66BB6A - Moderately drained
+            'C': [255, 167, 38, 255],   // #FFA726 - Slow infiltration
+            'D': [239, 83, 80, 255],    // #EF5350 - Poorly drained
+            'default': [158, 158, 158, 255]  // #9E9E9E - Unknown
+        };
+
+        // Hydrologic group descriptions
+        const HYDGRP_DESCRIPTIONS = {
+            'A': 'Well Drained - High infiltration rate (sandy soils)',
+            'B': 'Moderately Drained - Moderate infiltration rate',
+            'C': 'Slow Infiltration - Low infiltration rate',
+            'D': 'Poorly Drained - Very low infiltration rate (clay soils)'
+        };
+
+        // Get fill color based on hydrologic group
+        function getFillColor(feature) {
+            const hydgrp = feature.properties?.hydgrp || feature.properties?.HYDGRP || '';
+            const group = hydgrp.charAt(0).toUpperCase(); // Handle A/D, B/D combinations
+            return HYDGRP_COLORS[group] || HYDGRP_COLORS['default'];
+        }
+
+        // Create SSURGO layer
+        function createSSURGOLayer(opacity) {
+            return new MVTLayer({
+                id: 'ssurgo-layer',
+                data: TILE_URL,
+                loadOptions: {
+                    mvt: {
+                        layers: ['ssurgo']  // Source layer name from PMTiles
+                    }
+                },
+                minZoom: 11,
+                maxZoom: 15,
+                filled: true,
+                stroked: true,
+                getFillColor: (feature) => {
+                    const color = getFillColor(feature);
+                    return [color[0], color[1], color[2], Math.floor(opacity * 255)];
+                },
+                getLineColor: [66, 66, 66, 200],  // #424242
+                getLineWidth: 0.5,
+                lineWidthMinPixels: 0.5,
+                lineWidthMaxPixels: 1,
+                pickable: true,
+                autoHighlight: true,
+                highlightColor: [255, 255, 255, 100],
+                
+                onHover: (info) => {
+                    const tooltip = document.getElementById('tooltip');
+                    
+                    if (info.object) {
+                        map.getDiv().style.cursor = 'pointer';
+                        
+                        const props = info.object.properties || {};
+                        const hydgrp = props.hydgrp || props.HYDGRP || 'Unknown';
+                        const mukey = props.mukey || props.MUKEY || 'N/A';
+                        const musym = props.musym || props.MUSYM || 'N/A';
+                        const muname = props.muname || props.MUNAME || 'Unknown Soil';
+                        
+                        // Get description for hydrologic group
+                        const groupChar = hydgrp.charAt(0).toUpperCase();
+                        const description = HYDGRP_DESCRIPTIONS[groupChar] || 'Unknown drainage characteristics';
+                        
+                        tooltip.innerHTML = `
+                            <div class="tooltip-title">${muname}</div>
+                            <div class="tooltip-row">
+                                <span class="tooltip-label">Hydrologic Group:</span>
+                                <span class="tooltip-value">${hydgrp}</span>
+                            </div>
+                            <div class="tooltip-row">
+                                <span class="tooltip-label">Map Unit Key:</span>
+                                <span class="tooltip-value">${mukey}</span>
+                            </div>
+                            <div class="tooltip-row">
+                                <span class="tooltip-label">Map Unit Symbol:</span>
+                                <span class="tooltip-value">${musym}</span>
+                            </div>
+                            <div style="margin-top: 8px; font-size: 11px; color: #94a3b8;">
+                                ${description}
+                            </div>
+                        `;
+                        
+                        tooltip.style.display = 'block';
+                        tooltip.style.left = `${info.x + 16}px`;
+                        tooltip.style.top = `${info.y + 16}px`;
+                    } else {
+                        map.getDiv().style.cursor = '';
+                        tooltip.style.display = 'none';
+                    }
+                },
+                
+                onClick: (info) => {
+                    if (!info.object) return;
+                    
+                    const props = info.object.properties || {};
+                    console.log('🌱 SSURGO Soil clicked:', props);
+                }
+            });
+        }
+
+        // Update the overlay with new layer
+        function updateLayer() {
+            if (!overlay) return;
+            
+            const ssurgoLayer = createSSURGOLayer(currentOpacity);
+            overlay.setProps({ layers: [ssurgoLayer] });
+            
+            console.log(`🌱 SSURGO layer updated: opacity=${currentOpacity}`);
+        }
+
+        // Load Google Maps dynamically
+        function loadGoogleMaps() {
+            return new Promise((resolve, reject) => {
+                if (typeof google !== 'undefined' && google.maps) {
+                    resolve();
+                    return;
+                }
+
+                window.initGoogleMapCallback = resolve;
+                
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&callback=initGoogleMapCallback`;
+                script.async = true;
+                script.defer = true;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // Initialize map
+        async function initMap() {
+            await loadGoogleMaps();
+
+            // Create Google Map centered on Maine
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 44.693, lng: -69.382 },
+                zoom: 19,
+                mapId: 'SSURGO_MAP_ID',
+                mapTypeId: 'satellite',
+                mapTypeControl: true,
+                mapTypeControlOptions: {
+                    position: google.maps.ControlPosition.TOP_RIGHT
+                }
+            });
+
+            // Create initial SSURGO layer
+            const ssurgoLayer = createSSURGOLayer(currentOpacity);
+
+            // Create deck.gl overlay
+            overlay = new GoogleMapsOverlay({
+                layers: [ssurgoLayer]
+            });
+            overlay.setMap(map);
+
+            // Wire up controls
+            setupControls();
+            
+            // Update zoom display on zoom change
+            const zoomValue = document.getElementById('zoom-value');
+            zoomValue.textContent = map.getZoom();
+            
+            map.addListener('zoom_changed', () => {
+                zoomValue.textContent = map.getZoom();
+            });
+
+            console.log('✅ Map initialized with SSURGO soil tiles');
+        }
+
+        // Setup UI controls
+        function setupControls() {
+            // Opacity slider
+            const opacitySlider = document.getElementById('opacity-slider');
+            const opacityValue = document.getElementById('opacity-value');
+            
+            opacitySlider.addEventListener('input', (e) => {
+                currentOpacity = parseInt(e.target.value, 10) / 100;
+                opacityValue.textContent = `${e.target.value}%`;
+                updateLayer();
+            });
+        }
+
+        // Auto-initialize
+        initMap().catch((error) => {
+            console.error('Failed to initialize map:', error);
+            document.body.innerHTML = `<div style="padding:20px;color:red;font-family:system-ui;">Failed to load map: ${error.message}</div>`;
+        });
+    </script>
+</body>
+</html>
