@@ -53,4 +53,4 @@ export function makeVectorDataset(config: {
 }
 
 // Re-export the dataset creation functions from the layers folder
-export { makeSsurgoDataset, makeCdlDataset, makePlssDataset, makeCluDataset, makeStatesDataset, makeCountiesDataset, makeTownshipsDataset, makeSectionsDataset } from './layers/index.js';
+export { makeSsurgoDataset, makeCdlDataset, makePlssDataset, makeCluDataset, makeStatesDataset, makeCountiesDataset, makeTownshipsDataset, makeSectionsDataset, makeParcelsDataset, getParcelsTilesUrl } from './layers/index.js';

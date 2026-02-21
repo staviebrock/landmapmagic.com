@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
-import { makeSsurgoDataset, makeCdlDataset, makePlssDataset, makeCluDataset, makeStatesDataset, makeCountiesDataset, makeTownshipsDataset, makeSectionsDataset } from '../core/makeVectorDataset.js';
+import { makeSsurgoDataset, makeCdlDataset, makePlssDataset, makeCluDataset, makeStatesDataset, makeCountiesDataset, makeTownshipsDataset, makeSectionsDataset, makeParcelsDataset } from '../core/makeVectorDataset.js';
 import type { UseLandMapsReturn } from '../core/types.js';
 
 /**
- * Hook to get land-related map datasets (SSURGO, CDL, PLSS, CLU, States, Counties, Townships, Sections)
+ * Hook to get land-related map datasets (SSURGO, CDL, PLSS, CLU, States, Counties, Townships, Sections, Parcels)
  * Returns pre-configured datasets with source props and layers using MVT tiles
  * @param apiKey - API key for accessing tile endpoints (defaults to 'dev')
  * @param apiUrl - Base API URL for all queries (optional, defaults to staging endpoint)
@@ -26,6 +26,7 @@ export function useLandMaps(
       counties: makeCountiesDataset(apiKey, apiUrl),
       townships: makeTownshipsDataset(apiKey, apiUrl),
       sections: makeSectionsDataset(apiKey, apiUrl),
+      parcels: makeParcelsDataset(apiKey, apiUrl),
     };
   }, [apiKey, apiUrl, borderColor, cdlYear]);
 

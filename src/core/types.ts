@@ -100,6 +100,10 @@ export interface SectionsDataset extends VectorDataset {
   id: 'sections';
 }
 
+export interface ParcelsDataset extends VectorDataset {
+  id: 'parcels';
+}
+
 export interface LandDatasets {
   ssurgo: SsurgoDataset;
   cdl: CdlDataset;
@@ -109,6 +113,7 @@ export interface LandDatasets {
   counties: CountiesDataset;
   townships: TownshipsDataset;
   sections: SectionsDataset;
+  parcels: ParcelsDataset;
 }
 
 
@@ -161,4 +166,5 @@ export interface UseLandMapsReturn {
   counties: CountiesDataset;
   townships: TownshipsDataset;
   sections: SectionsDataset;
+  parcels: ParcelsDataset;
 }

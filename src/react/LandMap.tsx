@@ -11,6 +11,7 @@ import { QueryToolsPanel } from './QueryToolsPanel.js';
 // Layer hierarchy for zoom-based visibility
 // Each layer becomes the "main" layer at certain zoom levels
 // The previous layer becomes the "parent" layer with thicker lines
+// Note: CDL and Parcels are NOT in this hierarchy - they are independently togglable overlays
 const LAYER_HIERARCHY = ['states', 'counties', 'townships', 'sections', 'clu'] as const;
 
 // Zoom thresholds for each layer transition
@@ -21,6 +22,7 @@ const ZOOM_THRESHOLDS: Record<string, number> = {
   townships: 10,  // Townships become main at zoom 10
   sections: 12,   // Sections become main at zoom 12
   clu: 14,        // CLU becomes main at zoom 14
+  parcels: 14,    // Parcels show as overlay when zoom >= 14
 };
 
 /**
@@ -194,7 +196,7 @@ export function LandMap({
   const sourcesAddedRef = useRef<Set<string>>(new Set());
   const hoverStateRef = useRef<{ source: string; sourceLayer: string; id: string | number } | null>(null);
 
-  const { ssurgo, cdl, plss, clu, states, counties, townships, sections } = useLandMaps(apiKey, apiUrl, borderColor, selectedCdlYear);
+  const { ssurgo, cdl, plss, clu, states, counties, townships, sections, parcels } = useLandMaps(apiKey, apiUrl, borderColor, selectedCdlYear);
 
   // Toggle function for legend checkboxes
   const toggleLayerVisibility = (datasetKey: string) => {
@@ -210,7 +212,7 @@ export function LandMap({
   // Update map layer visibility based on zoom and enabled layers
   const updateLayerVisibility = useCallback((map: any, zoom: number, enabledLayers: string[]) => {
     const { main, parent } = getVisibleLayers(zoom, enabledLayers);
-    const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections };
+    const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections, parcels };
     
     // Update visibility for each layer
     LAYER_HIERARCHY.forEach(layerKey => {
@@ -263,7 +265,34 @@ export function LandMap({
         }
       });
     }
-  }, [ssurgo, cdl, plss, clu, states, counties, townships, sections]);
+
+    // Handle parcels - show independently when enabled and zoom >= 14
+    // This allows parcels to be shown alongside CLU or on its own
+    if (parcels && enabledLayers.includes('parcels')) {
+      const parcelsVisible = zoom >= ZOOM_THRESHOLDS['parcels'];
+      Object.keys(parcels.layers).forEach(sublayerKey => {
+        const layerId = `${parcels.id}-${sublayerKey}`;
+        if (map.getLayer(layerId)) {
+          try {
+            map.setLayoutProperty(layerId, 'visibility', parcelsVisible ? 'visible' : 'none');
+          } catch (error) {
+            // Ignore
+          }
+        }
+      });
+    } else if (parcels) {
+      Object.keys(parcels.layers).forEach(sublayerKey => {
+        const layerId = `${parcels.id}-${sublayerKey}`;
+        if (map.getLayer(layerId)) {
+          try {
+            map.setLayoutProperty(layerId, 'visibility', 'none');
+          } catch (error) {
+            // Ignore
+          }
+        }
+      });
+    }
+  }, [ssurgo, cdl, plss, clu, states, counties, townships, sections, parcels]);
 
   // Effect to update layer visibility when zoom or enabled layers change
   useEffect(() => {
@@ -523,7 +552,7 @@ export function LandMap({
           setCurrentZoom(Math.round(map.getZoom() * 10) / 10);
           
           // Add all available datasets as sources
-          const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections };
+          const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections, parcels };
           
           console.log('Adding available datasets:', availableLayers);
           
@@ -603,7 +632,7 @@ export function LandMap({
     if (!mapRef.current || !showClickInfo) return;
 
     const map = mapRef.current;
-    const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections };
+    const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections, parcels };
 
     const handleMapClick = (e: any) => {
       // Don't show click info when query tools or AOI tool is active
@@ -629,9 +658,18 @@ export function LandMap({
                 dataset.clickInfoConfig.layerIds && 
                 dataset.clickInfoConfig.layerIds.includes(layerId)) {
               
-              // Check if this layer is currently visible based on zoom
-              const { main, parent } = getVisibleLayers(currentZoom, dataLayers);
-              if (datasetKey === main || datasetKey === parent) {
+              // Independent overlays (parcels, ssurgo) are eligible if they're in dataLayers
+              // Hierarchy layers (states/counties/etc) are eligible only when main/parent
+              const independentOverlays = ['parcels', 'ssurgo', 'cdl'];
+              let isVisible = false;
+              if (independentOverlays.includes(datasetKey)) {
+                isVisible = dataLayers.includes(datasetKey);
+              } else {
+                const { main, parent } = getVisibleLayers(currentZoom, dataLayers);
+                isVisible = datasetKey === main || datasetKey === parent;
+              }
+
+              if (isVisible) {
                 setClickInfo({
                   x: e.point.x,
                   y: e.point.y,
@@ -1019,7 +1057,7 @@ export function LandMap({
           </div>
           
           {availableLayers.map(datasetKey => {
-            const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections };
+            const datasets = { ssurgo, cdl, plss, clu, states, counties, townships, sections, parcels };
             const dataset = datasets[datasetKey as keyof typeof datasets];
             
             if (!dataset) return null;

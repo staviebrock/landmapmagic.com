@@ -6,3 +6,4 @@ export { makeStatesDataset } from './states.js';
 export { makeCountiesDataset } from './counties.js';
 export { makeTownshipsDataset } from './townships.js';
 export { makeSectionsDataset } from './sections.js';
+export { makeParcelsDataset, getParcelsTilesUrl } from './parcels.js';
