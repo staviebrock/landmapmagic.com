@@ -26,7 +26,12 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install & Build
+      - name: Build parent package
+        run: |
+          npm install
+          npm run build
+
+      - name: Install & Build Examples
         working-directory: ./examples
         run: |
           npm install
