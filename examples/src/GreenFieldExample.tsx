@@ -21,8 +21,8 @@ export default function BasicExample() {
         initialZoom={6}
         height="100%"
         width="100%"
-        cdlYears={['2024', '2023', '2022', '2021', '2020']}
-        initialCdlYear="2024"
+        cdlYears={['2025', '2024', '2023', '2022', '2021', '2020']}
+        initialCdlYear="2025"
         persistSettings={true}
         persistenceKey="greenfield-example"
       />

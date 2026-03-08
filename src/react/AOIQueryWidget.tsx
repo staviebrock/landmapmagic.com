@@ -330,7 +330,7 @@ export function AOIQueryWidget({
   isActive,
   onToggle,
   availableLayers = ['states', 'counties', 'townships', 'sections', 'clu', 'cdl'],
-  cdlYears = ['2024', '2023', '2022', '2021', '2020'],
+  cdlYears = ['2025', '2024', '2023', '2022', '2021', '2020'],
   maxAcres = 1000,
   onResults
 }: AOIQueryWidgetProps) {

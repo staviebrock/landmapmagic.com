@@ -216,7 +216,7 @@ export function PointLookup({
   onToggle,
   availableLayers = ['states', 'counties', 'townships', 'sections', 'clu', 'cdl'],
   defaultLayers = ['states', 'counties', 'townships'],
-  cdlYears = ['2024', '2023', '2022', '2021', '2020'],
+  cdlYears = ['2025', '2024', '2023', '2022', '2021', '2020'],
   onResults
 }: PointLookupProps) {
   const [selectedLayers, setSelectedLayers] = useState<Set<string>>(new Set(defaultLayers));
