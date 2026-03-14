@@ -22,56 +22,101 @@
             left: 50%;
             transform: translateX(-50%);
             z-index: 1000;
-            background: white;
-            padding: 10px;
-            border-radius: 4px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            background: rgba(255, 255, 255, 0.97);
+            backdrop-filter: blur(8px);
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
             display: flex;
-            gap: 10px;
-            width: 400px;
+            gap: 8px;
+            width: 440px;
             align-items: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
 
         #search-input {
             flex: 1;
-            padding: 8px;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            padding: 10px 14px;
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid #e4e4e7;
+            border-radius: 6px;
+            outline: none;
+            color: #18181b;
+            background: white;
+            font-family: inherit;
+        }
+
+        #search-input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
 
         #search-results {
             position: absolute;
-            top: 100%;
+            top: calc(100% + 6px);
             left: 0;
             right: 0;
             background: white;
-            border: 1px solid #ccc;
-            border-top: none;
-            max-height: 300px;
+            border: 1px solid #e4e4e7;
+            border-radius: 8px;
+            max-height: 400px;
             overflow-y: auto;
             display: none;
-            border-bottom-left-radius: 4px;
-            border-bottom-right-radius: 4px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
         }
 
         .result-item {
-            padding: 10px;
+            padding: 10px 12px;
             cursor: pointer;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #f4f4f5;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            transition: background 0.1s;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
         }
 
         .result-item:hover {
-            background-color: #f0f0f0;
+            background-color: #f8f8f8;
+        }
+
+        .result-icon {
+            flex-shrink: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 1px;
+        }
+
+        .result-body {
+            flex: 1;
+            min-width: 0;
         }
 
         .result-name {
-            font-weight: bold;
+            font-weight: 600;
+            font-size: 14px;
+            color: #18181b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .result-meta {
             font-size: 12px;
-            color: #666;
+            color: #71717a;
+            margin-top: 2px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
         }
 
         .result-type {
@@ -82,38 +127,109 @@
             letter-spacing: 0.5px;
             padding: 1px 6px;
             border-radius: 3px;
-            margin-left: 6px;
-            vertical-align: middle;
+            flex-shrink: 0;
         }
 
-        .type-parcel {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .type-address {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-
-        .type-state, .type-county {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .type-plss_township, .type-plss_section {
-            background: #ede9fe;
-            color: #5b21b6;
-        }
-
-        .result-parcel-details {
+        .result-details {
             font-size: 11px;
-            color: #888;
-            margin-top: 2px;
+            color: #a1a1aa;
+            margin-top: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .result-parcel-details span {
-            margin-right: 10px;
+        /* Type colors */
+        .type-parcel        { background: #fef3c7; color: #92400e; }
+        .type-address       { background: #dbeafe; color: #1e40af; }
+        .type-state         { background: #f5f3ff; color: #6d28d9; }
+        .type-county        { background: #eff6ff; color: #1d4ed8; }
+        .type-plss_township { background: #ecfdf5; color: #065f46; }
+        .type-plss_section  { background: #fffbeb; color: #92400e; }
+
+        /* Selected result info panel */
+        #result-panel {
+            position: absolute;
+            bottom: 40px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.97);
+            backdrop-filter: blur(8px);
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 16px;
+            width: 300px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: none;
+        }
+
+        #result-panel .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        #result-panel .panel-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #18181b;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #result-panel .panel-close {
+            cursor: pointer;
+            font-size: 18px;
+            color: #a1a1aa;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        #result-panel .panel-close:hover {
+            color: #18181b;
+        }
+
+        #result-panel .panel-badge {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        #result-panel .panel-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            padding: 5px 0;
+            border-bottom: 1px solid #f4f4f5;
+            gap: 8px;
+        }
+
+        #result-panel .panel-row:last-child {
+            border-bottom: none;
+        }
+
+        #result-panel .panel-label {
+            color: #71717a;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+
+        #result-panel .panel-value {
+            color: #18181b;
+            font-weight: 600;
+            text-align: right;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         #legend {
@@ -194,6 +310,14 @@
     </div>
 
     <div id="map"></div>
+    <div id="result-panel">
+        <div class="panel-header">
+            <span class="panel-badge" id="panel-badge"></span>
+            <span class="panel-title" id="panel-title"></span>
+            <span class="panel-close" id="panel-close">×</span>
+        </div>
+        <div id="panel-rows"></div>
+    </div>
     <div id="legend">
         <div><strong>Layers (Zoom Dependent)</strong></div>
         <div>States (z0-6)</div>
@@ -508,11 +632,27 @@
                 updateLayers();
             });
 
-            // Search Logic
+            // ─── Search Logic ────────────────────────────────────────────────────────
             const searchInput = document.getElementById('search-input');
             const resultsDiv = document.getElementById('search-results');
             const spinner = document.getElementById('search-spinner');
+            const resultPanel = document.getElementById('result-panel');
+            const panelTitle = document.getElementById('panel-title');
+            const panelBadge = document.getElementById('panel-badge');
+            const panelRows = document.getElementById('panel-rows');
+            const panelClose = document.getElementById('panel-close');
             let debounceTimer;
+
+            panelClose.addEventListener('click', () => {
+                resultPanel.style.display = 'none';
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#search-container')) {
+                    resultsDiv.style.display = 'none';
+                }
+            });
 
             searchInput.addEventListener('input', (e) => {
                 clearTimeout(debounceTimer);
@@ -528,14 +668,13 @@
             });
 
             async function performSearch(query) {
-                spinner.style.display = 'block'; // Show spinner
-                resultsDiv.style.display = 'none'; // Hide results while loading
+                spinner.style.display = 'block';
+                resultsDiv.style.display = 'none';
 
                 try {
                     let url = `${BASE_URL}/v1/data/search?q=${encodeURIComponent(query)}&limit=10&key=${landmapApiKey}`;
 
-                    // Pass the current map viewport as a bbox so the API can
-                    // infer which state(s) to search for parcel IDs
+                    // Pass current viewport bbox so the API can infer region(s) for parcel ID lookups
                     const bounds = map.getBounds();
                     if (bounds) {
                         const sw = bounds.getSouthWest();
@@ -545,27 +684,69 @@
 
                     const res = await fetch(url);
                     const data = await res.json();
-
                     displayResults(data.results);
                 } catch (err) {
-                    console.error("Search failed", err);
+                    console.error('Search failed', err);
                 } finally {
-                    spinner.style.display = 'none'; // Hide spinner
+                    spinner.style.display = 'none';
                 }
             }
 
-            function formatType(type) {
-                const labels = {
-                    parcel: 'Parcel',
-                    address: 'Address',
-                    state: 'State',
-                    county: 'County',
-                    plss_township: 'Township',
-                    plss_section: 'Section'
-                };
-                return labels[type] || type;
+            // ─── Type metadata ────────────────────────────────────────────────────────
+            const TYPE_META = {
+                parcel:        { label: 'Parcel',   color: '#92400e', bg: '#fef3c7', icon: '🏠' },
+                address:       { label: 'Address',  color: '#1e40af', bg: '#dbeafe', icon: '📍' },
+                state:         { label: 'State',    color: '#6d28d9', bg: '#f5f3ff', icon: '🗺' },
+                county:        { label: 'County',   color: '#1d4ed8', bg: '#eff6ff', icon: '📋' },
+                plss_township: { label: 'Township', color: '#065f46', bg: '#ecfdf5', icon: '⊞' },
+                plss_section:  { label: 'Section',  color: '#92400e', bg: '#fffbeb', icon: '⊟' },
+            };
+
+            function getTypeMeta(type) {
+                return TYPE_META[type] || { label: type, color: '#6b7280', bg: '#f9fafb', icon: '●' };
             }
 
+            function makeSvgIcon(type) {
+                const icons = {
+                    address: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
+                    state: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l9-4 9 4v14l-9-4-9 4V6z"/><path d="M12 2v18"/></svg>`,
+                    county: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>`,
+                    plss_township: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`,
+                    plss_section: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="12" y1="3" x2="12" y2="21"/></svg>`,
+                    parcel: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+                };
+                return icons[type] || `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>`;
+            }
+
+            // ─── Build inline detail chips for dropdown rows ──────────────────────────
+            function buildDetailChips(result) {
+                const chips = [];
+                const t = result.type;
+
+                if (t === 'parcel' && result.parcel) {
+                    const p = result.parcel;
+                    if (p.owner) chips.push(p.owner);
+                    if (p.address) chips.push(p.address);
+                    if (p.acreage) chips.push(`${parseFloat(p.acreage).toLocaleString()} ac`);
+                    if (p.marketValue) chips.push(`$${Number(p.marketValue).toLocaleString()}`);
+                } else if (t === 'plss_township' || t === 'plss_section') {
+                    if (result.countyName) chips.push(result.countyName);
+                    if (result.stateName) chips.push(result.stateName);
+                    else if (result.state) chips.push(result.state);
+                    if (result.townshipLabel) chips.push(result.townshipLabel);
+                    if (t === 'plss_section' && result.plssSection != null) chips.push(`Sec ${result.plssSection}`);
+                } else if (t === 'county') {
+                    if (result.stateName) chips.push(result.stateName);
+                    else if (result.state) chips.push(result.state);
+                    if (result.countyFips) chips.push(`FIPS ${result.countyFips}`);
+                } else if (t === 'address') {
+                    // full_address is already in result.name
+                }
+
+                return chips;
+            }
+
+            // ─── Render dropdown ─────────────────────────────────────────────────────
             function displayResults(results) {
                 resultsDiv.innerHTML = '';
                 if (!results || results.length === 0) {
@@ -574,42 +755,33 @@
                 }
 
                 results.forEach(result => {
+                    const meta = getTypeMeta(result.type);
+                    const chips = buildDetailChips(result);
+
                     const div = document.createElement('div');
                     div.className = 'result-item';
-
-                    const typeCss = `type-${result.type}`;
-                    let html = `
-                        <div class="result-name">
-                            ${result.simpleName}
-                            <span class="result-type ${typeCss}">${formatType(result.type)}</span>
+                    div.innerHTML = `
+                        <div class="result-icon" style="background:${meta.bg}">
+                            ${makeSvgIcon(result.type)}
                         </div>
-                        <div class="result-meta">${result.name}</div>
+                        <div class="result-body">
+                            <div class="result-name">${escHtml(result.simpleName)}</div>
+                            <div class="result-meta">
+                                <span class="result-type type-${result.type}">${meta.label}</span>
+                                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(result.name)}</span>
+                            </div>
+                            ${chips.length ? `<div class="result-details">${chips.map(escHtml).join(' · ')}</div>` : ''}
+                        </div>
                     `;
-
-                    // Show extra details for parcel results
-                    if (result.type === 'parcel' && result.parcel) {
-                        const p = result.parcel;
-                        let details = [];
-                        if (p.owner) details.push(`<span>Owner: ${p.owner}</span>`);
-                        if (p.address) details.push(`<span>Addr: ${p.address}</span>`);
-                        if (p.acreage) details.push(`<span>${p.acreage} ac</span>`);
-                        if (p.marketValue) details.push(`<span>$${p.marketValue}</span>`);
-                        if (result.region) details.push(`<span>Region: ${result.region}</span>`);
-                        if (details.length > 0) {
-                            html += `<div class="result-parcel-details">${details.join('')}</div>`;
-                        }
-                    }
-
-                    div.innerHTML = html;
-                    div.onclick = () => selectResult(result);
+                    div.addEventListener('click', () => selectResult(result));
                     resultsDiv.appendChild(div);
                 });
 
                 resultsDiv.style.display = 'block';
             }
 
+            // ─── Navigate map to result ───────────────────────────────────────────────
             function selectResult(result) {
-                // Show a descriptive value in the search box
                 if (result.type === 'parcel' && result.parcel) {
                     searchInput.value = `Parcel ${result.simpleName}` + (result.county ? `, ${result.county.name}` : '');
                 } else {
@@ -617,25 +789,99 @@
                 }
                 resultsDiv.style.display = 'none';
 
-                // For parcels, prefer centroid + suggestedZoom since the bbox is
-                // computed and fitBounds can overshoot on very small areas.
+                // Navigate map
                 if (result.type === 'parcel' && result.centroid) {
                     map.setCenter({ lat: result.centroid[1], lng: result.centroid[0] });
                     map.setZoom(result.suggestedZoom || 17);
-                    return;
-                }
-
-                // For everything else, prefer bbox (states, counties, etc.)
-                if (result.bbox) {
-                    const bounds = new google.maps.LatLngBounds(
-                        { lat: result.bbox[1], lng: result.bbox[0] }, // SW
-                        { lat: result.bbox[3], lng: result.bbox[2] }  // NE
-                    );
-                    map.fitBounds(bounds);
+                } else if (result.bbox) {
+                    map.fitBounds(new google.maps.LatLngBounds(
+                        { lat: result.bbox[1], lng: result.bbox[0] },
+                        { lat: result.bbox[3], lng: result.bbox[2] }
+                    ));
                 } else if (result.centroid) {
                     map.setCenter({ lat: result.centroid[1], lng: result.centroid[0] });
                     map.setZoom(result.suggestedZoom || 12);
                 }
+
+                // Show rich info panel
+                showResultPanel(result);
+            }
+
+            // ─── Rich info panel ──────────────────────────────────────────────────────
+            function showResultPanel(result) {
+                const meta = getTypeMeta(result.type);
+                panelBadge.textContent = meta.label;
+                panelBadge.style.background = meta.bg;
+                panelBadge.style.color = meta.color;
+                panelTitle.textContent = result.simpleName;
+
+                const rows = buildPanelRows(result);
+                panelRows.innerHTML = rows.map(([label, value]) => `
+                    <div class="panel-row">
+                        <span class="panel-label">${escHtml(label)}</span>
+                        <span class="panel-value">${escHtml(String(value))}</span>
+                    </div>
+                `).join('');
+
+                resultPanel.style.display = 'block';
+            }
+
+            function buildPanelRows(result) {
+                const rows = [];
+                const t = result.type;
+
+                if (result.stateName) rows.push(['State', result.stateName]);
+                else if (result.state) rows.push(['State', result.state]);
+
+                if (t === 'county') {
+                    if (result.countyFips) rows.push(['FIPS', result.countyFips]);
+                }
+
+                if (t === 'plss_township') {
+                    if (result.countyName) rows.push(['County', result.countyName]);
+                    if (result.townshipLabel) rows.push(['Township', result.townshipLabel]);
+                    if (result.plssMeridian) rows.push(['Meridian', result.plssMeridian]);
+                    if (result.plssTownNum != null) rows.push(['Town #', `${result.plssTownNum}${result.plssTownDir || ''}`]);
+                    if (result.plssRangeNum != null) rows.push(['Range #', `${result.plssRangeNum}${result.plssRangeDir || ''}`]);
+                }
+
+                if (t === 'plss_section') {
+                    if (result.countyName) rows.push(['County', result.countyName]);
+                    if (result.townshipLabel) rows.push(['Township', result.townshipLabel]);
+                    if (result.plssSection != null) rows.push(['Section', String(result.plssSection)]);
+                    if (result.plssMeridian) rows.push(['Meridian', result.plssMeridian]);
+                }
+
+                if (t === 'parcel' && result.parcel) {
+                    const p = result.parcel;
+                    if (result.county) rows.push(['County', result.county.name]);
+                    if (result.region) rows.push(['State', result.region]);
+                    if (p.owner) rows.push(['Owner', p.owner]);
+                    if (p.address) rows.push(['Address', p.address]);
+                    if (p.acreage) rows.push(['Acreage (calc)', `${parseFloat(p.acreage).toLocaleString()} ac`]);
+                    if (p.acreageDeeded) rows.push(['Acreage (deed)', `${p.acreageDeeded} ac`]);
+                    if (p.marketValue) rows.push(['Market Value', `$${Number(p.marketValue).toLocaleString()}`]);
+                    if (p.landUseClass) rows.push(['Land Use', p.landUseClass]);
+                    if (p.legalDescription) rows.push(['Legal Desc.', p.legalDescription]);
+                    if (p.parcelId) rows.push(['Parcel ID', p.parcelId]);
+                }
+
+                if (t === 'address') {
+                    rows.push(['Full Address', result.name]);
+                }
+
+                if (result.suggestedZoom != null) rows.push(['Zoom', String(result.suggestedZoom)]);
+                if (result.score != null) rows.push(['Relevance', `${(result.score * 100).toFixed(0)}%`]);
+
+                return rows;
+            }
+
+            function escHtml(str) {
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
             }
         }
 
