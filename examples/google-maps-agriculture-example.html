@@ -432,6 +432,9 @@
         let pinMarker = null;
         let pinLat = null, pinLng = null;
 
+        // Flag to suppress the Google Maps click when deck.gl already handled it
+        let deckClickHandled = false;
+
         // ── Init ─────────────────────────────────────────────────
         function initMap() {
             map = new google.maps.Map(document.getElementById('map'), {
@@ -453,8 +456,13 @@
                 rebuildDeckLayers();
             });
 
-            // Map click — only active in point mode
+            // Map click — only active in point mode, or for zoom-in when clicking empty space
+            // Guard against deck.gl feature clicks bubbling up to the Google Maps listener
             map.addListener('click', (e) => {
+                if (deckClickHandled) {
+                    deckClickHandled = false;
+                    return;
+                }
                 if (layerMode === 'point') {
                     dropPin(e.latLng.lat(), e.latLng.lng());
                 } else if (layerMode === 'clu' && map.getZoom() < 12) {
@@ -937,6 +945,7 @@
                     },
                     onClick: info => {
                         if (!info?.object) return true;
+                        deckClickHandled = true;
                         const props = info.object.properties || {};
                         const fid = props.id || JSON.stringify(props);
                         toggleCluSelection(fid, props);
@@ -1080,6 +1089,7 @@
                     },
                     onClick: info => {
                         if (!info?.object) return true;
+                        deckClickHandled = true;
                         const props = info.object.properties || {};
                         const pid = props.parcel_id || props.robust_id || JSON.stringify(props);
                         toggleParcelSelection(pid, props);
