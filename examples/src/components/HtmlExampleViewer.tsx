@@ -1,21 +1,30 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Highlight, themes } from 'prism-react-renderer';
 
 interface HtmlExampleViewerProps {
   title: string;
-  htmlPath: string; // e.g., "/google-maps-example.html" - used for iframe src
-  sourceCode: string; // Raw HTML source (imported via ?raw)
+  htmlPath: string;
+  sourceCode: string;
   onBack?: () => void;
 }
 
 export default function HtmlExampleViewer({
   title,
-  htmlPath,
   sourceCode,
   onBack
 }: HtmlExampleViewerProps) {
   const [showCode, setShowCode] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const blobUrl = useMemo(() => {
+    const processed = sourceCode
+      .replace(/%VITE_GOOGLE_MAPS_API_KEY%/g, import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '')
+      .replace(/%VITE_ARCGIS_API_KEY%/g, import.meta.env.VITE_ARCGIS_API_KEY || '')
+      .replace(/%VITE_LAND_MAP_MAGIC_API_KEY%/g, import.meta.env.VITE_LAND_MAP_MAGIC_API_KEY || 'dev')
+      .replace(/%VITE_LAND_MAP_MAGIC_API_URL%/g, import.meta.env.VITE_LAND_MAP_MAGIC_API_URL || 'https://api.landmapmagic.com');
+    const blob = new Blob([processed], { type: 'text/html' });
+    return URL.createObjectURL(blob);
+  }, [sourceCode]);
 
   const handleCopy = async () => {
     try {
@@ -157,7 +166,7 @@ export default function HtmlExampleViewer({
           minWidth: 0
         }}>
           <iframe
-            src={htmlPath}
+            src={blobUrl}
             style={{
               width: '100%',
               height: '100%',
