@@ -29,6 +29,7 @@ import GoogleMapsCdlAoiSource from '../google-maps-cdl-aoi-example.html?raw';
 import GoogleMapsPointLookupSource from '../google-maps-point-lookup-example.html?raw';
 import GoogleMapsSectionsSource from '../google-maps-sections-example.html?raw';
 import GoogleMapsSSURGOSource from '../google-maps-ssurgo-example.html?raw';
+import GoogleMapsAgricultureSource from '../google-maps-agriculture-example.html?raw';
 import GoogleMapsSSURGOAoiSource from '../google-maps-ssurgo-aoi-example.html?raw';
 
 // Map HTML example IDs to their raw source
@@ -48,6 +49,7 @@ const htmlExampleSources: Record<string, string> = {
   'google-maps-point-lookup': GoogleMapsPointLookupSource,
   'google-maps-sections': GoogleMapsSectionsSource,
   'google-maps-ssurgo': GoogleMapsSSURGOSource,
+  'google-maps-agriculture': GoogleMapsAgricultureSource,
   'google-maps-ssurgo-aoi': GoogleMapsSSURGOAoiSource,
 };
 
@@ -187,6 +189,20 @@ const EXAMPLES: Example[] = [
       sdk: 'google-maps',
       data: ['parcels'],
       features: ['labels']
+    }
+  },
+  {
+    id: 'google-maps-agriculture',
+    title: 'Google Maps Agriculture',
+    description: 'CLU fields, parcels, and point selection with search — agriculture-focused workflow',
+    category: 'html',
+    path: '/google-maps-agriculture-example.html',
+    icon: '🌾',
+    tags: {
+      framework: 'html',
+      sdk: 'google-maps',
+      data: ['clu', 'parcels', 'states', 'counties', 'townships', 'sections'],
+      features: ['selection', 'hover', 'labels']
     }
   },
   {
