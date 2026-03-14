@@ -129,6 +129,7 @@ export function LandMap({
   searchLimit = 15,
   persistSettings = false,
   persistenceKey = 'landmap',
+  onSearchResultSelect,
 }: LandMapProps) {
 
   // Load persisted settings on initial render
@@ -411,13 +412,16 @@ export function LandMap({
 
   const selectSearchResult = useCallback((result: SearchResult) => {
     // Show descriptive text for parcels, simple name for others
-    if (result.type === 'parcel' && (result as any).parcel) {
-      const county = (result as any).county;
+    if (result.type === 'parcel' && result.parcel) {
+      const county = result.county;
       setSearchQuery(`Parcel ${result.simpleName}${county ? `, ${county.name}` : ''}`);
     } else {
       setSearchQuery(result.simpleName);
     }
     setShowResults(false);
+
+    // Fire the external callback with the full result
+    onSearchResultSelect?.(result);
 
     if (!mapRef.current) return;
     const map = mapRef.current;
@@ -446,7 +450,7 @@ export function LandMap({
         duration: 1500
       });
     }
-  }, []);
+  }, [onSearchResultSelect]);
 
   // Initialize map
   useEffect(() => {
@@ -851,7 +855,7 @@ export function LandMap({
                           <path d="M9 21V9"/>
                         </svg>
                       );
-                    case 'township':
+                    case 'plss_township':
                       return (
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <rect x="3" y="3" width="7" height="7"/>
@@ -860,7 +864,7 @@ export function LandMap({
                           <rect x="3" y="14" width="7" height="7"/>
                         </svg>
                       );
-                    case 'section':
+                    case 'plss_section':
                       return (
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <rect x="3" y="3" width="18" height="18"/>
@@ -891,8 +895,8 @@ export function LandMap({
                     case 'address': return '#dc2626';
                     case 'state': return '#7c3aed';
                     case 'county': return '#2563eb';
-                    case 'township': return '#059669';
-                    case 'section': return '#d97706';
+                    case 'plss_township': return '#059669';
+                    case 'plss_section': return '#d97706';
                     case 'parcel': return '#b45309';
                     default: return '#6b7280';
                   }
@@ -903,8 +907,8 @@ export function LandMap({
                     case 'address': return '#fef2f2';
                     case 'state': return '#f5f3ff';
                     case 'county': return '#eff6ff';
-                    case 'township': return '#ecfdf5';
-                    case 'section': return '#fffbeb';
+                    case 'plss_township': return '#ecfdf5';
+                    case 'plss_section': return '#fffbeb';
                     case 'parcel': return '#fffbeb';
                     default: return '#f9fafb';
                   }
@@ -985,12 +989,13 @@ export function LandMap({
                         </span>
                       </div>
                       {/* Parcel details row */}
-                      {result.type === 'parcel' && (result as any).parcel && (() => {
-                        const p = (result as any).parcel;
+                      {result.type === 'parcel' && result.parcel && (() => {
+                        const p = result.parcel;
                         const details: string[] = [];
                         if (p.owner) details.push(p.owner);
                         if (p.address) details.push(p.address);
                         if (p.acreage) details.push(`${p.acreage} ac`);
+                        if (p.marketValue) details.push(`$${p.marketValue}`);
                         if (details.length === 0) return null;
                         return (
                           <div style={{
@@ -1002,6 +1007,26 @@ export function LandMap({
                             textOverflow: 'ellipsis',
                           }}>
                             {details.join(' · ')}
+                          </div>
+                        );
+                      })()}
+                      {/* PLSS context row */}
+                      {(result.type === 'plss_township' || result.type === 'plss_section') && (() => {
+                        const parts: string[] = [];
+                        if (result.countyName) parts.push(result.countyName);
+                        if (result.stateName) parts.push(result.stateName);
+                        else if (result.state) parts.push(result.state);
+                        if (parts.length === 0) return null;
+                        return (
+                          <div style={{
+                            fontSize: '11px',
+                            color: '#a1a1aa',
+                            marginTop: '2px',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}>
+                            {parts.join(', ')}
                           </div>
                         );
                       })()}

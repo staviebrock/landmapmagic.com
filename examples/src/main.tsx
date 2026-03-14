@@ -30,6 +30,7 @@ import GoogleMapsPointLookupSource from '../google-maps-point-lookup-example.htm
 import GoogleMapsSectionsSource from '../google-maps-sections-example.html?raw';
 import GoogleMapsSSURGOSource from '../google-maps-ssurgo-example.html?raw';
 import GoogleMapsAgricultureSource from '../google-maps-agriculture-example.html?raw';
+import GoogleMapsSSURGOAoiSource from '../google-maps-ssurgo-aoi-example.html?raw';
 
 // Map HTML example IDs to their raw source
 const htmlExampleSources: Record<string, string> = {
@@ -49,6 +50,7 @@ const htmlExampleSources: Record<string, string> = {
   'google-maps-sections': GoogleMapsSectionsSource,
   'google-maps-ssurgo': GoogleMapsSSURGOSource,
   'google-maps-agriculture': GoogleMapsAgricultureSource,
+  'google-maps-ssurgo-aoi': GoogleMapsSSURGOAoiSource,
 };
 
 interface Example {
@@ -327,6 +329,20 @@ const EXAMPLES: Example[] = [
       sdk: 'google-maps',
       data: ['ssurgo'],
       features: ['hover']
+    }
+  },
+  {
+    id: 'google-maps-ssurgo-aoi',
+    title: 'SSURGO AOI Query',
+    description: 'Draw a polygon to fetch and render SSURGO soil map units for that exact area (max 5,000 acres)',
+    category: 'html',
+    path: '/google-maps-ssurgo-aoi-example.html',
+    icon: '🌱',
+    tags: {
+      framework: 'html',
+      sdk: 'google-maps',
+      data: ['ssurgo'],
+      features: ['aoi-query', 'selection']
     }
   }
 ];

@@ -143,6 +143,22 @@ export interface LandMapProps {
   searchLimit?: number; // Maximum number of search results to show - default: 15
   persistSettings?: boolean; // Persist layer selection and CDL year to localStorage - default: false
   persistenceKey?: string; // Key prefix for localStorage - default: 'landmap'
+  /** Called when the user selects a search result. Receives the full result object. */
+  onSearchResultSelect?: (result: SearchResult) => void;
+}
+
+// Parcel details returned for 'parcel' type results
+export interface SearchResultParcel {
+  parcelId?: string;
+  robustId?: string;
+  owner?: string;
+  address?: string;
+  acreage?: number;
+  acreageDeeded?: string;
+  marketValue?: string;
+  landUseClass?: string;
+  legalDescription?: string;
+  countyId?: number;
 }
 
 // Search result type from API
@@ -150,10 +166,34 @@ export interface SearchResult {
   id: string;
   name: string;
   simpleName: string;
+  /** Result type: 'state' | 'county' | 'plss_township' | 'plss_section' | 'address' | 'parcel' */
   type: string;
   bbox?: [number, number, number, number]; // [minLng, minLat, maxLng, maxLat]
   centroid?: [number, number]; // [lng, lat]
   suggestedZoom?: number;
+  score?: number;
+  /** State abbreviation (e.g. 'IA') */
+  state?: string | null;
+  /** Full state name (e.g. 'Iowa') */
+  stateName?: string | null;
+  // County context (present on plss_township and plss_section results)
+  countyFips?: string;
+  countyName?: string;
+  // PLSS context (present on plss_township results)
+  townshipId?: string;
+  townshipLabel?: string;
+  plssMeridian?: string;
+  plssTownNum?: number;
+  plssTownDir?: string;
+  plssRangeNum?: number;
+  plssRangeDir?: string;
+  // PLSS section context (present on plss_section results)
+  plssSection?: number;
+  // Parcel-specific fields (present on 'parcel' type results)
+  parcel?: SearchResultParcel;
+  county?: { fips: number; name: string };
+  /** State name used for parcel lookup (e.g. 'Iowa') */
+  region?: string;
 }
 
 // Hook return types

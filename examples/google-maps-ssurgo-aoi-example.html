@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LandMapMagic - SSURGO AOI Query</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0f172a;
+        }
+
+        #map {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .control-panel {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            color: #e2e8f0;
+            z-index: 1000;
+            min-width: 280px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .control-panel h2 {
+            font-size: 18px;
+            margin-bottom: 4px;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .badge {
+            background: #059669;
+            color: white;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .control-group {
+            margin-top: 16px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            background: rgba(30, 41, 59, 0.8);
+            color: #e2e8f0;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            border-color: #2563eb;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-primary:disabled {
+            background: #475569;
+            border-color: #475569;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border-color: #475569;
+            margin-top: 8px;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .drawing-status {
+            margin-top: 12px;
+            padding: 10px;
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .drawing-status.active {
+            background: rgba(37, 99, 235, 0.2);
+            border: 1px solid rgba(37, 99, 235, 0.4);
+        }
+
+        .zoom-value {
+            display: inline-block;
+            background: rgba(30, 41, 59, 0.9);
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .api-info {
+            position: absolute;
+            bottom: 30px;
+            left: 16px;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: #94a3b8;
+            font-size: 12px;
+            z-index: 1000;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .api-info a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+
+        .status-text {
+            margin-top: 4px;
+        }
+
+        .status-text.success {
+            color: #4ade80;
+        }
+
+        .status-text.error {
+            color: #f87171;
+        }
+
+        /* Results Panel */
+        .results-panel {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            color: #e2e8f0;
+            z-index: 1000;
+            min-width: 320px;
+            max-width: 400px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: none;
+        }
+
+        .results-panel.visible {
+            display: block;
+        }
+
+        .results-panel h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .results-panel .close-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 18px;
+            width: auto;
+            padding: 4px 8px;
+        }
+
+        .results-panel .close-btn:hover {
+            color: #e2e8f0;
+        }
+
+        .result-section {
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .result-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .result-section h4 {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 14px;
+        }
+
+        .stat-row .label {
+            color: #94a3b8;
+        }
+
+        .stat-row .value {
+            color: #f8fafc;
+            font-weight: 500;
+        }
+
+        .soil-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .soil-item {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .soil-item:last-child {
+            border-bottom: none;
+        }
+
+        .soil-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: #f8fafc;
+            margin-bottom: 4px;
+        }
+
+        .soil-details {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .soil-hydgrp {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            display: none;
+        }
+
+        .loading-overlay.visible {
+            display: flex;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            color: #e2e8f0;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .instructions {
+            background: rgba(37, 99, 235, 0.1);
+            border: 1px solid rgba(37, 99, 235, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 16px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .instructions strong {
+            color: #60a5fa;
+        }
+
+        /* Soil popover */
+        .soil-popover {
+            position: fixed;
+            z-index: 2000;
+            background: rgba(15, 23, 42, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 16px;
+            max-width: 380px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            color: #e2e8f0;
+            font-size: 13px;
+            display: none;
+        }
+
+        .soil-popover.visible {
+            display: block;
+        }
+
+        .soil-popover h4 {
+            font-size: 15px;
+            color: #f8fafc;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .soil-popover .close-popover {
+            float: right;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+            padding: 0;
+        }
+
+        .soil-popover .close-popover:hover {
+            color: #e2e8f0;
+        }
+
+        .soil-popover .prop-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 12px;
+        }
+
+        .soil-popover .prop-row:last-child {
+            border-bottom: none;
+        }
+
+        .soil-popover .prop-label {
+            color: #94a3b8;
+            flex-shrink: 0;
+        }
+
+        .soil-popover .prop-value {
+            color: #f8fafc;
+            text-align: right;
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <!-- Control Panel -->
+    <div class="control-panel">
+        <h2>SSURGO AOI Query <span class="badge">STAGING</span></h2>
+
+        <div class="control-group">
+            <button id="draw-btn" class="btn-primary">Draw AOI Polygon</button>
+            <button id="clear-btn" class="btn-secondary">Clear Drawing</button>
+        </div>
+
+        <div id="drawing-status" class="drawing-status">
+            Click "Draw AOI Polygon" to start drawing
+        </div>
+
+        <button id="query-btn" class="btn-primary" disabled>Query Soils in AOI</button>
+
+        <div class="control-group">
+            <label>Zoom Level</label>
+            <div class="zoom-value" id="zoom-value">13</div>
+        </div>
+
+        <div class="instructions">
+            <strong>Instructions:</strong><br>
+            1. Click "Draw AOI Polygon" to start<br>
+            2. Click on map to add points<br>
+            3. Click first point to close polygon<br>
+            4. Click "Query Soils in AOI"<br>
+            5. Click a soil polygon to see details<br>
+            <br>
+            <strong>Limit:</strong> Max 5,000 acres
+        </div>
+    </div>
+
+    <!-- Results Panel -->
+    <div id="results-panel" class="results-panel">
+        <h3>
+            Soil Map Units
+            <button class="close-btn" onclick="closeResults()">×</button>
+        </h3>
+
+        <div class="result-section">
+            <h4>AOI Area</h4>
+            <div class="stat-row">
+                <span class="label">Acres</span>
+                <span class="value" id="result-acres">-</span>
+            </div>
+        </div>
+
+        <div class="result-section">
+            <h4>Query Info</h4>
+            <div class="stat-row">
+                <span class="label">Map Units Found</span>
+                <span class="value" id="result-count">-</span>
+            </div>
+        </div>
+
+        <div class="result-section">
+            <h4>Soils (by hydrologic group)</h4>
+            <div id="soil-list" class="soil-list">
+                <!-- Soil items will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Soil Popover (click on map) -->
+    <div id="soil-popover" class="soil-popover">
+        <h4><span id="popover-title">Soil Details</span><button class="close-popover" onclick="closePopover()">×</button></h4>
+        <div id="popover-content"></div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <div>Querying SSURGO data...</div>
+        </div>
+    </div>
+
+    <!-- API Info -->
+    <div class="api-info">
+        <div>API: <a href="https://staging-api.landmapmagic.com" target="_blank">https://staging-api.landmapmagic.com</a></div>
+        <div id="query-status" class="status-text"></div>
+    </div>
+
+    <!-- Load deck.gl and Google Maps -->
+    <script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+    <script src="https://unpkg.com/@deck.gl/google-maps@^9.0.0/dist.min.js"></script>
+
+    <script>
+        // Configuration - from .env (Vite injects via transformIndexHtml)
+        const LANDMAP_KEY = '%VITE_LAND_MAP_MAGIC_API_KEY%';
+        const BASE_URL_ENV = '%VITE_LAND_MAP_MAGIC_API_URL%';
+        const GOOGLE_KEY = '%VITE_GOOGLE_MAPS_API_KEY%';
+        const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
+        const BASE_URL = (BASE_URL_ENV && !BASE_URL_ENV.includes('VITE_')) ? BASE_URL_ENV : 'https://api.landmapmagic.com';
+        const googleApiKey = (GOOGLE_KEY && !GOOGLE_KEY.includes('VITE_')) ? GOOGLE_KEY : '';
+
+        if (!googleApiKey) {
+            document.body.innerHTML = '<div style="padding:20px;color:red;font-family:system-ui;">Missing VITE_GOOGLE_MAPS_API_KEY in .env</div>';
+            throw new Error('Missing Google Maps API key');
+        }
+
+        const SSURGO_CONFIG = {
+            maxAcres: 5000
+        };
+
+        // Human-readable labels for soil properties
+        const SOIL_PROP_LABELS = {
+            MUKEY: 'Map Unit Key',
+            mukey: 'Map Unit Key',
+            MUSYM: 'Symbol',
+            musym: 'Symbol',
+            muname: 'Map Unit Name',
+            MUNAME: 'Map Unit Name',
+            AREASYMBOL: 'Area Symbol',
+            mukind: 'Kind',
+            farmlndcl: 'Farmland Class',
+            hydgrp: 'Hydrologic Group',
+            HYDGRP: 'Hydrologic Group',
+            drainagecl: 'Drainage Class',
+            drainagecl_wet: 'Drainage (Wettest)',
+            watertable_ann_min: 'Water Table (Annual Min, cm)',
+            watertable_aprjun_min: 'Water Table (Apr-Jun Min, cm)',
+            flooding_frequency: 'Flooding Frequency',
+            flooding_freq_max: 'Flooding Freq Max',
+            ponding_frequency: 'Ponding Frequency',
+            hydric_classification: 'Hydric Classification',
+            slope_dominant: 'Slope (Dominant %)',
+            slope_wtavg: 'Slope (Wt Avg %)',
+            bedrock_depth_min: 'Bedrock Depth Min (cm)',
+            capclass_nonirr: 'Capability Class (Non-Irr)',
+            capclass_nonirr_pct: 'Capability Non-Irr %',
+            capclass_irr: 'Capability Class (Irr)',
+            capclass_irr_pct: 'Capability Irr %',
+            aws025wta: 'AWS 0-25cm',
+            aws050wta: 'AWS 0-50cm',
+            aws0100wta: 'AWS 0-100cm',
+            aws0150wta: 'AWS 0-150cm',
+            nccpi: 'NCCPI (Productivity)',
+            nccpi_corn: 'NCCPI Corn',
+            nccpi_soy: 'NCCPI Soybean',
+            nccpi_smallgrain: 'NCCPI Small Grain',
+            nccpi_cotton: 'NCCPI Cotton',
+            pct_earth: 'Pct Earth',
+            soc_0_20cm: 'SOC 0-20cm',
+            soc_0_100cm: 'SOC 0-100cm',
+            soc_0_150cm: 'SOC 0-150cm',
+            rootzone_depth: 'Root Zone Depth',
+            rootzone_aws: 'Root Zone AWS',
+            droughty: 'Droughty',
+            wetland_score: 'Wetland Score'
+        };
+
+        // Hydrologic group colors
+        const HYDGRP_COLORS = {
+            'A': [46, 125, 50, 200],
+            'B': [102, 187, 106, 200],
+            'C': [255, 167, 38, 200],
+            'D': [239, 83, 80, 200],
+            'default': [158, 158, 158, 200]
+        };
+
+        // State
+        let map = null;
+        let overlay = null;
+        let isDrawing = false;
+        let aoiPolygon = null;
+        let drawingManager = null;
+        let ssurgoLayer = null;
+
+        const drawBtn = document.getElementById('draw-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const queryBtn = document.getElementById('query-btn');
+        const drawingStatus = document.getElementById('drawing-status');
+        const resultsPanel = document.getElementById('results-panel');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const queryStatus = document.getElementById('query-status');
+
+        const CLIENT_MAX_ACRES = SSURGO_CONFIG.maxAcres * 1.1;
+
+        function getFillColor(feature) {
+            const hydgrp = feature.properties?.hydgrp || feature.properties?.HYDGRP || '';
+            const group = (hydgrp + '').charAt(0).toUpperCase();
+            return HYDGRP_COLORS[group] || HYDGRP_COLORS['default'];
+        }
+
+        function startDrawing() {
+            clearDrawing();
+
+            if (!drawingManager) {
+                drawingManager = new google.maps.drawing.DrawingManager({
+                    drawingMode: google.maps.drawing.OverlayType.POLYGON,
+                    drawingControl: false,
+                    polygonOptions: {
+                        fillColor: '#22c55e',
+                        fillOpacity: 0.3,
+                        strokeWeight: 3,
+                        strokeColor: '#22c55e',
+                        clickable: false,
+                        editable: false,
+                        zIndex: 1000
+                    }
+                });
+
+                google.maps.event.addListener(drawingManager, 'polygoncomplete', function(polygon) {
+                    aoiPolygon = polygon;
+                    isDrawing = false;
+                    drawingManager.setDrawingMode(null);
+
+                    const path = polygon.getPath();
+                    const points = [];
+                    for (let i = 0; i < path.getLength(); i++) {
+                        points.push(path.getAt(i));
+                    }
+
+                    const areaAcres = google.maps.geometry.spherical.computeArea(points) / 4046.86;
+
+                    drawBtn.textContent = 'Draw AOI Polygon';
+                    drawBtn.disabled = false;
+
+                    if (areaAcres > CLIENT_MAX_ACRES) {
+                        drawingStatus.textContent = `⚠️ AOI too large: ${areaAcres.toFixed(1)} acres (max ${SSURGO_CONFIG.maxAcres})`;
+                        queryBtn.disabled = true;
+                    } else {
+                        drawingStatus.textContent = `✓ AOI ready: ${areaAcres.toFixed(1)} acres`;
+                        queryBtn.disabled = false;
+                    }
+                });
+            }
+
+            drawingManager.setMap(map);
+            drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+            isDrawing = true;
+
+            drawBtn.textContent = 'Drawing... (click to add points)';
+            drawBtn.disabled = true;
+            drawingStatus.textContent = 'Click on map to add points. Click first point to close.';
+            drawingStatus.classList.add('active');
+        }
+
+        function clearDrawing() {
+            isDrawing = false;
+
+            if (aoiPolygon) {
+                aoiPolygon.setMap(null);
+                aoiPolygon = null;
+            }
+
+            if (drawingManager) {
+                drawingManager.setMap(null);
+            }
+
+            // Remove SSURGO layer
+            if (overlay && ssurgoLayer) {
+                overlay.setProps({ layers: [] });
+                ssurgoLayer = null;
+            }
+
+            drawBtn.textContent = 'Draw AOI Polygon';
+            drawBtn.disabled = false;
+            queryBtn.disabled = true;
+            drawingStatus.textContent = 'Click "Draw AOI Polygon" to start drawing';
+            drawingStatus.classList.remove('active');
+
+            closeResults();
+        }
+
+        function getAOIGeoJSON() {
+            if (!aoiPolygon) return null;
+
+            const path = aoiPolygon.getPath();
+            const coordinates = [];
+            for (let i = 0; i < path.getLength(); i++) {
+                const p = path.getAt(i);
+                coordinates.push([p.lng(), p.lat()]);
+            }
+            if (coordinates.length > 0) {
+                const first = coordinates[0];
+                const last = coordinates[coordinates.length - 1];
+                if (first[0] !== last[0] || first[1] !== last[1]) {
+                    coordinates.push(first);
+                }
+            }
+
+            return {
+                type: 'Feature',
+                properties: {},
+                geometry: {
+                    type: 'Polygon',
+                    coordinates: [coordinates]
+                }
+            };
+        }
+
+        async function querySSURGO() {
+            const aoi = getAOIGeoJSON();
+            if (!aoi) {
+                alert('Please draw a valid AOI polygon first');
+                return;
+            }
+
+            loadingOverlay.classList.add('visible');
+            queryStatus.textContent = 'Querying...';
+            queryStatus.className = 'status-text';
+
+            try {
+                const response = await fetch(`${BASE_URL}/v1/data/aoi?key=${landmapApiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        aoi: aoi,
+                        layers: ['ssurgo']
+                    })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.message || err.error || `HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                const ssurgoData = result.results_by_layer?.ssurgo;
+
+                if (!ssurgoData || ssurgoData.error) {
+                    throw new Error(ssurgoData?.error || 'No SSURGO data returned');
+                }
+
+                const features = Array.isArray(ssurgoData.features)
+                    ? ssurgoData.features
+                    : (ssurgoData.features?.features || []);
+
+                displayResults(result, features);
+                renderSSURGOLayer(features);
+
+                const areaAcres = result.aoi_area?.acres ?? result.results_by_layer?.ssurgo?.aoi_area_acres;
+                if (areaAcres != null) {
+                    drawingStatus.textContent = `✓ AOI: ${areaAcres.toFixed(1)} acres`;
+                }
+
+                queryStatus.textContent = `✓ ${features.length} soil map units loaded`;
+                queryStatus.className = 'status-text success';
+
+            } catch (error) {
+                console.error('Query failed:', error);
+                queryStatus.textContent = `✗ ${error.message}`;
+                queryStatus.className = 'status-text error';
+                alert(`Query failed: ${error.message}`);
+            } finally {
+                loadingOverlay.classList.remove('visible');
+            }
+        }
+
+        function displayResults(result, features) {
+            const areaAcres = result.aoi_area?.acres ?? result.results_by_layer?.ssurgo?.aoi_area_acres ?? 0;
+            document.getElementById('result-acres').textContent = `${areaAcres.toFixed(1)} acres`;
+            document.getElementById('result-count').textContent = features.length;
+
+            const soilList = document.getElementById('soil-list');
+            if (features.length === 0) {
+                soilList.innerHTML = '<div style="color: #94a3b8; padding: 8px 0;">No soil data in AOI</div>';
+            } else {
+                soilList.innerHTML = features.map(f => {
+                    const p = f.properties || {};
+                    const muname = p.muname || p.MUNAME || 'Unknown';
+                    const hydgrp = p.hydgrp || p.HYDGRP || '?';
+                    const musym = p.musym || p.MUSYM || '';
+                    const group = (hydgrp + '').charAt(0).toUpperCase();
+                    const color = HYDGRP_COLORS[group] || HYDGRP_COLORS['default'];
+                    const colorHex = `rgb(${color[0]},${color[1]},${color[2]})`;
+
+                    return `
+                        <div class="soil-item">
+                            <div class="soil-name">${muname}</div>
+                            <div class="soil-details">
+                                <span class="soil-hydgrp" style="background: ${colorHex}40; color: ${colorHex}">${hydgrp}</span>
+                                ${musym ? `Symbol: ${musym}` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            resultsPanel.classList.add('visible');
+        }
+
+        function renderSSURGOLayer(features) {
+            if (!overlay || !features || features.length === 0) return;
+
+            const fc = {
+                type: 'FeatureCollection',
+                features: features
+            };
+
+            const { GeoJsonLayer } = deck;
+            ssurgoLayer = new GeoJsonLayer({
+                id: 'ssurgo-aoi-layer',
+                data: fc,
+                filled: true,
+                stroked: true,
+                getFillColor: (f) => getFillColor(f),
+                getLineColor: [66, 66, 66, 200],
+                getLineWidth: 1,
+                lineWidthMinPixels: 0.5,
+                lineWidthMaxPixels: 2,
+                pickable: true,
+                autoHighlight: true,
+                highlightColor: [255, 255, 255, 80]
+            });
+
+            overlay.setProps({ layers: [ssurgoLayer] });
+        }
+
+        function closeResults() {
+            resultsPanel.classList.remove('visible');
+            closePopover();
+        }
+
+        function closePopover() {
+            document.getElementById('soil-popover').classList.remove('visible');
+        }
+
+        function showPopover(properties, screenX, screenY) {
+            const popover = document.getElementById('soil-popover');
+            const titleEl = document.getElementById('popover-title');
+            const contentEl = document.getElementById('popover-content');
+
+            const muname = properties.muname || properties.MUNAME || properties.musym || properties.MUSYM || 'Soil Map Unit';
+            titleEl.textContent = String(muname);
+
+            const skipKeys = ['geometry', 'Shape'];
+            const entries = Object.entries(properties)
+                .filter(([k]) => !skipKeys.includes(k) && k !== 'geometry')
+                .sort(([a], [b]) => a.localeCompare(b));
+
+            const escape = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+            contentEl.innerHTML = entries.map(([key, val]) => {
+                const label = escape(SOIL_PROP_LABELS[key] || key.replace(/_/g, ' '));
+                const displayVal = val == null || val === '' ? '—' : escape(String(val));
+                return `<div class="prop-row"><span class="prop-label">${label}</span><span class="prop-value">${displayVal}</span></div>`;
+            }).join('');
+
+            popover.style.left = (screenX + 12) + 'px';
+            popover.style.top = (screenY + 12) + 'px';
+            popover.classList.add('visible');
+
+            requestAnimationFrame(() => {
+                const rect = popover.getBoundingClientRect();
+                let left = screenX + 12;
+                let top = screenY + 12;
+                if (left + rect.width > window.innerWidth) left = screenX - rect.width - 12;
+                if (top + rect.height > window.innerHeight) top = window.innerHeight - rect.height - 12;
+                if (left < 8) left = 8;
+                if (top < 8) top = 8;
+                popover.style.left = left + 'px';
+                popover.style.top = top + 'px';
+            });
+        }
+
+        function handleMapClick(info) {
+            if (info.object && info.object.properties) {
+                showPopover(info.object.properties, info.x, info.y);
+            } else {
+                closePopover();
+            }
+        }
+
+        function loadGoogleMaps() {
+            return new Promise((resolve, reject) => {
+                if (typeof google !== 'undefined' && google.maps) {
+                    resolve();
+                    return;
+                }
+                window.initGoogleMapCallback = resolve;
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&libraries=drawing,geometry&callback=initGoogleMapCallback`;
+                script.async = true;
+                script.defer = true;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        async function initMap() {
+            await loadGoogleMaps();
+
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 41.878, lng: -93.097 },
+                zoom: 13,
+                mapId: 'SSURGO_AOI_QUERY',
+                mapTypeId: 'satellite',
+                mapTypeControl: true,
+                mapTypeControlOptions: {
+                    position: google.maps.ControlPosition.TOP_RIGHT
+                }
+            });
+
+            map.addListener('zoom_changed', () => {
+                document.getElementById('zoom-value').textContent = map.getZoom();
+            });
+
+            drawBtn.addEventListener('click', startDrawing);
+            clearBtn.addEventListener('click', clearDrawing);
+            queryBtn.addEventListener('click', querySSURGO);
+
+            overlay = new deck.GoogleMapsOverlay({
+                layers: [],
+                onClick: handleMapClick
+            });
+            overlay.setMap(map);
+
+            console.log('✅ SSURGO AOI Query map initialized');
+        }
+
+        initMap().catch(console.error);
+    </script>
+</body>
+</html>
