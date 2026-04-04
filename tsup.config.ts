@@ -10,7 +10,7 @@ export default defineConfig([
     // Note: pmtiles is NOT external - it must be bundled to avoid __publicField errors in web workers
     clean: true,
   },
-  { 
+  {
     entry: { maplibre: "src/maplibre.tsx" },
     format: ["esm", "cjs"],
     dts: true,
@@ -26,6 +26,33 @@ export default defineConfig([
     sourcemap: true,
     external: ["react", "react-dom", "mapbox-gl", "@turf/turf"],
     // Note: pmtiles is NOT external - it must be bundled to avoid __publicField errors in web workers
+    clean: false,
+  },
+  // Layers - pure data configs, no React dependency
+  {
+    entry: { layers: "src/layers.ts" },
+    format: ["esm", "cjs"],
+    dts: true,
+    sourcemap: true,
+    external: ["@turf/turf"],
+    clean: false,
+  },
+  // Style - MapLibre/Mapbox style spec JSON helpers, no React dependency
+  {
+    entry: { style: "src/style.ts" },
+    format: ["esm", "cjs"],
+    dts: true,
+    sourcemap: true,
+    external: ["@turf/turf"],
+    clean: false,
+  },
+  // Hooks - React hooks for existing MapLibre maps
+  {
+    entry: { hooks: "src/hooks.ts" },
+    format: ["esm", "cjs"],
+    dts: true,
+    sourcemap: true,
+    external: ["react", "react-dom", "maplibre-gl", "mapbox-gl", "@turf/turf"],
     clean: false,
   },
   // Vanilla JS build for non-React applications (Flask, Django, PHP, plain HTML, etc.)

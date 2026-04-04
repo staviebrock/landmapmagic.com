@@ -21,6 +21,21 @@
       "types": "./dist/mapbox.d.ts",
       "import": "./dist/mapbox.js",
       "require": "./dist/mapbox.cjs"
+    },
+    "./layers": {
+      "types": "./dist/layers.d.ts",
+      "import": "./dist/layers.js",
+      "require": "./dist/layers.cjs"
+    },
+    "./style": {
+      "types": "./dist/style.d.ts",
+      "import": "./dist/style.js",
+      "require": "./dist/style.cjs"
+    },
+    "./hooks": {
+      "types": "./dist/hooks.d.ts",
+      "import": "./dist/hooks.js",
+      "require": "./dist/hooks.cjs"
     }
   },
   "files": [
@@ -51,6 +66,12 @@
       "optional": true
     },
     "maplibre-gl": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
       "optional": true
     }
   },

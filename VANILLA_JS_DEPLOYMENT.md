@@ -5,7 +5,7 @@ This document explains how to deploy the vanilla JavaScript version of LandMapMa
 ## 🎯 What This Provides
 
 The vanilla JS version enables easy integration of LandMapMagic into any web application without React dependencies:
-
+    
 - **Self-hosted CDN** on your existing Cloudflare R2 infrastructure
 - **Framework agnostic** - works with Flask, Django, PHP, Rails, etc.
 - **Simple script tag integration** - just like Google Maps or Mapbox
@@ -15,7 +15,7 @@ The vanilla JS version enables easy integration of LandMapMagic into any web app
 ## 📁 File Structure
 
 ```
-src/vanilla-js/
+src/vanilla-js/ 
 ├── index.ts                 # Main vanilla JS implementation
 ├── README.md               # Complete documentation
 └── examples/
