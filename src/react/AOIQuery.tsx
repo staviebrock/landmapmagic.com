@@ -210,25 +210,26 @@ function calculateSummary(features: any[], dataset: any, aoi: Feature<Polygon>):
 
 function calculateSsurgoSummary(features: any[], baseSummary: Record<string, any>) {
   const soilTypes = new Map<string, number>();
-  const mapUnits = new Map<string, { name: string; count: number; acres: number }>();
+  const mapUnits = new Map<string, { name: string; count: number; acres: number; percentOfAoi: number }>();
 
   features.forEach(feature => {
     const props = feature.properties || {};
     
-    // Count soil types by map unit symbol
-    const musym = props.musym || 'Unknown';
+    const musym = props.musym || props.MUSYM || 'Unknown';
     soilTypes.set(musym, (soilTypes.get(musym) || 0) + 1);
     
-    // Aggregate map unit information
-    const muname = props.muname || 'Unknown';
-    const muacres = parseFloat(props.muacres) || 0;
+    const muname = props.muname || props.MUNAME || 'Unknown';
+    // Use clipped_acres (actual geometry area) instead of muacres (national total)
+    const acres = parseFloat(props.clipped_acres) || 0;
+    const pctOfAoi = parseFloat(props.percent_of_aoi) || 0;
     
     if (mapUnits.has(musym)) {
       const existing = mapUnits.get(musym)!;
       existing.count += 1;
-      existing.acres += muacres;
+      existing.acres += acres;
+      existing.percentOfAoi += pctOfAoi;
     } else {
-      mapUnits.set(musym, { name: muname, count: 1, acres: muacres });
+      mapUnits.set(musym, { name: muname, count: 1, acres, percentOfAoi: pctOfAoi });
     }
   });
 

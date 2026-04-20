@@ -290,11 +290,14 @@ function renderFeatureDetails(feature: any, layerName: string) {
   const props = feature.properties || {};
   
   if (layerName.includes('SSURGO') || layerName.includes('Soil')) {
+    const acres = props.clipped_acres ?? props.muacres;
+    const pct = props.percent_of_aoi;
     return (
       <div style={{ fontSize: '11px' }}>
-        <div><strong>Map Unit:</strong> {props.musym || 'N/A'}</div>
-        <div><strong>Name:</strong> {props.muname || 'N/A'}</div>
-        {props.muacres && <div><strong>Acres:</strong> {parseFloat(props.muacres).toLocaleString()}</div>}
+        <div><strong>Map Unit:</strong> {props.musym || props.MUSYM || 'N/A'}</div>
+        <div><strong>Name:</strong> {props.muname || props.MUNAME || 'N/A'}</div>
+        {acres != null && <div><strong>Acres:</strong> {parseFloat(acres).toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>}
+        {pct != null && <div><strong>% of AOI:</strong> {parseFloat(pct).toFixed(1)}%</div>}
       </div>
     );
   }

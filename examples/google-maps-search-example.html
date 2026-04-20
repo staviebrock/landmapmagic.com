@@ -29,7 +29,7 @@
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
             display: flex;
             gap: 8px;
-            width: 440px;
+            width: 520px;
             align-items: center;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
@@ -60,7 +60,7 @@
             background: white;
             border: 1px solid #e4e4e7;
             border-radius: 8px;
-            max-height: 400px;
+            max-height: 70vh;
             overflow-y: auto;
             display: none;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
@@ -68,11 +68,7 @@
 
         .result-item {
             padding: 10px 12px;
-            cursor: pointer;
             border-bottom: 1px solid #f4f4f5;
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
             transition: background 0.1s;
         }
 
@@ -80,8 +76,16 @@
             border-bottom: none;
         }
 
-        .result-item:hover {
+        .result-item-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .result-item-header:hover {
             background-color: #f8f8f8;
+            border-radius: 4px;
         }
 
         .result-icon {
@@ -139,6 +143,46 @@
             text-overflow: ellipsis;
         }
 
+        .result-show-more {
+            display: inline-block;
+            margin-top: 4px;
+            padding: 2px 8px;
+            font-size: 10px;
+            font-weight: 600;
+            color: #6366f1;
+            background: #f5f3ff;
+            border: 1px solid #e4e4e7;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.1s;
+        }
+
+        .result-show-more:hover {
+            background: #ede9fe;
+        }
+
+        .result-raw-json {
+            display: none;
+            margin-top: 6px;
+            padding: 8px;
+            background: #18181b;
+            border-radius: 6px;
+            overflow-x: auto;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        .result-raw-json pre {
+            margin: 0;
+            font-size: 11px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            color: #e4e4e7;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.5;
+        }
+
         /* Type colors */
         .type-parcel        { background: #fef3c7; color: #92400e; }
         .type-address       { background: #dbeafe; color: #1e40af; }
@@ -158,7 +202,7 @@
             border-radius: 10px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             padding: 16px;
-            width: 300px;
+            width: 340px;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             display: none;
         }
@@ -230,6 +274,72 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        .result-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            margin-top: 3px;
+        }
+
+        .result-chip {
+            display: inline-flex;
+            align-items: center;
+            font-size: 10px;
+            font-weight: 500;
+            padding: 1px 5px;
+            border-radius: 3px;
+            background: #f4f4f5;
+            color: #52525b;
+            white-space: nowrap;
+        }
+
+        .result-chip .chip-label {
+            color: #a1a1aa;
+            margin-right: 3px;
+        }
+
+        #result-panel .show-more-btn {
+            display: block;
+            width: 100%;
+            padding: 6px 0;
+            margin-top: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #6366f1;
+            background: none;
+            border: 1px solid #e4e4e7;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.15s;
+            font-family: inherit;
+        }
+
+        #result-panel .show-more-btn:hover {
+            background: #f5f3ff;
+        }
+
+        #result-panel .raw-json {
+            display: none;
+            margin-top: 8px;
+            padding: 8px;
+            background: #18181b;
+            border-radius: 6px;
+            overflow-x: auto;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        #result-panel .raw-json pre {
+            margin: 0;
+            font-size: 11px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            color: #e4e4e7;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.5;
         }
 
         #legend {
@@ -317,6 +427,8 @@
             <span class="panel-close" id="panel-close">×</span>
         </div>
         <div id="panel-rows"></div>
+        <button class="show-more-btn" id="panel-show-more">Show Full Response</button>
+        <div class="raw-json" id="panel-raw-json"><pre></pre></div>
     </div>
     <div id="legend">
         <div><strong>Layers (Zoom Dependent)</strong></div>
@@ -341,7 +453,7 @@
         // Environment variables injected by Vite
         const GOOGLE_MAPS_KEY = '%VITE_GOOGLE_MAPS_API_KEY%';
         const LANDMAP_KEY = '%VITE_LAND_MAP_MAGIC_API_KEY%';
-        const BASE_URL_ENV = '%VITE_LAND_MAP_MAGIC_API_URL%';
+        const BASE_URL_ENV = 'https://api.landmapmagic.com';
 
         const googleApiKey = (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('VITE_')) ? GOOGLE_MAPS_KEY : '';
         const landmapApiKey = (LANDMAP_KEY && !LANDMAP_KEY.includes('VITE_')) ? LANDMAP_KEY : 'dev';
@@ -379,7 +491,8 @@
                 center: { lat: 39.8283, lng: -98.5795 },
                 zoom: 4,
                 mapTypeId: 'satellite',
-                mapId: 'DEMO_MAP_ID'
+                mapId: 'DEMO_MAP_ID',
+                gestureHandling: 'greedy'
             });
 
             const overlay = new GoogleMapsOverlay({
@@ -718,32 +831,64 @@
                 return icons[type] || `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>`;
             }
 
-            // ─── Build inline detail chips for dropdown rows ──────────────────────────
+            // ─── Build labeled chip pairs for dropdown rows ─────────────────────────
             function buildDetailChips(result) {
-                const chips = [];
+                const chips = []; // Each entry: { label?, value }
                 const t = result.type;
+
+                if (t === 'state') {
+                    if (result.state) chips.push({ label: 'Abbr', value: result.state });
+                }
+
+                if (t === 'county') {
+                    if (result.stateName) chips.push({ value: result.stateName });
+                    else if (result.state) chips.push({ label: 'State', value: result.state });
+                    if (result.countyFips) chips.push({ label: 'FIPS', value: result.countyFips });
+                }
+
+                if (t === 'plss_township') {
+                    if (result.countyName) chips.push({ label: 'County', value: result.countyName });
+                    if (result.stateName) chips.push({ value: result.stateName });
+                    else if (result.state) chips.push({ label: 'State', value: result.state });
+                    if (result.townshipLabel) chips.push({ label: 'Twp', value: result.townshipLabel });
+                    if (result.plssMeridian) chips.push({ label: 'Mer', value: result.plssMeridian });
+                    if (result.plssTownNum != null) chips.push({ label: 'T', value: `${result.plssTownNum}${result.plssTownDir || ''}` });
+                    if (result.plssRangeNum != null) chips.push({ label: 'R', value: `${result.plssRangeNum}${result.plssRangeDir || ''}` });
+                }
+
+                if (t === 'plss_section') {
+                    if (result.plssSection != null) chips.push({ label: 'Sec', value: String(result.plssSection) });
+                    if (result.townshipLabel) chips.push({ label: 'Twp', value: result.townshipLabel });
+                    if (result.countyName) chips.push({ label: 'County', value: result.countyName });
+                    if (result.stateName) chips.push({ value: result.stateName });
+                    else if (result.state) chips.push({ label: 'State', value: result.state });
+                    if (result.countyFips) chips.push({ label: 'FIPS', value: result.countyFips });
+                    if (result.plssMeridian) chips.push({ label: 'Mer', value: result.plssMeridian });
+                    if (result.plssTownNum != null) chips.push({ label: 'T', value: `${result.plssTownNum}${result.plssTownDir || ''}` });
+                    if (result.plssRangeNum != null) chips.push({ label: 'R', value: `${result.plssRangeNum}${result.plssRangeDir || ''}` });
+                }
 
                 if (t === 'parcel' && result.parcel) {
                     const p = result.parcel;
-                    if (p.owner) chips.push(p.owner);
-                    if (p.address) chips.push(p.address);
-                    if (p.acreage) chips.push(`${parseFloat(p.acreage).toLocaleString()} ac`);
-                    if (p.marketValue) chips.push(`$${Number(p.marketValue).toLocaleString()}`);
-                } else if (t === 'plss_township' || t === 'plss_section') {
-                    if (result.countyName) chips.push(result.countyName);
-                    if (result.stateName) chips.push(result.stateName);
-                    else if (result.state) chips.push(result.state);
-                    if (result.townshipLabel) chips.push(result.townshipLabel);
-                    if (t === 'plss_section' && result.plssSection != null) chips.push(`Sec ${result.plssSection}`);
-                } else if (t === 'county') {
-                    if (result.stateName) chips.push(result.stateName);
-                    else if (result.state) chips.push(result.state);
-                    if (result.countyFips) chips.push(`FIPS ${result.countyFips}`);
-                } else if (t === 'address') {
-                    // full_address is already in result.name
+                    if (result.county) chips.push({ label: 'County', value: result.county.name });
+                    if (result.state) chips.push({ label: 'State', value: result.state });
+                    if (p.owner) chips.push({ label: 'Owner', value: p.owner });
+                    if (p.acreage) chips.push({ label: 'Acres', value: `${parseFloat(p.acreage).toLocaleString()}` });
+                    if (p.marketValue) chips.push({ label: 'Value', value: `$${Number(p.marketValue).toLocaleString()}` });
+                }
+
+                if (t === 'address') {
+                    if (result.state) chips.push({ label: 'State', value: result.state });
                 }
 
                 return chips;
+            }
+
+            function renderChipsHtml(chips) {
+                if (!chips.length) return '';
+                return `<div class="result-chips">${chips.map(c =>
+                    `<span class="result-chip">${c.label ? `<span class="chip-label">${escHtml(c.label)}</span>` : ''}${escHtml(c.value)}</span>`
+                ).join('')}</div>`;
             }
 
             // ─── Render dropdown ─────────────────────────────────────────────────────
@@ -754,26 +899,51 @@
                     return;
                 }
 
-                results.forEach(result => {
+                results.forEach((result, idx) => {
                     const meta = getTypeMeta(result.type);
                     const chips = buildDetailChips(result);
 
                     const div = document.createElement('div');
                     div.className = 'result-item';
+
+                    const jsonId = `result-json-${idx}`;
+                    const btnId = `result-btn-${idx}`;
+
                     div.innerHTML = `
-                        <div class="result-icon" style="background:${meta.bg}">
-                            ${makeSvgIcon(result.type)}
-                        </div>
-                        <div class="result-body">
-                            <div class="result-name">${escHtml(result.simpleName)}</div>
-                            <div class="result-meta">
-                                <span class="result-type type-${result.type}">${meta.label}</span>
-                                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(result.name)}</span>
+                        <div class="result-item-header">
+                            <div class="result-icon" style="background:${meta.bg}">
+                                ${makeSvgIcon(result.type)}
                             </div>
-                            ${chips.length ? `<div class="result-details">${chips.map(escHtml).join(' · ')}</div>` : ''}
+                            <div class="result-body">
+                                <div class="result-name">${escHtml(result.simpleName)}</div>
+                                <div class="result-meta">
+                                    <span class="result-type type-${result.type}">${meta.label}</span>
+                                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(result.name)}</span>
+                                </div>
+                                ${renderChipsHtml(chips)}
+                                <button class="result-show-more" id="${btnId}">Show Full Response</button>
+                            </div>
+                        </div>
+                        <div class="result-raw-json" id="${jsonId}">
+                            <pre>${escHtml(JSON.stringify(result, null, 2))}</pre>
                         </div>
                     `;
-                    div.addEventListener('click', () => selectResult(result));
+
+                    const header = div.querySelector('.result-item-header');
+                    header.addEventListener('click', (e) => {
+                        if (e.target.closest('.result-show-more')) return;
+                        selectResult(result);
+                    });
+
+                    const btn = div.querySelector(`#${btnId}`);
+                    const jsonDiv = div.querySelector(`#${jsonId}`);
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const isHidden = jsonDiv.style.display === 'none' || !jsonDiv.style.display;
+                        jsonDiv.style.display = isHidden ? 'block' : 'none';
+                        btn.textContent = isHidden ? 'Hide Full Response' : 'Show Full Response';
+                    });
+
                     resultsDiv.appendChild(div);
                 });
 
@@ -808,6 +978,15 @@
             }
 
             // ─── Rich info panel ──────────────────────────────────────────────────────
+            const showMoreBtn = document.getElementById('panel-show-more');
+            const rawJsonDiv = document.getElementById('panel-raw-json');
+
+            showMoreBtn.addEventListener('click', () => {
+                const isHidden = rawJsonDiv.style.display === 'none' || !rawJsonDiv.style.display;
+                rawJsonDiv.style.display = isHidden ? 'block' : 'none';
+                showMoreBtn.textContent = isHidden ? 'Hide Full Response' : 'Show Full Response';
+            });
+
             function showResultPanel(result) {
                 const meta = getTypeMeta(result.type);
                 panelBadge.textContent = meta.label;
@@ -823,6 +1002,10 @@
                     </div>
                 `).join('');
 
+                rawJsonDiv.style.display = 'none';
+                showMoreBtn.textContent = 'Show Full Response';
+                rawJsonDiv.querySelector('pre').textContent = JSON.stringify(result, null, 2);
+
                 resultPanel.style.display = 'block';
             }
 
@@ -830,32 +1013,44 @@
                 const rows = [];
                 const t = result.type;
 
-                if (result.stateName) rows.push(['State', result.stateName]);
+                rows.push(['Name', result.name]);
+                if (result.simpleName && result.simpleName !== result.name) {
+                    rows.push(['Short Name', result.simpleName]);
+                }
+
+                if (result.stateName) rows.push(['State', `${result.stateName} (${result.state})`]);
                 else if (result.state) rows.push(['State', result.state]);
 
                 if (t === 'county') {
+                    if (result.countyName) rows.push(['County', result.countyName]);
                     if (result.countyFips) rows.push(['FIPS', result.countyFips]);
                 }
 
                 if (t === 'plss_township') {
                     if (result.countyName) rows.push(['County', result.countyName]);
+                    if (result.countyFips) rows.push(['County FIPS', result.countyFips]);
                     if (result.townshipLabel) rows.push(['Township', result.townshipLabel]);
                     if (result.plssMeridian) rows.push(['Meridian', result.plssMeridian]);
-                    if (result.plssTownNum != null) rows.push(['Town #', `${result.plssTownNum}${result.plssTownDir || ''}`]);
-                    if (result.plssRangeNum != null) rows.push(['Range #', `${result.plssRangeNum}${result.plssRangeDir || ''}`]);
+                    if (result.plssTownNum != null) rows.push(['Town', `${result.plssTownNum}${result.plssTownDir || ''}`]);
+                    if (result.plssRangeNum != null) rows.push(['Range', `${result.plssRangeNum}${result.plssRangeDir || ''}`]);
                 }
 
                 if (t === 'plss_section') {
-                    if (result.countyName) rows.push(['County', result.countyName]);
-                    if (result.townshipLabel) rows.push(['Township', result.townshipLabel]);
                     if (result.plssSection != null) rows.push(['Section', String(result.plssSection)]);
+                    if (result.townshipLabel) rows.push(['Township', result.townshipLabel]);
+                    if (result.townshipId) rows.push(['Township ID', result.townshipId]);
+                    if (result.countyName) rows.push(['County', result.countyName]);
+                    if (result.countyFips) rows.push(['County FIPS', result.countyFips]);
                     if (result.plssMeridian) rows.push(['Meridian', result.plssMeridian]);
+                    if (result.plssTownNum != null) rows.push(['Town', `${result.plssTownNum}${result.plssTownDir || ''}`]);
+                    if (result.plssRangeNum != null) rows.push(['Range', `${result.plssRangeNum}${result.plssRangeDir || ''}`]);
                 }
 
                 if (t === 'parcel' && result.parcel) {
                     const p = result.parcel;
+                    if (p.parcelId) rows.push(['Parcel ID', p.parcelId]);
                     if (result.county) rows.push(['County', result.county.name]);
-                    if (result.region) rows.push(['State', result.region]);
+                    if (result.region) rows.push(['Region', result.region]);
                     if (p.owner) rows.push(['Owner', p.owner]);
                     if (p.address) rows.push(['Address', p.address]);
                     if (p.acreage) rows.push(['Acreage (calc)', `${parseFloat(p.acreage).toLocaleString()} ac`]);
@@ -863,13 +1058,13 @@
                     if (p.marketValue) rows.push(['Market Value', `$${Number(p.marketValue).toLocaleString()}`]);
                     if (p.landUseClass) rows.push(['Land Use', p.landUseClass]);
                     if (p.legalDescription) rows.push(['Legal Desc.', p.legalDescription]);
-                    if (p.parcelId) rows.push(['Parcel ID', p.parcelId]);
                 }
 
                 if (t === 'address') {
                     rows.push(['Full Address', result.name]);
                 }
 
+                if (result.centroid) rows.push(['Centroid', `${result.centroid[1].toFixed(6)}, ${result.centroid[0].toFixed(6)}`]);
                 if (result.suggestedZoom != null) rows.push(['Zoom', String(result.suggestedZoom)]);
                 if (result.score != null) rows.push(['Relevance', `${(result.score * 100).toFixed(0)}%`]);
 

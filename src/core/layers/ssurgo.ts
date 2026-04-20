@@ -106,9 +106,14 @@ export function makeSsurgoDataset(apiKey: string = 'dev', apiUrl?: string): Ssur
         format: (value) => value || 'N/A'
       },
       {
-        key: 'muacres',
-        label: 'Acres',
-        format: (value) => value ? `${Number(value).toLocaleString()} acres` : 'N/A'
+        key: 'clipped_acres',
+        label: 'Acres (in AOI)',
+        format: (value) => value ? `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })} acres` : 'N/A'
+      },
+      {
+        key: 'percent_of_aoi',
+        label: '% of AOI',
+        format: (value) => value ? `${Number(value).toFixed(1)}%` : 'N/A'
       }
     ],
     layerIds: ['ssurgo-fill'] // Listen to click events on the fill layer
