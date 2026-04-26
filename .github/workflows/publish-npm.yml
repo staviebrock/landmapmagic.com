@@ -44,10 +44,9 @@ jobs:
       - name: Determine version bump type
         if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')
         id: version_type
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
-          # Get the commit message
-          COMMIT_MSG="${{ github.event.head_commit.message }}"
-          
           # Check for breaking changes (BREAKING CHANGE: or !)
           if echo "$COMMIT_MSG" | grep -qiE "BREAKING CHANGE:|^[a-z]+(\([a-z]+\))?!:"; then
             echo "type=major" >> $GITHUB_OUTPUT
