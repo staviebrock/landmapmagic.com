@@ -718,20 +718,18 @@
                 }
 
                 const result = await response.json();
-                const ssurgoData = result.results_by_layer?.ssurgo;
+                const ssurgoData = result.layers?.ssurgo;
 
                 if (!ssurgoData || ssurgoData.error) {
                     throw new Error(ssurgoData?.error || 'No SSURGO data returned');
                 }
 
-                const features = Array.isArray(ssurgoData.features)
-                    ? ssurgoData.features
-                    : (ssurgoData.features?.features || []);
+                const features = ssurgoData.features || [];
 
                 displayResults(result, features);
                 renderSSURGOLayer(features);
 
-                const areaAcres = result.aoi_area?.acres ?? result.results_by_layer?.ssurgo?.aoi_area_acres;
+                const areaAcres = result.aoi?.area?.acres;
                 if (areaAcres != null) {
                     drawingStatus.textContent = `✓ AOI: ${areaAcres.toFixed(1)} acres`;
                 }
@@ -750,7 +748,7 @@
         }
 
         function displayResults(result, features) {
-            const areaAcres = result.aoi_area?.acres ?? result.results_by_layer?.ssurgo?.aoi_area_acres ?? 0;
+            const areaAcres = result.aoi?.area?.acres ?? 0;
             document.getElementById('result-acres').textContent = `${areaAcres.toFixed(1)} acres`;
             document.getElementById('result-count').textContent = features.length;
 

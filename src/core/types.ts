@@ -149,49 +149,73 @@ export interface LandMapProps {
 
 // Parcel details returned for 'parcel' type results
 export interface SearchResultParcel {
-  parcelId?: string;
-  robustId?: string;
+  parcel_id?: string;
+  robust_id?: string;
   owner?: string;
   address?: string;
   acreage?: number;
-  acreageDeeded?: string;
-  marketValue?: string;
-  landUseClass?: string;
-  legalDescription?: string;
-  countyId?: number;
+  acreage_deeded?: string;
+  market_value?: string;
+  land_use_class?: string;
+  legal_description?: string;
+  county_id?: number;
+}
+
+export interface SearchResultPlss {
+  state_fips: string;
+  meridian: string;
+  town_num: number;
+  town_dir: string;
+  range_num: number;
+  range_dir: string;
+  section: number;
+}
+
+export interface SearchResultContext {
+  state: {
+    abbr: string;
+    name: string;
+    fips: string;
+  };
+  county: {
+    fips: string;
+    name: string;
+    simple_name: string;
+  };
+  township: {
+    id: string;
+    name: string;
+    label: string;
+  };
+  plss: SearchResultPlss;
+}
+
+export interface SearchResultMatch {
+  source: 'postgres' | 'mapbox' | 'reportall' | string;
+  alias: string;
+  kind: string;
 }
 
 // Search result type from API
 export interface SearchResult {
   id: string;
   name: string;
-  simpleName: string;
-  /** Result type: 'state' | 'county' | 'plss_township' | 'plss_section' | 'address' | 'parcel' */
+  simple_name: string;
+  display_name?: string;
+  context_text?: string;
+  formatted_label?: string;
+  /** Result type: 'state' | 'place' | 'county' | 'plss_township' | 'plss_section' | 'address' | 'parcel' */
   type: string;
   bbox?: [number, number, number, number]; // [minLng, minLat, maxLng, maxLat]
   centroid?: [number, number]; // [lng, lat]
-  suggestedZoom?: number;
+  suggested_zoom?: number;
   score?: number;
-  /** State abbreviation (e.g. 'IA') */
-  state?: string | null;
-  /** Full state name (e.g. 'Iowa') */
-  stateName?: string | null;
-  // County context (present on plss_township and plss_section results)
-  countyFips?: string;
-  countyName?: string;
-  // PLSS context (present on plss_township results)
-  townshipId?: string;
-  townshipLabel?: string;
-  plssMeridian?: string;
-  plssTownNum?: number;
-  plssTownDir?: string;
-  plssRangeNum?: number;
-  plssRangeDir?: string;
-  // PLSS section context (present on plss_section results)
-  plssSection?: number;
+  context?: SearchResultContext;
+  match?: SearchResultMatch;
+  is_valid?: boolean;
+  validation_errors?: string[];
   // Parcel-specific fields (present on 'parcel' type results)
   parcel?: SearchResultParcel;
-  county?: { fips: number; name: string };
   /** State name used for parcel lookup (e.g. 'Iowa') */
   region?: string;
 }

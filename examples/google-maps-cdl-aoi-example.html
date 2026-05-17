@@ -756,14 +756,14 @@
             queryStatus.className = 'status-text';
             
             try {
-                const response = await fetch(`${BASE_URL}/data/cdl/aoi?key=${landmapApiKey}`, {
+                const response = await fetch(`${BASE_URL}/v1/data/aoi?key=${landmapApiKey}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         aoi: aoi,
-                        year: currentYear
+                        layers: [`cdl:${currentYear}`]
                     })
                 });
                 
@@ -776,9 +776,9 @@
                 displayResults(result);
                 
                 // Update drawing status with API's accurate area
-                drawingStatus.textContent = `✓ AOI: ${result.aoi_area.acres.toFixed(1)} acres (verified)`;
+                drawingStatus.textContent = `✓ AOI: ${result.aoi.area.acres.toFixed(1)} acres (verified)`;
                 
-                queryStatus.textContent = `✓ Query completed in ${result.query_info.processing_time_ms}ms`;
+                queryStatus.textContent = `✓ Query completed in ${result.summary.processing_time_ms}ms`;
                 queryStatus.className = 'status-text success';
                 
             } catch (error) {
@@ -793,30 +793,35 @@
 
         // Display query results
         function displayResults(result) {
+            const layer = result.layers?.[`cdl:${currentYear}`];
+            const crops = layer?.features || [];
+            const metadata = layer?.metadata || {};
+
             // Use API's accurate area (turf.js calculation)
-            document.getElementById('result-acres').textContent = `${result.aoi_area.acres.toFixed(1)} acres`;
-            document.getElementById('result-hectares').textContent = `${result.aoi_area.hectares.toFixed(2)} ha`;
-            document.getElementById('result-year').textContent = result.year;
-            document.getElementById('result-time').textContent = `${result.query_info.processing_time_ms}ms`;
-            document.getElementById('result-tiles').textContent = result.query_info.tiles_queried;
-            document.getElementById('result-samples').textContent = result.crop_summary.total_pixels.toLocaleString();
-            document.getElementById('result-coverage').textContent = `${result.crop_summary.total_acres.toFixed(1)} acres`;
+            document.getElementById('result-acres').textContent = `${result.aoi.area.acres.toFixed(1)} acres`;
+            document.getElementById('result-hectares').textContent = `${result.aoi.area.hectares.toFixed(2)} ha`;
+            document.getElementById('result-year').textContent = currentYear;
+            document.getElementById('result-time').textContent = `${result.summary.processing_time_ms}ms`;
+            document.getElementById('result-tiles').textContent = metadata.tiles_queried ?? '—';
+            document.getElementById('result-samples').textContent = (metadata.total_pixels || 0).toLocaleString();
+            document.getElementById('result-coverage').textContent = `${(metadata.total_acres || 0).toFixed(1)} acres`;
             
             // Display crops
             const cropList = document.getElementById('crop-list');
             
-            if (result.crop_summary.crops.length === 0) {
+            if (crops.length === 0) {
                 cropList.innerHTML = '<div style="color: #94a3b8; padding: 8px 0;">No crop data found in AOI</div>';
             } else {
-                cropList.innerHTML = result.crop_summary.crops.map(crop => {
-                    const color = getColorForCrop(crop.code);
+                cropList.innerHTML = crops.map(crop => {
+                    const cropCode = crop.properties?.crop_code;
+                    const color = getColorForCrop(cropCode);
                     return `
                         <div class="crop-item">
                             <div class="crop-color" style="background: ${color}"></div>
                             <div class="crop-name">${crop.name}</div>
                             <div class="crop-stats">
-                                <div class="acres">${crop.acres.toFixed(1)} acres</div>
-                                <div>${crop.percent.toFixed(1)}%</div>
+                                <div class="acres">${(crop.area?.intersection_acres || 0).toFixed(1)} acres</div>
+                                <div>${(crop.area?.percent_of_aoi_in_feature || 0).toFixed(1)}%</div>
                             </div>
                         </div>
                     `;

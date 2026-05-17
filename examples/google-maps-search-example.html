@@ -835,50 +835,55 @@
             function buildDetailChips(result) {
                 const chips = []; // Each entry: { label?, value }
                 const t = result.type;
+                const context = result.context || {};
+                const state = context.state || {};
+                const county = context.county || {};
+                const township = context.township || {};
+                const plss = context.plss || {};
 
                 if (t === 'state') {
-                    if (result.state) chips.push({ label: 'Abbr', value: result.state });
+                    if (state.abbr) chips.push({ label: 'Abbr', value: state.abbr });
                 }
 
                 if (t === 'county') {
-                    if (result.stateName) chips.push({ value: result.stateName });
-                    else if (result.state) chips.push({ label: 'State', value: result.state });
-                    if (result.countyFips) chips.push({ label: 'FIPS', value: result.countyFips });
+                    if (state.name) chips.push({ value: state.name });
+                    else if (state.abbr) chips.push({ label: 'State', value: state.abbr });
+                    if (county.fips) chips.push({ label: 'FIPS', value: county.fips });
                 }
 
                 if (t === 'plss_township') {
-                    if (result.countyName) chips.push({ label: 'County', value: result.countyName });
-                    if (result.stateName) chips.push({ value: result.stateName });
-                    else if (result.state) chips.push({ label: 'State', value: result.state });
-                    if (result.townshipLabel) chips.push({ label: 'Twp', value: result.townshipLabel });
-                    if (result.plssMeridian) chips.push({ label: 'Mer', value: result.plssMeridian });
-                    if (result.plssTownNum != null) chips.push({ label: 'T', value: `${result.plssTownNum}${result.plssTownDir || ''}` });
-                    if (result.plssRangeNum != null) chips.push({ label: 'R', value: `${result.plssRangeNum}${result.plssRangeDir || ''}` });
+                    if (county.name) chips.push({ label: 'County', value: county.name });
+                    if (state.name) chips.push({ value: state.name });
+                    else if (state.abbr) chips.push({ label: 'State', value: state.abbr });
+                    if (township.label) chips.push({ label: 'Twp', value: township.label });
+                    if (plss.meridian) chips.push({ label: 'Mer', value: plss.meridian });
+                    if (plss.town_num != null) chips.push({ label: 'T', value: `${plss.town_num}${plss.town_dir || ''}` });
+                    if (plss.range_num != null) chips.push({ label: 'R', value: `${plss.range_num}${plss.range_dir || ''}` });
                 }
 
                 if (t === 'plss_section') {
-                    if (result.plssSection != null) chips.push({ label: 'Sec', value: String(result.plssSection) });
-                    if (result.townshipLabel) chips.push({ label: 'Twp', value: result.townshipLabel });
-                    if (result.countyName) chips.push({ label: 'County', value: result.countyName });
-                    if (result.stateName) chips.push({ value: result.stateName });
-                    else if (result.state) chips.push({ label: 'State', value: result.state });
-                    if (result.countyFips) chips.push({ label: 'FIPS', value: result.countyFips });
-                    if (result.plssMeridian) chips.push({ label: 'Mer', value: result.plssMeridian });
-                    if (result.plssTownNum != null) chips.push({ label: 'T', value: `${result.plssTownNum}${result.plssTownDir || ''}` });
-                    if (result.plssRangeNum != null) chips.push({ label: 'R', value: `${result.plssRangeNum}${result.plssRangeDir || ''}` });
+                    if (plss.section != null) chips.push({ label: 'Sec', value: String(plss.section) });
+                    if (township.label) chips.push({ label: 'Twp', value: township.label });
+                    if (county.name) chips.push({ label: 'County', value: county.name });
+                    if (state.name) chips.push({ value: state.name });
+                    else if (state.abbr) chips.push({ label: 'State', value: state.abbr });
+                    if (county.fips) chips.push({ label: 'FIPS', value: county.fips });
+                    if (plss.meridian) chips.push({ label: 'Mer', value: plss.meridian });
+                    if (plss.town_num != null) chips.push({ label: 'T', value: `${plss.town_num}${plss.town_dir || ''}` });
+                    if (plss.range_num != null) chips.push({ label: 'R', value: `${plss.range_num}${plss.range_dir || ''}` });
                 }
 
                 if (t === 'parcel' && result.parcel) {
                     const p = result.parcel;
-                    if (result.county) chips.push({ label: 'County', value: result.county.name });
-                    if (result.state) chips.push({ label: 'State', value: result.state });
+                    if (county.name) chips.push({ label: 'County', value: county.name });
+                    if (state.abbr) chips.push({ label: 'State', value: state.abbr });
                     if (p.owner) chips.push({ label: 'Owner', value: p.owner });
                     if (p.acreage) chips.push({ label: 'Acres', value: `${parseFloat(p.acreage).toLocaleString()}` });
-                    if (p.marketValue) chips.push({ label: 'Value', value: `$${Number(p.marketValue).toLocaleString()}` });
+                    if (p.market_value) chips.push({ label: 'Value', value: `$${Number(p.market_value).toLocaleString()}` });
                 }
 
                 if (t === 'address') {
-                    if (result.state) chips.push({ label: 'State', value: result.state });
+                    if (state.abbr) chips.push({ label: 'State', value: state.abbr });
                 }
 
                 return chips;
@@ -915,7 +920,7 @@
                                 ${makeSvgIcon(result.type)}
                             </div>
                             <div class="result-body">
-                                <div class="result-name">${escHtml(result.simpleName)}</div>
+                                <div class="result-name">${escHtml(result.simple_name)}</div>
                                 <div class="result-meta">
                                     <span class="result-type type-${result.type}">${meta.label}</span>
                                     <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(result.name)}</span>
@@ -953,16 +958,17 @@
             // ─── Navigate map to result ───────────────────────────────────────────────
             function selectResult(result) {
                 if (result.type === 'parcel' && result.parcel) {
-                    searchInput.value = `Parcel ${result.simpleName}` + (result.county ? `, ${result.county.name}` : '');
+                    const countyName = result.context?.county?.name;
+                    searchInput.value = `Parcel ${result.simple_name}` + (countyName ? `, ${countyName}` : '');
                 } else {
-                    searchInput.value = result.simpleName;
+                    searchInput.value = result.simple_name;
                 }
                 resultsDiv.style.display = 'none';
 
                 // Navigate map
                 if (result.type === 'parcel' && result.centroid) {
                     map.setCenter({ lat: result.centroid[1], lng: result.centroid[0] });
-                    map.setZoom(result.suggestedZoom || 17);
+                    map.setZoom(result.suggested_zoom || 17);
                 } else if (result.bbox) {
                     map.fitBounds(new google.maps.LatLngBounds(
                         { lat: result.bbox[1], lng: result.bbox[0] },
@@ -970,7 +976,7 @@
                     ));
                 } else if (result.centroid) {
                     map.setCenter({ lat: result.centroid[1], lng: result.centroid[0] });
-                    map.setZoom(result.suggestedZoom || 12);
+                    map.setZoom(result.suggested_zoom || 12);
                 }
 
                 // Show rich info panel
@@ -992,7 +998,7 @@
                 panelBadge.textContent = meta.label;
                 panelBadge.style.background = meta.bg;
                 panelBadge.style.color = meta.color;
-                panelTitle.textContent = result.simpleName;
+                panelTitle.textContent = result.simple_name;
 
                 const rows = buildPanelRows(result);
                 panelRows.innerHTML = rows.map(([label, value]) => `
@@ -1012,52 +1018,57 @@
             function buildPanelRows(result) {
                 const rows = [];
                 const t = result.type;
+                const context = result.context || {};
+                const state = context.state || {};
+                const county = context.county || {};
+                const township = context.township || {};
+                const plss = context.plss || {};
 
                 rows.push(['Name', result.name]);
-                if (result.simpleName && result.simpleName !== result.name) {
-                    rows.push(['Short Name', result.simpleName]);
+                if (result.simple_name && result.simple_name !== result.name) {
+                    rows.push(['Short Name', result.simple_name]);
                 }
 
-                if (result.stateName) rows.push(['State', `${result.stateName} (${result.state})`]);
-                else if (result.state) rows.push(['State', result.state]);
+                if (state.name) rows.push(['State', state.abbr ? `${state.name} (${state.abbr})` : state.name]);
+                else if (state.abbr) rows.push(['State', state.abbr]);
 
                 if (t === 'county') {
-                    if (result.countyName) rows.push(['County', result.countyName]);
-                    if (result.countyFips) rows.push(['FIPS', result.countyFips]);
+                    if (county.name) rows.push(['County', county.name]);
+                    if (county.fips) rows.push(['FIPS', county.fips]);
                 }
 
                 if (t === 'plss_township') {
-                    if (result.countyName) rows.push(['County', result.countyName]);
-                    if (result.countyFips) rows.push(['County FIPS', result.countyFips]);
-                    if (result.townshipLabel) rows.push(['Township', result.townshipLabel]);
-                    if (result.plssMeridian) rows.push(['Meridian', result.plssMeridian]);
-                    if (result.plssTownNum != null) rows.push(['Town', `${result.plssTownNum}${result.plssTownDir || ''}`]);
-                    if (result.plssRangeNum != null) rows.push(['Range', `${result.plssRangeNum}${result.plssRangeDir || ''}`]);
+                    if (county.name) rows.push(['County', county.name]);
+                    if (county.fips) rows.push(['County FIPS', county.fips]);
+                    if (township.label) rows.push(['Township', township.label]);
+                    if (plss.meridian) rows.push(['Meridian', plss.meridian]);
+                    if (plss.town_num != null) rows.push(['Town', `${plss.town_num}${plss.town_dir || ''}`]);
+                    if (plss.range_num != null) rows.push(['Range', `${plss.range_num}${plss.range_dir || ''}`]);
                 }
 
                 if (t === 'plss_section') {
-                    if (result.plssSection != null) rows.push(['Section', String(result.plssSection)]);
-                    if (result.townshipLabel) rows.push(['Township', result.townshipLabel]);
-                    if (result.townshipId) rows.push(['Township ID', result.townshipId]);
-                    if (result.countyName) rows.push(['County', result.countyName]);
-                    if (result.countyFips) rows.push(['County FIPS', result.countyFips]);
-                    if (result.plssMeridian) rows.push(['Meridian', result.plssMeridian]);
-                    if (result.plssTownNum != null) rows.push(['Town', `${result.plssTownNum}${result.plssTownDir || ''}`]);
-                    if (result.plssRangeNum != null) rows.push(['Range', `${result.plssRangeNum}${result.plssRangeDir || ''}`]);
+                    if (plss.section != null) rows.push(['Section', String(plss.section)]);
+                    if (township.label) rows.push(['Township', township.label]);
+                    if (township.id) rows.push(['Township ID', township.id]);
+                    if (county.name) rows.push(['County', county.name]);
+                    if (county.fips) rows.push(['County FIPS', county.fips]);
+                    if (plss.meridian) rows.push(['Meridian', plss.meridian]);
+                    if (plss.town_num != null) rows.push(['Town', `${plss.town_num}${plss.town_dir || ''}`]);
+                    if (plss.range_num != null) rows.push(['Range', `${plss.range_num}${plss.range_dir || ''}`]);
                 }
 
                 if (t === 'parcel' && result.parcel) {
                     const p = result.parcel;
-                    if (p.parcelId) rows.push(['Parcel ID', p.parcelId]);
-                    if (result.county) rows.push(['County', result.county.name]);
+                    if (p.parcel_id) rows.push(['Parcel ID', p.parcel_id]);
+                    if (county.name) rows.push(['County', county.name]);
                     if (result.region) rows.push(['Region', result.region]);
                     if (p.owner) rows.push(['Owner', p.owner]);
                     if (p.address) rows.push(['Address', p.address]);
                     if (p.acreage) rows.push(['Acreage (calc)', `${parseFloat(p.acreage).toLocaleString()} ac`]);
-                    if (p.acreageDeeded) rows.push(['Acreage (deed)', `${p.acreageDeeded} ac`]);
-                    if (p.marketValue) rows.push(['Market Value', `$${Number(p.marketValue).toLocaleString()}`]);
-                    if (p.landUseClass) rows.push(['Land Use', p.landUseClass]);
-                    if (p.legalDescription) rows.push(['Legal Desc.', p.legalDescription]);
+                    if (p.acreage_deeded) rows.push(['Acreage (deed)', `${p.acreage_deeded} ac`]);
+                    if (p.market_value) rows.push(['Market Value', `$${Number(p.market_value).toLocaleString()}`]);
+                    if (p.land_use_class) rows.push(['Land Use', p.land_use_class]);
+                    if (p.legal_description) rows.push(['Legal Desc.', p.legal_description]);
                 }
 
                 if (t === 'address') {
@@ -1065,7 +1076,7 @@
                 }
 
                 if (result.centroid) rows.push(['Centroid', `${result.centroid[1].toFixed(6)}, ${result.centroid[0].toFixed(6)}`]);
-                if (result.suggestedZoom != null) rows.push(['Zoom', String(result.suggestedZoom)]);
+                if (result.suggested_zoom != null) rows.push(['Zoom', String(result.suggested_zoom)]);
                 if (result.score != null) rows.push(['Relevance', `${(result.score * 100).toFixed(0)}%`]);
 
                 return rows;

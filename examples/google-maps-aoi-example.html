@@ -552,27 +552,29 @@
         function displayResults(results) {
             const resultsDiv = document.getElementById('results');
             
-            const cluResults = results.results_by_layer?.clu;
-            const featuresCount = cluResults?.features_count || 0;
+            const cluResults = results.layers?.clu;
+            const featuresCount = cluResults?.feature_count || 0;
             const features = cluResults?.features || [];
+            const aoiAcres = results.aoi?.area?.acres || 0;
+            const processingTimeMs = results.summary?.processing_time_ms || 0;
 
             let html = '<div class="results">';
             html += '<h3>📊 Query Results</h3>';
-            html += `<div class="stat"><strong>AOI Area:</strong> ${results.aoi_area.acres.toFixed(2)} acres</div>`;
+            html += `<div class="stat"><strong>AOI Area:</strong> ${aoiAcres.toFixed(2)} acres</div>`;
             html += `<div class="stat"><strong>CLU Fields Found:</strong> ${featuresCount}</div>`;
-            html += `<div class="stat"><strong>Processing Time:</strong> ${results.query_info.processing_time_ms}ms</div>`;
+            html += `<div class="stat"><strong>Processing Time:</strong> ${processingTimeMs}ms</div>`;
 
             if (features.length > 0) {
                 html += '<h3>🌾 CLU Fields:</h3>';
                 html += '<div class="feature-list">';
                 
                 features.forEach((feature, idx) => {
-                    const acres = feature.intersection_area.acres.toFixed(2);
-                    const pctOfField = feature.percentages.percent_of_feature_in_aoi.toFixed(1);
-                    const pctOfAOI = feature.percentages.percent_of_aoi_in_feature.toFixed(1);
+                    const acres = (feature.area?.intersection_acres || 0).toFixed(2);
+                    const pctOfField = (feature.area?.percent_of_feature_in_aoi || 0).toFixed(1);
+                    const pctOfAOI = (feature.area?.percent_of_aoi_in_feature || 0).toFixed(1);
                     
                     html += `<div class="feature-item">`;
-                    html += `<strong>Field ${idx + 1}</strong><br>`;
+                    html += `<strong>${feature.name || `Field ${idx + 1}`}</strong><br>`;
                     html += `Area: ${acres} ac<br>`;
                     html += `${pctOfField}% of field in AOI<br>`;
                     html += `${pctOfAOI}% of AOI in this field`;
@@ -588,7 +590,7 @@
 
         // Highlight query results on map
         function highlightResults(results) {
-            const cluFeatures = results.results_by_layer?.clu?.features || [];
+            const cluFeatures = results.layers?.clu?.features || [];
             
             if (cluFeatures.length === 0) {
                 highlightLayer = null;

@@ -165,12 +165,16 @@ const styles = {
 
 export interface PointLookupResult {
   layer: string;
-  found: boolean;
-  feature?: {
+  type: 'vector' | 'raster_value';
+  status: 'ok' | 'error';
+  feature_count: number;
+  features: Array<{
     id: string | number;
     name: string;
+    kind: string;
     properties?: Record<string, any>;
-  };
+    geometry?: any | null;
+  }>;
   zoom?: {
     optimal: number;
     min: number;
@@ -183,16 +187,26 @@ export interface PointLookupResult {
 }
 
 export interface PointLookupResponse {
+  point: {
+    lat: number;
+    lng: number;
+  };
+  layers: Record<string, PointLookupResult>;
+  summary: {
+    layers_queried: string[];
+    total_features_found: number;
+    processing_time_ms: number;
+  };
   query: {
     lat: number;
     lng: number;
-    layers_requested: string[];
-  };
-  results: PointLookupResult[];
-  query_info: {
+    requested_layers: string[];
+    options?: {
+      include_geometry?: boolean;
+      include_metadata?: boolean;
+    };
     timestamp: string;
     account_id: string;
-    processing_time_ms: number;
   };
 }
 
@@ -214,7 +228,7 @@ export function PointLookup({
   baseApiUrl,
   isActive,
   onToggle,
-  availableLayers = ['states', 'counties', 'townships', 'sections', 'clu', 'cdl'],
+  availableLayers = ['states', 'counties', 'townships', 'sections', 'clu', 'ssurgo', 'cdl'],
   defaultLayers = ['states', 'counties', 'townships'],
   cdlYears = ['2025', '2024', '2023', '2022', '2021', '2020'],
   onResults
@@ -287,7 +301,7 @@ export function PointLookup({
           lat,
           lng,
           layers,
-          options: { includeGeometry: false, includeMetadata: true }
+          options: { include_geometry: false, include_metadata: true }
         })
       });
 
@@ -454,24 +468,26 @@ export function PointLookup({
                   {clickedPoint.lat.toFixed(6)}, {clickedPoint.lng.toFixed(6)}
                 </strong>
                 <span style={{ float: 'right', color: '#a1a1aa' }}>
-                  {results.query_info.processing_time_ms}ms
+                  {results.summary.processing_time_ms}ms
                 </span>
               </div>
             )}
 
-            {results.results.map((result, idx) => {
+            {Object.entries(results.layers).map(([layerName, result], idx) => {
               const isCdl = result.layer.startsWith('cdl:');
-              const cropCode = isCdl && result.feature?.properties?.crop_code;
+              const feature = result.features[0];
+              const found = result.feature_count > 0 && !!feature;
+              const cropCode = isCdl && feature?.properties?.crop_code;
               const cropInfo = cropCode ? CDL_CROPS[cropCode] : null;
 
               return (
                 <div
-                  key={`${result.layer}-${idx}`}
-                  onClick={() => result.found && flyToResult(result)}
+                  key={`${layerName}-${idx}`}
+                  onClick={() => found && flyToResult(result)}
                   style={{
                     ...styles.resultCard,
-                    cursor: result.found ? 'pointer' : 'default',
-                    opacity: result.found ? 1 : 0.6,
+                    cursor: found ? 'pointer' : 'default',
+                    opacity: found ? 1 : 0.6,
                   }}
                 >
                   <div style={styles.resultHeader}>
@@ -483,14 +499,14 @@ export function PointLookup({
                     )}
                   </div>
                   <div style={styles.resultBody}>
-                    {result.found && result.feature ? (
+                    {found ? (
                       <>
                         <div style={{ fontWeight: 600, fontSize: '13px', color: '#18181b' }}>
-                          {result.feature.name}
+                          {feature.name}
                         </div>
                         {!isCdl && (
                           <div style={{ fontSize: '11px', color: '#71717a', fontFamily: 'monospace' }}>
-                            ID: {result.feature.id}
+                            ID: {feature.id}
                           </div>
                         )}
                         {isCdl && cropInfo && (

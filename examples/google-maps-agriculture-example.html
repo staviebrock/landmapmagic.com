@@ -532,9 +532,12 @@
                     const div = document.createElement('div');
                     div.className = 'result-item';
                     const typeLabel = TYPE_LABELS[result.type] || result.type;
+                    const context = result.context || {};
+                    const state = context.state || {};
+                    const county = context.county || {};
                     let html = `
                         <div class="result-name">
-                            ${result.simpleName}
+                            ${result.simple_name}
                             <span class="result-type type-${result.type}">${typeLabel}</span>
                         </div>
                         <div class="result-meta">${
@@ -544,12 +547,12 @@
                                 ? result.name.replace(/,\s*([^,]+),\s*([A-Z]{2})$/, ', $1 County, $2')
                                 : result.name
                         }</div>`;
-                    if (result.type === 'county' && result.state) {
-                        html += `<div class="result-parcel-details">${result.state}</div>`;
+                    if (result.type === 'county' && state.abbr) {
+                        html += `<div class="result-parcel-details">${state.abbr}</div>`;
                     }
                     if (result.type === 'plss_township') {
-                        const countyPart = result.county?.name ? `${result.county.name}, ` : '';
-                        const statePart  = result.state || '';
+                        const countyPart = county.name ? `${county.name}, ` : '';
+                        const statePart  = state.abbr || '';
                         if (countyPart || statePart) {
                             html += `<div class="result-parcel-details">${countyPart}${statePart}</div>`;
                         }
@@ -560,7 +563,7 @@
                         if (p.owner)       parts.push(`<span>${p.owner}</span>`);
                         if (p.address)     parts.push(`<span>${p.address}</span>`);
                         if (p.acreage)     parts.push(`<span>${p.acreage} ac</span>`);
-                        if (p.marketValue) parts.push(`<span>$${p.marketValue}</span>`);
+                        if (p.market_value) parts.push(`<span>$${p.market_value}</span>`);
                         if (parts.length)  html += `<div class="result-parcel-details">${parts.join('')}</div>`;
                     }
                     div.innerHTML = html;
@@ -571,14 +574,15 @@
             }
 
             function selectSearchResult(result) {
+                const countyName = result.context?.county?.name;
                 searchInput.value = result.type === 'parcel' && result.parcel
-                    ? `Parcel ${result.simpleName}` + (result.county ? `, ${result.county.name}` : '')
-                    : result.simpleName;
+                    ? `Parcel ${result.simple_name}` + (countyName ? `, ${countyName}` : '')
+                    : result.simple_name;
                 resultsDiv.style.display = 'none';
 
                 if (result.type === 'parcel' && result.centroid) {
                     map.setCenter({ lat: result.centroid[1], lng: result.centroid[0] });
-                    map.setZoom(result.suggestedZoom || 17);
+                    map.setZoom(result.suggested_zoom || 17);
                     return;
                 }
                 if (result.bbox) {
@@ -588,7 +592,7 @@
                     ));
                 } else if (result.centroid) {
                     map.setCenter({ lat: result.centroid[1], lng: result.centroid[0] });
-                    map.setZoom(result.suggestedZoom || 12);
+                    map.setZoom(result.suggested_zoom || 12);
                 }
             }
         }

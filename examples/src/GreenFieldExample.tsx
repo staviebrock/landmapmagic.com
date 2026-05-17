@@ -16,7 +16,7 @@ export default function BasicExample() {
         showQueryTools={true}
         availableQueryTools={['point', 'aoi']}
         initialVisibleLayers={['states', 'counties', 'townships', 'sections', 'clu', 'cdl', 'parcels']}
-        availableLayers={['states', 'counties', 'townships', 'sections', 'clu', 'cdl', 'parcels']}
+        availableLayers={['states', 'counties', 'plss', 'townships', 'sections', 'clu', 'cdl', 'parcels']}
         initialCenter={[-93.6250, 41.5868]} // Des Moines, Iowa
         initialZoom={6}
         height="100%"

@@ -17,5 +17,5 @@ export { QueryToolsPanel } from './QueryToolsPanel.js';
 // Types
 export type { AOIQueryResult } from './AOIQuery.js';
 export type { PointLookupResult, PointLookupResponse, PointLookupProps } from './PointLookup.js';
-export type { AOIQueryResponse, CropStats, AOIQueryWidgetProps } from './AOIQueryWidget.js';
+export type { AOIQueryResponse, AOIFeature, AOILayerResult, AOIQueryWidgetProps } from './AOIQueryWidget.js';
 export type { QueryTool, QueryToolsPanelProps } from './QueryToolsPanel.js';

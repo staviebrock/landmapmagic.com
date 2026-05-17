@@ -141,8 +141,8 @@ const CDL_CROPS: Record<number, { name: string; color: string }> = {
   254: { name: 'Dbl Crop Barley/Soybeans', color: '#267300' },
 };
 
-// Available layers for AOI query (matching the real API)
-const AVAILABLE_LAYERS = ['states', 'counties', 'townships', 'sections', 'clu', 'cdl'] as const;
+// Available layers for AOI query (matching /v1/data/aoi/layers)
+const AVAILABLE_LAYERS = ['states', 'counties', 'plss', 'townships', 'sections', 'clu', 'cdl', 'ssurgo'] as const;
 type LayerType = typeof AVAILABLE_LAYERS[number];
 
 // Simple styles
@@ -272,43 +272,51 @@ const styles = {
   },
 };
 
-export interface CropStats {
-  code: number;
-  name: string;
-  pixel_count: number;
-  acres: number;
-  percent: number;
-}
-
-export interface CDLResult {
-  aoi_area: { acres: number; hectares: number; square_meters: number };
-  year: string;
-  crop_summary: { total_pixels: number; total_acres: number; crops: CropStats[] };
-  query_info: { processing_time_ms: number; tiles_queried: number; zoom_level: number };
-}
-
-export interface VectorLayerResult {
-  layer: string;
-  feature_count: number;
-  features: Array<{
-    id: string | number;
-    name: string;
-    properties: Record<string, any>;
-  }>;
-}
-
 export interface AOIQueryResponse {
-  aoi_area: { acres: number; hectares: number; square_meters: number; square_kilometers: number; square_miles: number };
-  results_by_layer: Record<string, VectorLayerResult>;
-  cdl_results: Record<string, CDLResult>;
-  layers_queried: string[];
-  total_features_found: number;
-  query_info: {
+  aoi: {
+    area: {
+      acres: number;
+      hectares: number;
+      square_meters: number;
+      square_kilometers: number;
+      square_miles: number;
+    };
+  };
+  layers: Record<string, AOILayerResult>;
+  summary: {
+    layers_queried: string[];
+    total_features_found: number;
+    processing_time_ms: number;
+  };
+  query: {
     timestamp: string;
     account_id: string;
-    processing_time_ms: number;
-    layers_queried: { vector: string[]; cdl_years: string[] };
+    requested_layers: string[];
+    layers: { vector: string[]; cdl_years: string[] };
   };
+}
+
+export interface AOILayerResult {
+  type: 'vector' | 'raster_summary';
+  status: 'ok' | 'error';
+  feature_count: number;
+  features: AOIFeature[];
+  error?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface AOIFeature {
+  id: string;
+  name: string;
+  kind: string;
+  area: {
+    intersection_acres: number | null;
+    feature_acres: number | null;
+    percent_of_feature_in_aoi: number | null;
+    percent_of_aoi_in_feature: number | null;
+  };
+  properties: Record<string, any>;
+  geometry: any | null;
 }
 
 export interface AOIQueryWidgetProps {
@@ -329,7 +337,7 @@ export function AOIQueryWidget({
   baseApiUrl,
   isActive,
   onToggle,
-  availableLayers = ['states', 'counties', 'townships', 'sections', 'clu', 'cdl'],
+  availableLayers = ['states', 'counties', 'plss', 'townships', 'sections', 'clu', 'cdl', 'ssurgo'],
   cdlYears = ['2025', '2024', '2023', '2022', '2021', '2020'],
   maxAcres = 1000,
   onResults
@@ -717,82 +725,66 @@ export function AOIQueryWidget({
             <div style={{ ...styles.resultCard, background: '#f4f4f5' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '12px' }}>
                 <span style={{ color: '#71717a' }}>Total Area</span>
-                <span style={{ fontWeight: 600, color: '#18181b' }}>{results.aoi_area?.acres?.toFixed(1) || aoiAcres.toFixed(1)} ac</span>
+                <span style={{ fontWeight: 600, color: '#18181b' }}>{results.aoi?.area?.acres?.toFixed(1) || aoiAcres.toFixed(1)} ac</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '12px' }}>
                 <span style={{ color: '#71717a' }}>Layers Queried</span>
-                <span style={{ fontWeight: 600, color: '#18181b' }}>{results.layers_queried?.length || 0}</span>
+                <span style={{ fontWeight: 600, color: '#18181b' }}>{results.summary?.layers_queried?.length || 0}</span>
               </div>
               <div style={{ fontSize: '10px', color: '#a1a1aa', textAlign: 'right' }}>
-                {results.query_info?.processing_time_ms}ms
+                {results.summary?.processing_time_ms}ms
               </div>
             </div>
 
-            {/* Vector Layer Results */}
-            {results.results_by_layer && Object.keys(results.results_by_layer).length > 0 && (
+            {results.layers && Object.keys(results.layers).length > 0 && (
               <>
-                <div style={styles.sectionLabel}>Vector Layers</div>
-                {Object.entries(results.results_by_layer).map(([layerName, layerData]) => (
-                  <div key={layerName} style={styles.resultCard}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <span style={{ fontWeight: 600, fontSize: '12px', textTransform: 'uppercase', color: '#18181b' }}>{layerName}</span>
-                      <span style={{ fontSize: '11px', color: '#71717a' }}>{layerData.feature_count} features</span>
-                    </div>
-                    {layerData.features && layerData.features.slice(0, 5).map((feature, idx) => (
-                      <div key={idx} style={{ fontSize: '11px', color: '#52525b', padding: '4px 0', borderTop: idx > 0 ? '1px solid #e4e4e7' : 'none' }}>
-                        {feature.name || `Feature ${feature.id}`}
-                      </div>
-                    ))}
-                    {layerData.features && layerData.features.length > 5 && (
-                      <div style={{ fontSize: '10px', color: '#a1a1aa', marginTop: '4px' }}>
-                        + {layerData.features.length - 5} more
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </>
-            )}
-
-            {/* CDL Results */}
-            {results.cdl_results && Object.keys(results.cdl_results).length > 0 && (
-              <>
-                <div style={{ ...styles.sectionLabel, marginTop: '12px' }}>CDL Crop Data</div>
-                {Object.entries(results.cdl_results).map(([yearKey, cdlData]) => {
-                  if ('error' in cdlData) {
+                <div style={styles.sectionLabel}>Layer Results</div>
+                {Object.entries(results.layers).map(([layerName, layerData]) => {
+                  if (layerData.status === 'error') {
                     return (
-                      <div key={yearKey} style={{ ...styles.resultCard, borderColor: '#fecaca' }}>
-                        <div style={{ fontWeight: 600, fontSize: '12px', color: '#dc2626' }}>{yearKey}</div>
-                        <div style={{ fontSize: '11px', color: '#dc2626' }}>{(cdlData as any).error}</div>
+                      <div key={layerName} style={{ ...styles.resultCard, borderColor: '#fecaca' }}>
+                        <div style={{ fontWeight: 600, fontSize: '12px', color: '#dc2626' }}>{layerName}</div>
+                        <div style={{ fontSize: '11px', color: '#dc2626' }}>{layerData.error}</div>
                       </div>
                     );
                   }
-                  const data = cdlData as CDLResult;
+
                   return (
-                    <div key={yearKey} style={styles.resultCard}>
+                    <div key={layerName} style={styles.resultCard}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <span style={{ fontWeight: 600, fontSize: '12px', color: '#18181b' }}>{data.year}</span>
-                        <span style={{ fontSize: '10px', color: '#a1a1aa' }}>{data.query_info?.processing_time_ms}ms</span>
+                        <span style={{ fontWeight: 600, fontSize: '12px', textTransform: 'uppercase', color: '#18181b' }}>{layerName}</span>
+                        <span style={{ fontSize: '11px', color: '#71717a' }}>{layerData.feature_count} features</span>
                       </div>
                       
                       <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                        {data.crop_summary?.crops?.map((crop) => {
-                          const cropInfo = CDL_CROPS[crop.code];
+                        {layerData.features.slice(0, 12).map((feature, idx) => {
+                          const cropInfo = feature.kind === 'crop' ? CDL_CROPS[feature.properties?.crop_code] : undefined;
                           const barColor = cropInfo?.color || '#71717a';
+                          const percent = feature.area?.percent_of_aoi_in_feature ?? 0;
                           return (
-                            <div key={crop.code} style={{ marginBottom: '6px' }}>
+                            <div key={`${layerName}-${feature.id ?? 'feature'}-${idx}`} style={{ marginBottom: '6px' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: barColor, display: 'inline-block' }} />
-                                  <span style={{ fontWeight: 500, color: '#18181b', fontSize: '11px' }}>{crop.name}</span>
+                                  {feature.kind === 'crop' && (
+                                    <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: barColor, display: 'inline-block' }} />
+                                  )}
+                                  <span style={{ fontWeight: 500, color: '#18181b', fontSize: '11px' }}>{feature.name}</span>
                                 </div>
-                                <span style={{ fontSize: '10px', color: '#71717a' }}>{crop.percent?.toFixed(1)}%</span>
+                                <span style={{ fontSize: '10px', color: '#71717a' }}>{percent.toFixed(1)}%</span>
                               </div>
-                              <div style={{ height: '3px', background: '#e4e4e7', borderRadius: '2px', overflow: 'hidden' }}>
-                                <div style={{ width: `${Math.min(crop.percent || 0, 100)}%`, height: '100%', background: barColor }} />
-                              </div>
+                              {feature.kind === 'crop' && (
+                                <div style={{ height: '3px', background: '#e4e4e7', borderRadius: '2px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${Math.min(percent, 100)}%`, height: '100%', background: barColor }} />
+                                </div>
+                              )}
                             </div>
                           );
                         })}
+                        {layerData.features.length > 12 && (
+                          <div style={{ fontSize: '10px', color: '#a1a1aa', marginTop: '4px' }}>
+                            + {layerData.features.length - 12} more
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

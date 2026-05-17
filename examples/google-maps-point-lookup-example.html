@@ -1140,8 +1140,8 @@
                         lng,
                         layers,
                         options: {
-                            includeGeometry: false,
-                            includeMetadata: true
+                            include_geometry: false,
+                            include_metadata: true
                         }
                     })
                 });
@@ -1172,28 +1172,30 @@
 
         // Display results
         function displayResults(data) {
-            const { query, results, query_info } = data;
+            const { point, layers, summary } = data;
             
             let html = `
                 <div class="results-header">
                     <h2>Results</h2>
-                    <span class="results-count">${query_info.processing_time_ms}ms</span>
+                    <span class="results-count">${summary.processing_time_ms}ms</span>
                 </div>
                 <div class="coordinates-display">
-                    <strong>${query.lat.toFixed(6)}, ${query.lng.toFixed(6)}</strong>
+                    <strong>${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}</strong>
                 </div>
             `;
 
-            results.forEach(result => {
+            Object.entries(layers).forEach(([layerName, result]) => {
                 const isCDL = result.layer.startsWith('cdl:');
                 const cardClass = isCDL ? 'result-card cdl-result' : 'result-card';
+                const feature = result.features[0];
+                const found = result.feature_count > 0 && feature;
                 
-                if (result.found && result.feature) {
+                if (found) {
                     if (isCDL) {
                         // CDL-specific result rendering
-                        const cropCode = result.feature.properties?.crop_code || result.feature.id;
-                        const cropName = result.feature.properties?.crop_name || result.feature.name;
-                        const year = result.feature.properties?.year || result.layer.split(':')[1];
+                        const cropCode = feature.properties?.crop_code || feature.id;
+                        const cropName = feature.properties?.crop_name || feature.name;
+                        const year = feature.properties?.year || result.layer.split(':')[1];
                         const cropColor = CDL_CROPS[cropCode]?.color || '#666';
                         
                         html += `
@@ -1234,8 +1236,8 @@
                                     </span>
                                 </div>
                                 <div class="result-body">
-                                    <div class="result-name">${escapeHtml(result.feature.name)}</div>
-                                    <div class="result-id">ID: ${escapeHtml(String(result.feature.id))}</div>
+                                    <div class="result-name">${escapeHtml(feature.name)}</div>
+                                    <div class="result-id">ID: ${escapeHtml(String(feature.id))}</div>
                                     ${result.metadata ? `<div class="result-meta">${result.metadata.description}</div>` : ''}
                                 </div>
                             </div>

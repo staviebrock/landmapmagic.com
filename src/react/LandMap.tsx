@@ -8,6 +8,8 @@ import { PointLookup } from './PointLookup.js';
 import { AOIQueryWidget } from './AOIQueryWidget.js';
 import { QueryToolsPanel } from './QueryToolsPanel.js';
 
+const loggedMapErrors = new Set<string>();
+
 // Layer hierarchy for zoom-based visibility
 // Each layer becomes the "main" layer at certain zoom levels
 // The previous layer becomes the "parent" layer with thicker lines
@@ -105,6 +107,37 @@ function savePersistedCdlYear(persistenceKey: string, year: string) {
   } catch (e) {
     console.warn('[LandMap] Failed to save CDL year:', e);
   }
+}
+
+function stringifyMapErrorDetail(value: any): string | undefined {
+  if (value == null) return undefined;
+  if (typeof value === 'string') return value;
+  if (value instanceof Error) return value.message;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function formatMapLibreError(e: any) {
+  const error = e?.error || e;
+  const sourceId = e?.sourceId || e?.source?.id || error?.sourceId;
+  const tile = e?.tile?.tileID?.canonical || e?.tile?.tileID || e?.coord || error?.tileID;
+  const status = error?.status || error?.statusCode;
+  const url = error?.url || e?.url || e?.tile?.request?.url;
+  const message = error?.message || error?.toString?.() || stringifyMapErrorDetail(error) || 'Unknown MapLibre error';
+  const tileText = tile && typeof tile === 'object'
+    ? [tile.z, tile.x, tile.y].filter(value => value !== undefined).join('/')
+    : stringifyMapErrorDetail(tile);
+
+  return {
+    sourceId,
+    status,
+    tile: tileText,
+    url,
+    message,
+  };
 }
 
 export function LandMap({
@@ -413,10 +446,10 @@ export function LandMap({
   const selectSearchResult = useCallback((result: SearchResult) => {
     // Show descriptive text for parcels, simple name for others
     if (result.type === 'parcel' && result.parcel) {
-      const county = result.county;
-      setSearchQuery(`Parcel ${result.simpleName}${county ? `, ${county.name}` : ''}`);
+      const countyName = result.context?.county?.name;
+      setSearchQuery(`Parcel ${result.simple_name}${countyName ? `, ${countyName}` : ''}`);
     } else {
-      setSearchQuery(result.simpleName);
+      setSearchQuery(result.simple_name);
     }
     setShowResults(false);
 
@@ -430,7 +463,7 @@ export function LandMap({
     if (result.type === 'parcel' && result.centroid) {
       map.flyTo({
         center: result.centroid,
-        zoom: result.suggestedZoom || 17,
+        zoom: result.suggested_zoom || 17,
         duration: 1500
       });
       return;
@@ -446,7 +479,7 @@ export function LandMap({
     } else if (result.centroid) {
       map.flyTo({
         center: result.centroid,
-        zoom: result.suggestedZoom || 12,
+        zoom: result.suggested_zoom || 12,
         duration: 1500
       });
     }
@@ -536,7 +569,18 @@ export function LandMap({
 
         // Add error handlers
         map.on('error', (e: any) => {
-          console.error('Map error:', e);
+          const detail = formatMapLibreError(e);
+          const key = [
+            detail.sourceId || 'unknown-source',
+            detail.status || 'unknown-status',
+            detail.tile || 'unknown-tile',
+            detail.url || detail.message,
+          ].join('|');
+
+          if (!loggedMapErrors.has(key)) {
+            loggedMapErrors.add(key);
+            console.warn('[LandMap] MapLibre source error:', detail);
+          }
         });
 
         map.on('sourcedataloading', (e: any) => {
@@ -958,7 +1002,7 @@ export function LandMap({
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                       }}>
-                        {result.simpleName}
+                        {result.simple_name}
                       </div>
                       <div style={{ 
                         fontSize: '12px', 
@@ -995,7 +1039,7 @@ export function LandMap({
                         if (p.owner) details.push(p.owner);
                         if (p.address) details.push(p.address);
                         if (p.acreage) details.push(`${p.acreage} ac`);
-                        if (p.marketValue) details.push(`$${p.marketValue}`);
+                        if (p.market_value) details.push(`$${p.market_value}`);
                         if (details.length === 0) return null;
                         return (
                           <div style={{
@@ -1013,9 +1057,10 @@ export function LandMap({
                       {/* PLSS context row */}
                       {(result.type === 'plss_township' || result.type === 'plss_section') && (() => {
                         const parts: string[] = [];
-                        if (result.countyName) parts.push(result.countyName);
-                        if (result.stateName) parts.push(result.stateName);
-                        else if (result.state) parts.push(result.state);
+                        const countyName = result.context?.county?.name || result.context?.county?.simple_name;
+                        const stateName = result.context?.state?.name || result.context?.state?.abbr;
+                        if (countyName) parts.push(countyName);
+                        if (stateName) parts.push(stateName);
                         if (parts.length === 0) return null;
                         return (
                           <div style={{
@@ -1261,8 +1306,9 @@ export function LandMap({
           baseApiUrl={apiUrl}
           isActive={activeQueryTool === 'point'}
           onToggle={() => setActiveQueryTool(activeQueryTool === 'point' ? null : 'point')}
-          availableLayers={['states', 'counties', 'townships', 'sections', 'clu', 'cdl']}
+          availableLayers={['states', 'counties', 'townships', 'sections', 'clu', 'ssurgo', 'cdl']}
           defaultLayers={['states', 'counties', 'townships']}
+          cdlYears={cdlYears}
         />
       )}
 
@@ -1274,6 +1320,8 @@ export function LandMap({
           baseApiUrl={apiUrl}
           isActive={activeQueryTool === 'aoi'}
           onToggle={() => setActiveQueryTool(activeQueryTool === 'aoi' ? null : 'aoi')}
+          availableLayers={['states', 'counties', 'plss', 'townships', 'sections', 'clu', 'cdl', 'ssurgo']}
+          cdlYears={cdlYears}
         />
       )}
     </div>
