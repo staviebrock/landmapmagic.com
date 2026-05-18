@@ -106,7 +106,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/staviebrock/landmapmagic.com.git"
+    "url": "git+https://github.com/staviebrock/landmapmagic.com.git"
   },
   "bugs": {
     "url": "https://github.com/staviebrock/landmapmagic.com/issues"
