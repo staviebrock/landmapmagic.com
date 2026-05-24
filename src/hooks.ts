@@ -9,14 +9,29 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type {
   VectorDataset,
   ClickInfoConfig,
+  SearchResult,
 } from './core/types.js';
+import {
+  fetchLandMapSearch,
+  type SearchParams,
+  type SearchResponse,
+} from './core/search.js';
 import { createAllDatasets, LAYER_HIERARCHY, ZOOM_THRESHOLDS, OVERLAY_LAYERS } from './layers.js';
 import type { LayerId } from './layers.js';
 
 // Re-export layers + style for convenience
 export { createAllDatasets, LAYER_HIERARCHY, ZOOM_THRESHOLDS, OVERLAY_LAYERS, ALL_LAYERS } from './layers.js';
 export type { LayerId } from './layers.js';
-export type { VectorDataset, DatasetLayer, DatasetSource, ClickInfoConfig } from './core/types.js';
+export type {
+  VectorDataset,
+  DatasetLayer,
+  DatasetSource,
+  ClickInfoConfig,
+  SearchResult,
+  SearchResultContext,
+  SearchResultParcel,
+} from './core/types.js';
+export type { SearchParams, SearchResponse } from './core/search.js';
 
 // --------------------------------------------------------------------------
 // Types
@@ -470,4 +485,188 @@ export function useLandMapClick(
       map.off('click', handleClick);
     };
   }, [mapRef, datasets, visibleLayers, onClickInfo, disabled]);
+}
+
+// --------------------------------------------------------------------------
+// useLandMapSearch
+// --------------------------------------------------------------------------
+
+export interface UseLandMapSearchOptions {
+  apiKey?: string;
+  apiUrl?: string;
+  limit?: number;
+  /** Debounce delay for auto-search. Set to 0 to disable auto-search. Default 300ms. */
+  debounceMs?: number;
+  /** Custom search function (e.g. server proxy). Overrides apiKey/apiUrl fetch. */
+  searchFn?: (params: SearchParams) => Promise<SearchResponse>;
+  initialQuery?: string;
+  initialTypes?: string;
+  initialRegion?: string;
+}
+
+export interface UseLandMapSearchReturn {
+  query: string;
+  setQuery: (query: string) => void;
+  types: string;
+  setTypes: (types: string) => void;
+  region: string;
+  setRegion: (region: string) => void;
+  results: SearchResult[];
+  response: SearchResponse | null;
+  isSearching: boolean;
+  error: string | null;
+  /** Run search with current query/types/region, or override fields. */
+  search: (override?: Partial<SearchParams>) => Promise<void>;
+  clear: () => void;
+  /** Set query fields from a preset and optionally search immediately. */
+  applyPreset: (
+    preset: { query: string; types?: string; region?: string },
+    options?: { search?: boolean },
+  ) => void;
+}
+
+export function useLandMapSearch(options: UseLandMapSearchOptions = {}): UseLandMapSearchReturn {
+  const {
+    apiKey = 'dev',
+    apiUrl,
+    limit = 10,
+    debounceMs = 300,
+    searchFn,
+    initialQuery = '',
+    initialTypes = '',
+    initialRegion = '',
+  } = options;
+
+  const [query, setQuery] = useState(initialQuery);
+  const [types, setTypes] = useState(initialTypes);
+  const [region, setRegion] = useState(initialRegion);
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [response, setResponse] = useState<SearchResponse | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestIdRef = useRef(0);
+
+  const runSearch = useCallback(
+    async (override?: Partial<SearchParams>) => {
+      const q = (override?.q ?? query).trim();
+      const nextTypes = override?.types ?? types;
+      const nextRegion = override?.region ?? region;
+
+      if (q.length < 2) {
+        setResults([]);
+        setResponse(null);
+        setError(null);
+        setIsSearching(false);
+        return;
+      }
+
+      const requestId = ++requestIdRef.current;
+      setIsSearching(true);
+      setError(null);
+
+      try {
+        const params: SearchParams = {
+          q,
+          limit: override?.limit ?? limit,
+          ...(nextTypes ? { types: nextTypes } : {}),
+          ...(nextRegion ? { region: nextRegion } : {}),
+          ...(override?.lat != null ? { lat: override.lat } : {}),
+          ...(override?.lng != null ? { lng: override.lng } : {}),
+          ...(override?.bbox ? { bbox: override.bbox } : {}),
+          ...(override?.center_lat != null ? { center_lat: override.center_lat } : {}),
+          ...(override?.center_lng != null ? { center_lng: override.center_lng } : {}),
+        };
+
+        const data = searchFn
+          ? await searchFn(params)
+          : await fetchLandMapSearch({ ...params, apiKey, apiUrl });
+
+        if (requestId !== requestIdRef.current) return;
+
+        setResponse(data);
+        setResults(data.results || []);
+      } catch (err) {
+        if (requestId !== requestIdRef.current) return;
+        setResults([]);
+        setResponse(null);
+        setError(err instanceof Error ? err.message : 'Search failed');
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setIsSearching(false);
+        }
+      }
+    },
+    [apiKey, apiUrl, limit, query, region, searchFn, types],
+  );
+
+  useEffect(() => {
+    if (debounceMs <= 0) return;
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    if (query.trim().length < 2) {
+      setResults([]);
+      setResponse(null);
+      setError(null);
+      setIsSearching(false);
+      return;
+    }
+
+    debounceRef.current = setTimeout(() => {
+      void runSearch();
+    }, debounceMs);
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [debounceMs, query, region, runSearch, types]);
+
+  const clear = useCallback(() => {
+    requestIdRef.current += 1;
+    setQuery('');
+    setTypes('');
+    setRegion('');
+    setResults([]);
+    setResponse(null);
+    setError(null);
+    setIsSearching(false);
+  }, []);
+
+  const applyPreset = useCallback(
+    (preset: { query: string; types?: string; region?: string }, opts?: { search?: boolean }) => {
+      setQuery(preset.query);
+      setTypes(preset.types ?? '');
+      setRegion(preset.region ?? '');
+
+      if (opts?.search) {
+        void runSearch({
+          q: preset.query,
+          types: preset.types,
+          region: preset.region,
+        });
+      }
+    },
+    [runSearch],
+  );
+
+  return {
+    query,
+    setQuery,
+    types,
+    setTypes,
+    region,
+    setRegion,
+    results,
+    response,
+    isSearching,
+    error,
+    search: runSearch,
+    clear,
+    applyPreset,
+  };
 }
