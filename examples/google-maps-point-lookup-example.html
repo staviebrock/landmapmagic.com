@@ -904,8 +904,8 @@
                 });
                 
                 if (selectedYears.length > 0) {
-                    // Format: "cdl:2024,2023,2022"
-                    layers.push(`cdl:${selectedYears.join(',')}`);
+                    // One entry per year, e.g. 'cdl:2024', 'cdl:2023'
+                    selectedYears.forEach(year => layers.push(`cdl:${year}`));
                 } else {
                     // Default to current year
                     layers.push('cdl');

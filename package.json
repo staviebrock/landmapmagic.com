@@ -1,6 +1,6 @@
 {
   "name": "landmapmagic",
-  "version": "0.0.8",
+  "version": "0.1.0",
   "description": "The easiest way to build land maps in your apps.",
   "type": "module",
   "main": "./dist/root.cjs",
@@ -36,6 +36,16 @@
       "types": "./dist/hooks.d.ts",
       "import": "./dist/hooks.js",
       "require": "./dist/hooks.cjs"
+    },
+    "./leaflet": {
+      "types": "./dist/leaflet.d.ts",
+      "import": "./dist/leaflet.js",
+      "require": "./dist/leaflet.cjs"
+    },
+    "./google": {
+      "types": "./dist/google.d.ts",
+      "import": "./dist/google.js",
+      "require": "./dist/google.cjs"
     }
   },
   "files": [

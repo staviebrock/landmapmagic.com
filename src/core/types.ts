@@ -137,7 +137,13 @@ export interface LandMapProps {
   className?: string;
   height?: string | number;
   width?: string | number;
-  borderColor?: string; // Border/outline color for layers - defaults vary by layer
+  /**
+   * @deprecated `borderColor` is ignored by the upcoming remote-first style
+   * pipeline (see `fetchLandStyle()` / `getLandMapStyle()`). The canonical
+   * styles API ships one good baseline; mutate the returned style client-side
+   * if you need to recolor. Kept here so existing app code keeps compiling.
+   */
+  borderColor?: string;
   cdlYears?: string[]; // Available CDL years to choose from - default: ['2025', '2024', '2023', '2022', '2021', '2020']
   initialCdlYear?: string; // Initial CDL year to display - default: '2025'
   searchLimit?: number; // Maximum number of search results to show - default: 15

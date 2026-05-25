@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import GreenFieldExample from './GreenFieldExample';
 import MapboxSelectableExample from './MapboxSelectableExample';
 import MapLibreStatesExample from './MapLibreStatesExample';
-import MapLibreStatesPMTilesExample from './MapLibreStatesPMTilesExample';
 import ExampleWrapper from './components/ExampleWrapper';
 import HtmlExampleViewer from './components/HtmlExampleViewer';
 
@@ -11,7 +10,6 @@ import HtmlExampleViewer from './components/HtmlExampleViewer';
 import GreenFieldExampleSource from './GreenFieldExample.tsx?raw';
 import MapboxSelectableExampleSource from './MapboxSelectableExample.tsx?raw';
 import MapLibreStatesExampleSource from './MapLibreStatesExample.tsx?raw';
-import MapLibreStatesPMTilesExampleSource from './MapLibreStatesPMTilesExample.tsx?raw';
 
 // Import HTML example sources as raw strings (avoids Vite HMR injection)
 import GoogleMapsExampleSource from '../google-maps-example.html?raw';
@@ -106,19 +104,6 @@ const EXAMPLES: Example[] = [
       sdk: 'maplibre',
       data: ['states'],
       features: ['labels']
-    }
-  },
-  {
-    id: 'maplibre-states-pmtiles',
-    title: 'MapLibre States (PMTiles)',
-    description: 'Direct PMTiles loading via pmtiles:// protocol - no MVT endpoint needed',
-    category: 'react',
-    icon: '📦',
-    tags: {
-      framework: 'react',
-      sdk: 'maplibre',
-      data: ['states'],
-      features: ['labels', 'hover']
     }
   },
   {
@@ -782,11 +767,6 @@ function App() {
       component: <MapLibreStatesExample />,
       source: MapLibreStatesExampleSource,
       title: 'MapLibre States (MVT)'
-    },
-    'maplibre-states-pmtiles': {
-      component: <MapLibreStatesPMTilesExample />,
-      source: MapLibreStatesPMTilesExampleSource,
-      title: 'MapLibre States (PMTiles)'
     }
   };
 

@@ -75,11 +75,21 @@ export type LayerId = (typeof ALL_LAYERS)[number];
 
 /**
  * Create all datasets at once with shared config.
- * Convenience wrapper around the individual make*Dataset functions.
+ * Convenience wrapper around the individual `make*Dataset` functions.
+ *
+ * @deprecated Prefer the remote-first `fetchLandStyle({ apiKey, layers })`
+ * (or `getLandMapStyle()`) which returns a renderer-ready style document
+ * built by the LandMapMagic styles API. The local `make*Dataset` factories
+ * will be removed in a future major release. See the "Customizing Styles"
+ * docs for how to mutate the returned style for color/label tweaks.
  */
 export function createAllDatasets(options: {
   apiKey?: string;
   apiUrl?: string;
+  /**
+   * @deprecated `borderColor` is no longer used by the canonical styles API;
+   * mutate the returned style client-side instead. Kept for source compat.
+   */
   borderColor?: string;
   cdlYear?: string;
 }) {

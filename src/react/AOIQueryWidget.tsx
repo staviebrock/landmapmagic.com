@@ -510,14 +510,14 @@ export function AOIQueryWidget({
   }, [map]);
 
   // Build layers array for API request
+  // CDL years use one entry per year (e.g. ['cdl:2024', 'cdl:2023']).
   const buildLayersArray = useCallback(() => {
     const layers: string[] = [];
     selectedLayers.forEach(layer => {
       if (layer === 'cdl') {
-        // CDL with year support: "cdl:2024,2023,2022"
         const years = Array.from(selectedCdlYears);
-        if (years.length > 0) {
-          layers.push(`cdl:${years.join(',')}`);
+        for (const year of years) {
+          layers.push(`cdl:${year}`);
         }
       } else {
         layers.push(layer);

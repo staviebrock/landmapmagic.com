@@ -55,6 +55,32 @@ export default defineConfig([
     external: ["react", "react-dom", "maplibre-gl", "mapbox-gl", "@turf/turf"],
     clean: false,
   },
+  // Leaflet adapter - one-liner mount helper for Leaflet maps. Peer-deps
+  // (`leaflet`, `leaflet.vectorgrid`) are supplied by the consumer.
+  {
+    entry: { leaflet: "src/leaflet/index.ts" },
+    format: ["esm", "cjs"],
+    dts: true,
+    sourcemap: true,
+    external: ["@turf/turf", "leaflet"],
+    clean: false,
+  },
+  // Google / deck.gl adapter - one-liner mount helper for Google Maps via
+  // GoogleMapsOverlay. deck.gl deps are supplied by the consumer.
+  {
+    entry: { google: "src/google/index.ts" },
+    format: ["esm", "cjs"],
+    dts: true,
+    sourcemap: true,
+    external: [
+      "@turf/turf",
+      "@deck.gl/core",
+      "@deck.gl/layers",
+      "@deck.gl/geo-layers",
+      "@deck.gl/google-maps",
+    ],
+    clean: false,
+  },
   // Vanilla JS build for non-React applications (Flask, Django, PHP, plain HTML, etc.)
   {
     entry: { 'landmap-vanilla': "src/vanilla-js/index.ts" },

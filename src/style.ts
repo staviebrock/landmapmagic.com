@@ -1,145 +1,116 @@
-// landmapmagic/style - MapLibre/Mapbox Style Spec JSON helpers
-// Returns source and layer objects you can merge into any existing map style.
-// No React dependency. No runtime dependency. Pure style spec JSON.
+// landmapmagic/style - MapLibre/Mapbox Style Spec helpers
+//
+// Now remote-first: delegates to fetchLandStyle so all aesthetic decisions
+// (colors, label layouts, hover behavior) live on the styles API.
+// Customization is a client-side concern after fetch — see the
+// "Customizing Styles" docs for recipes.
 
-import type { DatasetSource, DatasetLayer } from './core/types.js';
-import { createAllDatasets } from './layers.js';
+import {
+  fetchLandMapStyle,
+  type LayerSpec,
+  type MapLibreStyleDoc,
+} from './core/styles-client.js';
 import type { LayerId } from './layers.js';
 
 export type { LayerId } from './layers.js';
+export {
+  fetchLandStyle,
+  fetchLandMapStyle,
+  clearLandStyleCache,
+  type LayerSpec,
+  type MapLibreStyleDoc,
+  type LeafletStyleDoc,
+  type GoogleStyleDoc,
+  type TargetStyle,
+  type StyleTarget,
+  type FetchLandStyleOptions,
+} from './core/styles-client.js';
 
-export interface LandMapStyleSources {
-  [sourceId: string]: DatasetSource;
-}
-
-export interface LandMapStyleLayer {
-  id: string;
-  source: string;
-  type: string;
-  'source-layer'?: string;
-  paint?: Record<string, any>;
-  layout?: Record<string, any>;
-  filter?: any[];
-  minzoom?: number;
-  maxzoom?: number;
-}
-
+/** @deprecated Use {@link MapLibreStyleDoc} from './core/styles-client.js' instead. */
 export interface LandMapStyle {
-  sources: LandMapStyleSources;
-  layers: LandMapStyleLayer[];
+  sources: Record<string, any>;
+  layers: any[];
 }
 
 export interface GetLandMapStyleOptions {
-  apiKey?: string;
+  apiKey: string;
   apiUrl?: string;
-  borderColor?: string;
+  /** Layers to include (e.g. ['clu', 'cdl:2024']). Defaults to ['clu']. */
+  layers?: LayerSpec[];
+  /**
+   * @deprecated CDL years are now expressed in `layers` as `cdl:YYYY`. Pass
+   * `layers: ['cdl:2024']` instead. Ignored if `layers` is provided.
+   */
   cdlYear?: string;
-  /** Which layers to include. Defaults to all. */
-  layers?: LayerId[];
-  /** Which layers should start visible. Defaults to none (all start hidden). */
+  /**
+   * @deprecated `borderColor` is no longer accepted by the styles API. The
+   * server ships a single good baseline; mutate the returned doc client-side
+   * to recolor. See the "Customizing Styles" docs.
+   */
+  borderColor?: string;
+  /**
+   * @deprecated visibility was previously baked into the style. Toggle
+   * `layout.visibility` on the returned layers yourself. Kept here so old
+   * call sites still type-check; it is silently ignored.
+   */
   visibleLayers?: LayerId[];
+  signal?: AbortSignal;
 }
 
 /**
- * Get MapLibre/Mapbox style spec sources and layers for LandMapMagic data.
- *
- * Returns a { sources, layers } object that can be merged into any existing style:
+ * Fetch a MapLibre/Mapbox Style Spec v8 document for the requested layers.
  *
  * ```ts
- * const land = getLandMapStyle({ apiKey: 'xxx', layers: ['clu', 'parcels'] });
- * const myStyle = {
- *   ...existingStyle,
- *   sources: { ...existingStyle.sources, ...land.sources },
- *   layers: [...existingStyle.layers, ...land.layers],
- * };
+ * const style = await getLandMapStyle({
+ *   apiKey: 'lmm_live_…',
+ *   layers: ['clu', 'cdl:2024'],
+ * });
+ * map.setStyle(style);
  * ```
  */
-export function getLandMapStyle(options: GetLandMapStyleOptions = {}): LandMapStyle {
-  const {
-    apiKey,
-    apiUrl,
-    borderColor,
-    cdlYear,
-    layers: requestedLayers,
-    visibleLayers = [],
-  } = options;
+export async function getLandMapStyle(
+  options: GetLandMapStyleOptions
+): Promise<MapLibreStyleDoc> {
+  const { apiKey, apiUrl, layers, cdlYear, signal } = options;
 
-  const allDatasets = createAllDatasets({ apiKey, apiUrl, borderColor, cdlYear });
+  // Fall back to a sensible default if the caller forgets `layers`.
+  const resolved: LayerSpec[] =
+    layers && layers.length > 0
+      ? layers
+      : cdlYear
+        ? ['clu', `cdl:${Number(cdlYear)}` as LayerSpec]
+        : ['clu'];
 
-  const sources: LandMapStyleSources = {};
-  const styleLayers: LandMapStyleLayer[] = [];
-
-  const layerFilter = requestedLayers
-    ? new Set(requestedLayers)
-    : new Set(Object.keys(allDatasets));
-
-  for (const [datasetKey, dataset] of Object.entries(allDatasets)) {
-    if (!layerFilter.has(datasetKey as LayerId)) continue;
-
-    // Add source
-    sources[dataset.id] = dataset.sourceProps;
-
-    // Add layers
-    const isVisible = visibleLayers.includes(datasetKey as LayerId);
-
-    const datasetLayers = dataset.layers as Record<string, DatasetLayer>;
-    for (const [layerKey, layerConfig] of Object.entries(datasetLayers)) {
-      const layerId = `${dataset.id}-${layerKey}`;
-
-      const styleLayer: LandMapStyleLayer = {
-        id: layerId,
-        source: dataset.id,
-        type: layerConfig.type,
-        layout: {
-          ...layerConfig.layout,
-          visibility: isVisible ? 'visible' : 'none',
-        },
-      };
-
-      if (layerConfig['source-layer']) {
-        styleLayer['source-layer'] = layerConfig['source-layer'];
-      }
-      if (layerConfig.paint) {
-        styleLayer.paint = layerConfig.paint;
-      }
-      if (layerConfig.filter) {
-        styleLayer.filter = layerConfig.filter;
-      }
-      if (layerConfig.minzoom !== undefined) {
-        styleLayer.minzoom = layerConfig.minzoom;
-      }
-      if (layerConfig.maxzoom !== undefined) {
-        styleLayer.maxzoom = layerConfig.maxzoom;
-      }
-
-      styleLayers.push(styleLayer);
-    }
-  }
-
-  return { sources, layers: styleLayers };
+  return fetchLandMapStyle({ apiKey, apiUrl, layers: resolved, signal });
 }
 
 /**
- * Merge LandMapMagic style into an existing MapLibre/Mapbox style object.
- * Non-destructive - creates a new style object.
+ * Merge a LandMapMagic style into an existing style document. Non-destructive.
+ *
+ * ```ts
+ * const land = await getLandMapStyle({ apiKey, layers: ['clu'] });
+ * const merged = mergeLandMapStyle(myMapStyle, land);
+ * map.setStyle(merged);
+ * ```
  */
 export function mergeLandMapStyle(
   existingStyle: Record<string, any>,
-  landStyle: LandMapStyle,
+  landStyle: { sources?: Record<string, any>; layers?: any[] }
 ): Record<string, any> {
   return {
     ...existingStyle,
     sources: {
       ...(existingStyle.sources || {}),
-      ...landStyle.sources,
+      ...(landStyle.sources || {}),
     },
     layers: [
       ...(existingStyle.layers || []),
-      ...landStyle.layers,
+      ...(landStyle.layers || []),
     ],
   };
 }
 
-// Re-export useful constants for convenience
+// Re-export useful constants for convenience.
 export { LAYER_HIERARCHY, ZOOM_THRESHOLDS, OVERLAY_LAYERS, ALL_LAYERS } from './layers.js';
 export type { VectorDataset, ClickInfoConfig } from './core/types.js';
+
