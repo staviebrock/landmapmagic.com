@@ -514,11 +514,8 @@ export function AOIQueryWidget({
     const layers: string[] = [];
     selectedLayers.forEach(layer => {
       if (layer === 'cdl') {
-        // CDL with year support: "cdl:2024,2023,2022"
         const years = Array.from(selectedCdlYears);
-        if (years.length > 0) {
-          layers.push(`cdl:${years.join(',')}`);
-        }
+        years.forEach(year => layers.push(`cdl:${year}`));
       } else {
         layers.push(layer);
       }

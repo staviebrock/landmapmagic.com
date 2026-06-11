@@ -272,9 +272,7 @@ export function PointLookup({
     selectedLayers.forEach(layer => {
       if (layer === 'cdl') {
         const years = Array.from(selectedCdlYears);
-        if (years.length > 0) {
-          layers.push(`cdl:${years.join(',')}`);
-        }
+        years.forEach(year => layers.push(`cdl:${year}`));
       } else {
         layers.push(layer);
       }
