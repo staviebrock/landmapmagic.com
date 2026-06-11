@@ -28,7 +28,6 @@ import GoogleMapsCdlPmtilesSource from '../google-maps-cdl-pmtiles-example.html?
 import GoogleMapsCdlAoiSource from '../google-maps-cdl-aoi-example.html?raw';
 import GoogleMapsPointLookupSource from '../google-maps-point-lookup-example.html?raw';
 import GoogleMapsSectionsSource from '../google-maps-sections-example.html?raw';
-import GoogleMapsSSURGOSource from '../google-maps-ssurgo-example.html?raw';
 import GoogleMapsAgricultureSource from '../google-maps-agriculture-example.html?raw';
 import GoogleMapsSSURGOAoiSource from '../google-maps-ssurgo-aoi-example.html?raw';
 
@@ -48,7 +47,6 @@ const htmlExampleSources: Record<string, string> = {
   'google-maps-cdl-aoi': GoogleMapsCdlAoiSource,
   'google-maps-point-lookup': GoogleMapsPointLookupSource,
   'google-maps-sections': GoogleMapsSectionsSource,
-  'google-maps-ssurgo': GoogleMapsSSURGOSource,
   'google-maps-agriculture': GoogleMapsAgricultureSource,
   'google-maps-ssurgo-aoi': GoogleMapsSSURGOAoiSource,
 };
@@ -315,20 +313,6 @@ const EXAMPLES: Example[] = [
       sdk: 'google-maps',
       data: ['states', 'counties', 'townships', 'sections', 'clu'],
       features: ['click-to-zoom']
-    }
-  },
-  {
-    id: 'google-maps-ssurgo',
-    title: 'Google Maps SSURGO Soils',
-    description: 'USDA SSURGO soil survey data showing hydrologic soil groups with hover tooltips',
-    category: 'html',
-    path: '/google-maps-ssurgo-example.html',
-    icon: '🌱',
-    tags: {
-      framework: 'html',
-      sdk: 'google-maps',
-      data: ['ssurgo'],
-      features: ['hover']
     }
   },
   {
