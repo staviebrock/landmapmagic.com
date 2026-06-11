@@ -17,7 +17,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # Allow pushing commits and tags
-      id-token: write # Required for npm Trusted Publishing (OIDC); configure publish-npm.yml on npmjs.com
       packages: write # GitHub Packages (unused for npm registry)
     
     steps:
@@ -27,13 +26,6 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: npm Trusted Publishing (one-time setup)
-        run: |
-          echo "::notice::Publishing uses OIDC only (no NPM_TOKEN on the publish step)."
-          echo "On https://www.npmjs.com/package/landmapmagic/access add Trusted publishing → GitHub Actions:"
-          echo "  staviebrock/landmapmagic.com, workflow file publish-npm.yml (exact name)."
-          echo "Remove repository secret NPM_TOKEN if you see E403/E404 — it can interfere with OIDC."
-      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -125,6 +117,8 @@ jobs:
       - name: Publish to npm
         if: steps.check_version.outputs.exists == 'false'
         run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       
       - name: Create GitHub Release
         if: steps.check_version.outputs.exists == 'false'
