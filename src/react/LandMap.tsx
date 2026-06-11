@@ -958,6 +958,60 @@ export function LandMap({
                   }
                 };
 
+                // Rich, context-aware labels (mirrors the google-maps-search example)
+                const ctx = result.context;
+                const ctxState = ctx?.state;
+                const ctxCounty = ctx?.county;
+                const ctxTownship = ctx?.township;
+                const ctxPlss = ctx?.plss;
+
+                const title = result.display_name || result.simple_name || result.name || result.id;
+                const subtitle = result.context_text || result.formatted_label || result.name || '';
+
+                const contextParts: string[] = [];
+                if (result.type === 'plss_section' && ctxPlss?.section != null) {
+                  contextParts.push(`Sec ${ctxPlss.section}`);
+                }
+                if ((result.type === 'plss_township' || result.type === 'plss_section') && ctxTownship?.label) {
+                  contextParts.push(`Twp ${ctxTownship.label}`);
+                }
+                if (ctxCounty?.name) contextParts.push(ctxCounty.name);
+                if (ctxState?.name || ctxState?.abbr) contextParts.push(ctxState.name || ctxState.abbr);
+                if (!contextParts.length && ctxState?.fips) contextParts.push(`State FIPS ${ctxState.fips}`);
+                const contextText = contextParts.join(' / ');
+
+                const chips: { label?: string; value: string }[] = [];
+                const t = result.type;
+                if (t === 'state' && ctxState?.abbr) {
+                  chips.push({ label: 'Abbr', value: ctxState.abbr });
+                } else if (t === 'county') {
+                  if (ctxState?.name) chips.push({ value: ctxState.name });
+                  else if (ctxState?.abbr) chips.push({ label: 'State', value: ctxState.abbr });
+                  if (ctxCounty?.fips) chips.push({ label: 'FIPS', value: ctxCounty.fips });
+                } else if (t === 'place') {
+                  if (ctxCounty?.name) chips.push({ label: 'County', value: ctxCounty.name });
+                  if (ctxState?.name) chips.push({ value: ctxState.name });
+                  else if (ctxState?.abbr) chips.push({ label: 'State', value: ctxState.abbr });
+                } else if (t === 'plss_township' || t === 'plss_section') {
+                  if (t === 'plss_section' && ctxPlss?.section != null) chips.push({ label: 'Sec', value: String(ctxPlss.section) });
+                  if (ctxTownship?.label) chips.push({ label: 'Twp', value: ctxTownship.label });
+                  if (ctxCounty?.name) chips.push({ label: 'County', value: ctxCounty.name });
+                  if (ctxState?.name) chips.push({ value: ctxState.name });
+                  else if (ctxState?.abbr) chips.push({ label: 'State', value: ctxState.abbr });
+                  if (ctxPlss?.meridian) chips.push({ label: 'Mer', value: ctxPlss.meridian });
+                  if (ctxPlss?.town_num != null) chips.push({ label: 'T', value: `${ctxPlss.town_num}${ctxPlss.town_dir || ''}` });
+                  if (ctxPlss?.range_num != null) chips.push({ label: 'R', value: `${ctxPlss.range_num}${ctxPlss.range_dir || ''}` });
+                } else if (t === 'parcel' && result.parcel) {
+                  const p = result.parcel;
+                  if (ctxCounty?.name) chips.push({ label: 'County', value: ctxCounty.name });
+                  if (ctxState?.abbr) chips.push({ label: 'State', value: ctxState.abbr });
+                  if (p.owner) chips.push({ label: 'Owner', value: p.owner });
+                  if (p.acreage != null) chips.push({ label: 'Acres', value: `${p.acreage}` });
+                  if (p.market_value) chips.push({ label: 'Value', value: `$${p.market_value}` });
+                } else if (t === 'address' && ctxState?.abbr) {
+                  chips.push({ label: 'State', value: ctxState.abbr });
+                }
+
                 return (
                   <div
                     key={result.id || index}
@@ -1002,7 +1056,7 @@ export function LandMap({
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                       }}>
-                        {result.simple_name}
+                        {title}
                       </div>
                       <div style={{ 
                         fontSize: '12px', 
@@ -1013,6 +1067,7 @@ export function LandMap({
                         gap: '6px',
                       }}>
                         <span style={{
+                          flexShrink: 0,
                           padding: '1px 6px',
                           borderRadius: '3px',
                           background: getTypeBgColor(result.type),
@@ -1024,57 +1079,51 @@ export function LandMap({
                         }}>
                           {result.type}
                         </span>
-                        <span style={{
+                        {subtitle && (
+                          <span style={{
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}>
+                            {subtitle}
+                          </span>
+                        )}
+                      </div>
+                      {/* Compact context line */}
+                      {contextText && (
+                        <div style={{
+                          fontSize: '11px',
+                          color: '#52525b',
+                          marginTop: '4px',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                         }}>
-                          {result.name}
-                        </span>
-                      </div>
-                      {/* Parcel details row */}
-                      {result.type === 'parcel' && result.parcel && (() => {
-                        const p = result.parcel;
-                        const details: string[] = [];
-                        if (p.owner) details.push(p.owner);
-                        if (p.address) details.push(p.address);
-                        if (p.acreage) details.push(`${p.acreage} ac`);
-                        if (p.market_value) details.push(`$${p.market_value}`);
-                        if (details.length === 0) return null;
-                        return (
-                          <div style={{
-                            fontSize: '11px',
-                            color: '#a1a1aa',
-                            marginTop: '2px',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}>
-                            {details.join(' · ')}
-                          </div>
-                        );
-                      })()}
-                      {/* PLSS context row */}
-                      {(result.type === 'plss_township' || result.type === 'plss_section') && (() => {
-                        const parts: string[] = [];
-                        const countyName = result.context?.county?.name || result.context?.county?.simple_name;
-                        const stateName = result.context?.state?.name || result.context?.state?.abbr;
-                        if (countyName) parts.push(countyName);
-                        if (stateName) parts.push(stateName);
-                        if (parts.length === 0) return null;
-                        return (
-                          <div style={{
-                            fontSize: '11px',
-                            color: '#a1a1aa',
-                            marginTop: '2px',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}>
-                            {parts.join(', ')}
-                          </div>
-                        );
-                      })()}
+                          <span style={{ color: '#a1a1aa', fontWeight: 600, marginRight: '4px' }}>Context</span>
+                          {contextText}
+                        </div>
+                      )}
+                      {/* Labeled detail chips */}
+                      {chips.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginTop: '4px' }}>
+                          {chips.map((c, ci) => (
+                            <span key={ci} style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              fontSize: '10px',
+                              fontWeight: 500,
+                              padding: '1px 5px',
+                              borderRadius: '3px',
+                              background: '#f4f4f5',
+                              color: '#52525b',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {c.label && <span style={{ color: '#a1a1aa', marginRight: '3px' }}>{c.label}</span>}
+                              {c.value}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
