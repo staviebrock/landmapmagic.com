@@ -413,7 +413,7 @@ export function AOIDrawer({
             • Click map to add points<br />
             • Double-click to finish<br />
             • Zoom 14+ required<br />
-            • Max 1000 acres
+            • Max 5000 acres
           </div>
         </div>
       )}

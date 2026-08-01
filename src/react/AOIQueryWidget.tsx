@@ -339,7 +339,7 @@ export function AOIQueryWidget({
   onToggle,
   availableLayers = ['states', 'counties', 'plss', 'townships', 'sections', 'clu', 'cdl', 'ssurgo'],
   cdlYears = ['2025', '2024', '2023', '2022', '2021', '2020'],
-  maxAcres = 1000,
+  maxAcres = 5000,
   onResults
 }: AOIQueryWidgetProps) {
   const [isDrawing, setIsDrawing] = useState(false);

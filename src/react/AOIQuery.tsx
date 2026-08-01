@@ -33,7 +33,7 @@ export function AOIQuery({
   onResults,
   onError,
   maxFeatures = 500,
-  maxAcres = 1000,
+  maxAcres = 5000,
   minZoom = 14,
   enabled = false
 }: AOIQueryProps) {
@@ -57,7 +57,7 @@ export function AOIQuery({
     // Estimate query size before executing
     const aoiArea = turf.area(aoi) / 4047; // Convert to acres
     
-    // Strict area limit - 1000 acres max
+    // Strict area limit - 5000 acres max
     if (aoiArea > maxAcres) {
       onError?.(`Query area too large (${Math.round(aoiArea)} acres). Maximum allowed: ${maxAcres} acres.`);
       return;

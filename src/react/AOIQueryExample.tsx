@@ -131,7 +131,7 @@ export function AOIQueryExample({ map, datasets }: AOIQueryExampleProps) {
               <br />
               <small>• Zoom level 14+ required</small>
               <br />
-              <small>• Max 1000 acres</small>
+              <small>• Max 5000 acres</small>
             </div>
           ) : (
             <div>Query tool enabled. Click to start drawing.</div>

@@ -290,7 +290,7 @@ const EXAMPLES: Example[] = [
   {
     id: 'google-maps-cdl-aoi',
     title: 'CDL AOI Query',
-    description: 'Draw a polygon to query crop statistics from CDL data (max 1000 acres)',
+    description: 'Draw a polygon to query crop statistics from CDL data (max 5000 acres)',
     category: 'html',
     path: '/google-maps-cdl-aoi-example.html',
     icon: '🌾',
